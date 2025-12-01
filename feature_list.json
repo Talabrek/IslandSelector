@@ -1,0 +1,2646 @@
+[
+  {
+    "category": "functional",
+    "description": "Plugin loads successfully with BentoBox and BSkyBlock",
+    "steps": [
+      "Step 1: Start the Minecraft server with BentoBox and BSkyBlock installed",
+      "Step 2: Check server console for IslandSelector addon loading messages",
+      "Step 3: Verify no errors in console during startup",
+      "Step 4: Run /bentobox version and confirm IslandSelector is listed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Config.yml file is created with all default values",
+    "steps": [
+      "Step 1: Start server with IslandSelector for the first time",
+      "Step 2: Navigate to plugins/IslandSelector/ directory",
+      "Step 3: Open config.yml file",
+      "Step 4: Verify all configuration sections exist (grid, slots, relocation, reserved, backups, gui, visitors, performance, integration, debug)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Database tables/collections are created on first startup",
+    "steps": [
+      "Step 1: Start server with IslandSelector",
+      "Step 2: Check BentoBox database location (YAML/JSON files or SQL database)",
+      "Step 3: Verify IslandSelector data structures exist for grid locations",
+      "Step 4: Verify IslandSelector data structures exist for slot metadata"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "FastAsyncWorldEdit dependency is detected and verified",
+    "steps": [
+      "Step 1: Install FAWE on the server",
+      "Step 2: Start server with IslandSelector",
+      "Step 3: Check console for FAWE detection message",
+      "Step 4: Verify no warnings about missing FAWE"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Basic command /islandselector executes without errors",
+    "steps": [
+      "Step 1: Join the Minecraft server as a player",
+      "Step 2: Execute /islandselector command",
+      "Step 3: Verify a GUI opens or appropriate message is shown",
+      "Step 4: Verify no errors in server console"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Main grid GUI opens with 54 slots arranged correctly",
+    "steps": [
+      "Step 1: Join the Minecraft server",
+      "Step 2: Execute /islandselector command",
+      "Step 3: Verify a chest GUI with 6 rows (54 slots) opens",
+      "Step 4: Check that top rows have scroll arrows and center area shows grid",
+      "Step 5: Check that bottom row has control buttons"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Grid GUI title displays current viewport coordinates",
+    "steps": [
+      "Step 1: Open the grid GUI with /islandselector",
+      "Step 2: Check the GUI title bar",
+      "Step 3: Verify it shows format like 'Grid View: A1 - G4'",
+      "Step 4: Scroll the grid and verify title updates to reflect new viewport"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Grid displays 7x4 island slots in center viewing area",
+    "steps": [
+      "Step 1: Open the grid GUI",
+      "Step 2: Count the island display slots in the center area",
+      "Step 3: Verify there are 7 columns and 4 rows (28 total slots)",
+      "Step 4: Verify the slots are positioned in the center of the GUI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Available/empty locations display as green stained glass panes",
+    "steps": [
+      "Step 1: Open the grid GUI on a fresh server with no islands",
+      "Step 2: Observe the grid display slots",
+      "Step 3: Verify empty locations show as GREEN_STAINED_GLASS_PANE items",
+      "Step 4: Hover over an empty slot and verify tooltip shows it's available"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Occupied islands with online owners show player heads",
+    "steps": [
+      "Step 1: Have a player create an island using BSkyBlock",
+      "Step 2: Ensure that player is online",
+      "Step 3: Open the grid GUI with a different account",
+      "Step 4: Locate the occupied island slot",
+      "Step 5: Verify it displays as the island owner's player head"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Occupied islands with offline owners show red stained glass",
+    "steps": [
+      "Step 1: Have a player create an island",
+      "Step 2: Have that player disconnect from the server",
+      "Step 3: Join with a different account and open the grid GUI",
+      "Step 4: Locate the offline player's island slot",
+      "Step 5: Verify it displays as RED_STAINED_GLASS_PANE"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Player's own island displays with enchantment glow effect",
+    "steps": [
+      "Step 1: Create an island as a player",
+      "Step 2: Open the grid GUI",
+      "Step 3: Locate your own island in the grid",
+      "Step 4: Verify it has an enchantment glow effect",
+      "Step 5: Verify tooltip shows '🏠 Your Island'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Reserved blocked locations show as gray stained glass pane",
+    "steps": [
+      "Step 1: As admin, reserve a location with /islandselector admin reserve A1",
+      "Step 2: Do not set a price (leave it blocked)",
+      "Step 3: Open grid GUI as a player",
+      "Step 4: Locate position A1",
+      "Step 5: Verify it shows as GRAY_STAINED_GLASS_PANE with '🚫 Reserved' tooltip"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Reserved purchasable locations show as gold blocks",
+    "steps": [
+      "Step 1: As admin, reserve a location and set price: /islandselector admin setprice B2 50000",
+      "Step 2: Open grid GUI as a player",
+      "Step 3: Locate position B2",
+      "Step 4: Verify it shows as GOLD_BLOCK",
+      "Step 5: Verify tooltip shows '⭐ Premium Location' with price"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Locked grid areas show as black stained glass pane",
+    "steps": [
+      "Step 1: Configure grid with width 10, height 10 in config.yml",
+      "Step 2: Reload or restart server",
+      "Step 3: Open grid GUI",
+      "Step 4: Scroll to position K11 (beyond configured boundaries)",
+      "Step 5: Verify locked areas show as BLACK_STAINED_GLASS_PANE with '🔒 Locked Area' tooltip"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scroll up arrows move viewport north by 1 row",
+    "steps": [
+      "Step 1: Open grid GUI starting at viewport A1-G4",
+      "Step 2: Click one of the scroll up arrow buttons",
+      "Step 3: Verify GUI title updates to show viewport moved up",
+      "Step 4: Verify grid content shifts appropriately"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scroll down arrows move viewport south by 1 row",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Click one of the scroll down arrow buttons",
+      "Step 3: Verify GUI title updates to show viewport moved down",
+      "Step 4: Verify grid content shifts appropriately"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scroll left arrows move viewport west by 1 column",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Click one of the scroll left arrow buttons",
+      "Step 3: Verify GUI title updates to show viewport moved left",
+      "Step 4: Verify grid content shifts appropriately"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scroll right arrows move viewport east by 1 column",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Click one of the scroll right arrow buttons",
+      "Step 3: Verify GUI title updates to show viewport moved right",
+      "Step 4: Verify grid content shifts appropriately"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Shift-clicking scroll arrows moves viewport by configured jump amount",
+    "steps": [
+      "Step 1: Set scroll-amount-shift to 5 in config.yml",
+      "Step 2: Open grid GUI",
+      "Step 3: Shift-click a scroll arrow button",
+      "Step 4: Verify viewport jumps by 5 rows/columns instead of 1"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Scroll arrows are disabled at grid boundaries",
+    "steps": [
+      "Step 1: Open grid GUI at position A1",
+      "Step 2: Verify scroll up arrows are grayed out or inactive",
+      "Step 3: Verify scroll left arrows are grayed out or inactive",
+      "Step 4: Scroll to bottom-right of grid",
+      "Step 5: Verify scroll down and right arrows are grayed out"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Filter All button displays correctly with paper item",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Locate bottom control row",
+      "Step 3: Find the 'Filter: All' button (should be PAPER item)",
+      "Step 4: Verify it has enchantment glow by default (active filter)",
+      "Step 5: Verify tooltip shows 'All' or similar"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Filter Available button displays correctly with green dye",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Locate the 'Filter: Available' button (should be GREEN_DYE item)",
+      "Step 3: Verify tooltip explains it filters to available locations",
+      "Step 4: Verify it doesn't have glow initially (inactive)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Filter Online button displays correctly with lime dye",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Locate the 'Filter: Online' button (should be LIME_DYE item)",
+      "Step 3: Verify tooltip explains it filters to online players",
+      "Step 4: Verify it doesn't have glow initially (inactive)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Filter All shows all grid locations",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Click 'Filter: All' button",
+      "Step 3: Verify grid shows occupied, empty, and reserved locations",
+      "Step 4: Verify the button gains enchantment glow (active filter)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Filter Available shows only claimable empty locations",
+    "steps": [
+      "Step 1: Have some occupied and some empty islands in the grid",
+      "Step 2: Open grid GUI and click 'Filter: Available'",
+      "Step 3: Verify only green glass panes (empty locations) are visible",
+      "Step 4: Verify occupied and reserved locations are hidden or grayed out"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Filter Online shows only islands with online owners",
+    "steps": [
+      "Step 1: Have multiple islands, some owners online and some offline",
+      "Step 2: Open grid GUI and click 'Filter: Online'",
+      "Step 3: Verify only player heads (online owners) are shown",
+      "Step 4: Verify red glass panes (offline owners) are hidden"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Search button displays with compass item",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Locate the search button in bottom row",
+      "Step 3: Verify it shows as COMPASS item",
+      "Step 4: Verify tooltip indicates it's for searching players"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Search function finds player and centers grid on their island",
+    "steps": [
+      "Step 1: Have a player named 'TestPlayer' with an island at location F10",
+      "Step 2: Open grid GUI as a different player",
+      "Step 3: Click the search button",
+      "Step 4: Enter 'TestPlayer' in the search interface",
+      "Step 5: Verify grid viewport centers on F10",
+      "Step 6: Verify TestPlayer's island is visible in the viewport"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Search function handles partial name matching",
+    "steps": [
+      "Step 1: Have a player named 'Notch' with an island",
+      "Step 2: Open grid GUI and use search",
+      "Step 3: Enter partial name like 'Not'",
+      "Step 4: Verify it finds 'Notch' and centers on their island"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Search function shows error for player not found",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Click search button",
+      "Step 3: Enter a player name that doesn't exist",
+      "Step 4: Verify an error message is shown indicating player not found"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Find My Island button displays with ender eye item",
+    "steps": [
+      "Step 1: Create an island as a player",
+      "Step 2: Open grid GUI",
+      "Step 3: Locate 'Find My Island' button in bottom row",
+      "Step 4: Verify it shows as ENDER_EYE item",
+      "Step 5: Verify tooltip indicates it centers on your island"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Find My Island button centers viewport on player's island",
+    "steps": [
+      "Step 1: Create an island at location M15",
+      "Step 2: Open grid GUI (which starts at A1)",
+      "Step 3: Click 'Find My Island' button",
+      "Step 4: Verify viewport instantly centers on M15",
+      "Step 5: Verify your island is visible in the center of the viewport"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Find My Island button is hidden/disabled for players without islands",
+    "steps": [
+      "Step 1: Join server with a new player who has no island",
+      "Step 2: Open grid GUI",
+      "Step 3: Verify 'Find My Island' button is either hidden, grayed out, or shows disabled tooltip"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Neighborhood View button displays with map item",
+    "steps": [
+      "Step 1: Create an island",
+      "Step 2: Open grid GUI",
+      "Step 3: Locate 'Neighborhood View' button",
+      "Step 4: Verify it shows as FILLED_MAP item",
+      "Step 5: Verify tooltip indicates it opens neighborhood view"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood View button opens 3x3 neighbor GUI",
+    "steps": [
+      "Step 1: Create an island",
+      "Step 2: Open grid GUI",
+      "Step 3: Click 'Neighborhood View' button",
+      "Step 4: Verify a new GUI opens showing 3x3 grid of neighbors",
+      "Step 5: Verify your island is in the center with glow effect"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Slot Selection button displays with chest item",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Locate 'Slot Selection' button",
+      "Step 3: Verify it shows as CHEST item",
+      "Step 4: Verify tooltip indicates it opens slot management"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot Selection button opens slot management GUI",
+    "steps": [
+      "Step 1: Create an island",
+      "Step 2: Open grid GUI",
+      "Step 3: Click 'Slot Selection' button",
+      "Step 4: Verify slot management GUI opens",
+      "Step 5: Verify it shows available slots (default 2)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Close button displays with barrier item",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Locate close button in bottom row",
+      "Step 3: Verify it shows as BARRIER item",
+      "Step 4: Verify tooltip indicates it closes the GUI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Close button closes the grid GUI",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Click the close/barrier button",
+      "Step 3: Verify the GUI closes and player returns to normal view"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Hovering over empty location shows available claim tooltip",
+    "steps": [
+      "Step 1: Open grid GUI",
+      "Step 2: Hover over a green glass pane (empty location)",
+      "Step 3: Verify tooltip shows coordinates (e.g., 'Location: C7')",
+      "Step 4: Verify tooltip indicates it's available for claiming",
+      "Step 5: Verify tooltip shows 'Left-click to claim this location' or 'Left-click to relocate here'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Hovering over occupied island shows owner information",
+    "steps": [
+      "Step 1: Have a player with an island",
+      "Step 2: Open grid GUI as different player",
+      "Step 3: Hover over the occupied island slot",
+      "Step 4: Verify tooltip shows owner's name",
+      "Step 5: Verify tooltip shows island level (if Level addon installed)",
+      "Step 6: Verify tooltip shows number of team members",
+      "Step 7: Verify tooltip shows online status (🟢 Online or 🔴 Offline)",
+      "Step 8: Verify tooltip shows warp status (🌐 Warp Open or 🔒 Private)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Hovering over own island shows Your Island indicator",
+    "steps": [
+      "Step 1: Create an island",
+      "Step 2: Open grid GUI",
+      "Step 3: Hover over your own island slot",
+      "Step 4: Verify tooltip shows '🏠 Your Island'",
+      "Step 5: Verify tooltip shows coordinates",
+      "Step 6: Verify tooltip shows active slot name",
+      "Step 7: Verify tooltip shows island level and member count"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Hovering over premium location shows price and purchase option",
+    "steps": [
+      "Step 1: Admin sets a premium location: /islandselector admin setprice D4 50000",
+      "Step 2: Open grid GUI as player",
+      "Step 3: Hover over D4 (gold block)",
+      "Step 4: Verify tooltip shows '⭐ Premium Location: D4'",
+      "Step 5: Verify tooltip shows 'Price: $50,000' or configured amount",
+      "Step 6: Verify tooltip shows 'Click to purchase'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "New player without island sees grid in claiming mode",
+    "steps": [
+      "Step 1: Join server with new player who has never created island",
+      "Step 2: Execute /island or BSkyBlock island creation command",
+      "Step 3: Verify IslandSelector intercepts and shows grid GUI instead of auto-creating island",
+      "Step 4: Verify available locations show 'Click to claim this location'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Clicking empty location in claiming mode opens claim confirmation",
+    "steps": [
+      "Step 1: Open grid GUI as new player without island",
+      "Step 2: Click on an empty green glass location",
+      "Step 3: Verify a confirmation GUI opens",
+      "Step 4: Verify confirmation shows selected coordinates",
+      "Step 5: Verify confirmation shows neighboring island owners (if any)",
+      "Step 6: Verify confirmation has Confirm and Cancel buttons"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Confirming claim creates island at correct grid coordinates",
+    "steps": [
+      "Step 1: Select location C7 in claiming mode",
+      "Step 2: Click Confirm in confirmation GUI",
+      "Step 3: Verify BSkyBlock island creation flow starts",
+      "Step 4: After island is created, verify it exists at world coordinates matching C7",
+      "Step 5: Verify grid location C7 is now marked as occupied",
+      "Step 6: Verify player is teleported to new island"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Canceling claim confirmation returns to grid GUI",
+    "steps": [
+      "Step 1: Select an empty location for claiming",
+      "Step 2: Confirmation GUI opens",
+      "Step 3: Click Cancel button",
+      "Step 4: Verify player returns to grid GUI",
+      "Step 5: Verify no island was created"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Grid coordinate A1 maps to correct world coordinates",
+    "steps": [
+      "Step 1: Configure grid with origin x=0, z=0 and spacing=500",
+      "Step 2: Claim location A1",
+      "Step 3: After island creation, check island center location",
+      "Step 4: Verify world X coordinate is 0 (or origin X)",
+      "Step 5: Verify world Z coordinate is 0 (or origin Z)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Grid coordinate B2 maps to correct world coordinates",
+    "steps": [
+      "Step 1: Configure grid with origin x=0, z=0 and spacing=500",
+      "Step 2: Claim location B2",
+      "Step 3: After island creation, check island center",
+      "Step 4: Verify world X coordinate is 500 (1 column * 500)",
+      "Step 5: Verify world Z coordinate is 500 (1 row * 500)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Grid spacing configuration affects island placement",
+    "steps": [
+      "Step 1: Set island-spacing to 1000 in config.yml",
+      "Step 2: Restart server",
+      "Step 3: Claim location B1 (second column, first row)",
+      "Step 4: Verify island is created 1000 blocks from origin (not 500)",
+      "Step 5: Verify spacing matches configured value"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Island UUID is linked to grid coordinates in database",
+    "steps": [
+      "Step 1: Create an island at location D5",
+      "Step 2: Check database/storage",
+      "Step 3: Verify island UUID is stored",
+      "Step 4: Verify grid coordinate D5 is linked to that island UUID",
+      "Step 5: Verify this link persists after server restart"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot claim already occupied location",
+    "steps": [
+      "Step 1: Have Player1 claim location E5",
+      "Step 2: Join as Player2 without an island",
+      "Step 3: Open grid GUI in claiming mode",
+      "Step 4: Try to click on E5 (occupied by Player1)",
+      "Step 5: Verify click is blocked or shows error message",
+      "Step 6: Verify Player2 cannot claim that location"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot claim reserved blocked location",
+    "steps": [
+      "Step 1: Admin reserves location F6 without price (blocked)",
+      "Step 2: Join as player without island",
+      "Step 3: Try to click F6 in claiming mode",
+      "Step 4: Verify click is blocked with message indicating it's reserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Can purchase and claim reserved premium location with sufficient funds",
+    "steps": [
+      "Step 1: Admin sets premium location: /islandselector admin setprice G7 10000",
+      "Step 2: Give player 15000 money via Vault economy plugin",
+      "Step 3: Player clicks on G7 in claiming mode",
+      "Step 4: Verify purchase confirmation GUI opens showing price",
+      "Step 5: Click Confirm",
+      "Step 6: Verify 10000 is deducted from player balance",
+      "Step 7: Verify island is created at G7",
+      "Step 8: Verify G7 is no longer reserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot purchase premium location with insufficient funds",
+    "steps": [
+      "Step 1: Admin sets premium location price to 50000",
+      "Step 2: Player has only 1000 money",
+      "Step 3: Player tries to purchase premium location",
+      "Step 4: Verify error message about insufficient funds",
+      "Step 5: Verify no money is deducted",
+      "Step 6: Verify location remains reserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Purchase bypass permission allows claiming premium locations for free",
+    "steps": [
+      "Step 1: Set premium location with price 50000",
+      "Step 2: Give player permission islandselector.bypass.cost.purchase",
+      "Step 3: Player has 0 money",
+      "Step 4: Player claims the premium location",
+      "Step 5: Verify island is created without charging money",
+      "Step 6: Verify player balance remains at 0"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Slot Selection GUI opens with 27 slots and correct layout",
+    "steps": [
+      "Step 1: Execute /islandselector slots or click Slot Selection button",
+      "Step 2: Verify a chest GUI with 3 rows (27 slots) opens",
+      "Step 3: Verify title is 'Your Island Slots'",
+      "Step 4: Verify slots 2-6 in first row show slot items",
+      "Step 5: Verify bottom row has Back and Close buttons"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Active slot displays with enchantment glow and ACTIVE indicator",
+    "steps": [
+      "Step 1: Create an island (becomes slot 1, active by default)",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Locate slot 1 display",
+      "Step 4: Verify it has enchantment glow effect",
+      "Step 5: Verify tooltip/lore contains '★ ACTIVE' indicator",
+      "Step 6: Verify name is green and bold (&a&l)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Inactive slot with island shows custom icon and switch prompt",
+    "steps": [
+      "Step 1: Create islands in slot 1 and slot 2",
+      "Step 2: Ensure slot 1 is active",
+      "Step 3: Open slot selection GUI",
+      "Step 4: Locate slot 2 display (inactive)",
+      "Step 5: Verify it shows custom icon (default: grass block) without glow",
+      "Step 6: Verify lore shows island level and member count",
+      "Step 7: Verify lore shows 'Click to switch to this slot'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Empty unlocked slot displays with lime dye and create prompt",
+    "steps": [
+      "Step 1: Player has 2 slots available but only 1 island",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Locate empty slot 2",
+      "Step 4: Verify it shows as LIME_DYE item",
+      "Step 5: Verify name is '&aEmpty Slot'",
+      "Step 6: Verify lore shows 'Click to create a new island'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Locked slot displays with barrier and unlock requirement",
+    "steps": [
+      "Step 1: Player has permission for 2 slots but config allows up to 5",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Locate locked slot 3",
+      "Step 4: Verify it shows as BARRIER item",
+      "Step 5: Verify name is '&cLocked Slot'",
+      "Step 6: Verify lore shows required permission (e.g., 'islandselector.slots.3')",
+      "Step 7: Verify lore suggests how to unlock (e.g., 'VIP rank')"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Player with islandselector.slots.2 permission has access to 2 slots",
+    "steps": [
+      "Step 1: Give player permission islandselector.slots.2",
+      "Step 2: Remove higher slot permissions (slots.3, slots.4, slots.5)",
+      "Step 3: Open slot selection GUI",
+      "Step 4: Verify slots 1 and 2 are unlocked",
+      "Step 5: Verify slots 3-5 show as locked"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Player with islandselector.slots.5 permission has access to 5 slots",
+    "steps": [
+      "Step 1: Give player permission islandselector.slots.5",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Verify all 5 slots are unlocked (not showing barrier)",
+      "Step 4: Verify player can create islands in all 5 slots"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Clicking locked slot shows error message about requirements",
+    "steps": [
+      "Step 1: Player has only 2 slots unlocked",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Click on locked slot 3",
+      "Step 4: Verify error message is shown explaining unlock requirements",
+      "Step 5: Verify no action occurs (no switch, no island creation)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Clicking empty unlocked slot starts island creation flow",
+    "steps": [
+      "Step 1: Player has 2 slots, with island in slot 1 only",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Click on empty slot 2 (lime dye)",
+      "Step 4: Verify BSkyBlock island creation/schematic selection starts",
+      "Step 5: After creation, verify new island exists in slot 2",
+      "Step 6: Verify both slots now show islands in slot GUI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "New island in empty slot shares same grid location as other slots",
+    "steps": [
+      "Step 1: Create island in slot 1 at grid location H8",
+      "Step 2: Create island in slot 2 (empty slot)",
+      "Step 3: Switch to slot 2 and check location",
+      "Step 4: Verify slot 2 island is also at grid location H8",
+      "Step 5: Verify both islands load at the exact same world coordinates"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Clicking inactive slot opens switch confirmation GUI",
+    "steps": [
+      "Step 1: Have islands in slot 1 (active) and slot 2 (inactive)",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Left-click on slot 2",
+      "Step 4: Verify a confirmation GUI opens",
+      "Step 5: Verify confirmation shows 'Switch from [Slot 1 name] to [Slot 2 name]'",
+      "Step 6: Verify confirmation has Confirm and Cancel buttons"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Switch confirmation GUI shows current and target slot names",
+    "steps": [
+      "Step 1: Rename slot 1 to 'Main Base' and slot 2 to 'Farm Island'",
+      "Step 2: Initiate switch from slot 1 to slot 2",
+      "Step 3: Verify confirmation GUI shows 'Main Base' → 'Farm Island'",
+      "Step 4: Verify format clearly indicates direction of switch"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Switch confirmation shows cooldown warning if applicable",
+    "steps": [
+      "Step 1: Set switch-cooldown to 3600 in config",
+      "Step 2: Switch from slot 1 to slot 2",
+      "Step 3: Immediately try to switch back to slot 1",
+      "Step 4: Verify confirmation GUI shows cooldown time remaining",
+      "Step 5: Verify warning about cooldown is displayed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Switch confirmation shows visitor teleportation warning",
+    "steps": [
+      "Step 1: Initiate a slot switch",
+      "Step 2: Check confirmation GUI",
+      "Step 3: Verify warning message about visitors being teleported is shown",
+      "Step 4: Verify message explains where visitors will be sent"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Confirming switch saves current island as schematic",
+    "steps": [
+      "Step 1: Build structures on slot 1 island",
+      "Step 2: Switch from slot 1 to slot 2",
+      "Step 3: Confirm the switch",
+      "Step 4: Check file system at plugins/IslandSelector/slots/{uuid}/",
+      "Step 5: Verify slot-1.schem file exists",
+      "Step 6: Verify file contains the island data (non-zero size)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot switch clears current location in world",
+    "steps": [
+      "Step 1: Have island with visible structures in slot 1",
+      "Step 2: Switch to slot 2",
+      "Step 3: After switch, check the grid location in world",
+      "Step 4: Verify old slot 1 structures are removed (void)",
+      "Step 5: Verify slot 2 island structures are now present"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot switch loads target slot schematic at same location",
+    "steps": [
+      "Step 1: Build unique structures in slot 1 and slot 2",
+      "Step 2: Switch from slot 1 to slot 2",
+      "Step 3: Verify slot 2 structures appear at the grid location",
+      "Step 4: Switch back to slot 1",
+      "Step 5: Verify slot 1 structures reappear exactly as they were"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot switch teleports island owner to island spawn",
+    "steps": [
+      "Step 1: Be on slot 1 island",
+      "Step 2: Switch to slot 2",
+      "Step 3: After switch completes, verify you are teleported to slot 2 island spawn point",
+      "Step 4: Verify location matches BSkyBlock's configured spawn for that island"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot switch teleports team members to island spawn",
+    "steps": [
+      "Step 1: Add a team member to your island",
+      "Step 2: Have team member stand on the island",
+      "Step 3: Island owner switches slots",
+      "Step 4: Verify team member is teleported to new slot's island spawn",
+      "Step 5: Verify team member remains on the team"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot switch teleports visitors away from island",
+    "steps": [
+      "Step 1: Have a visitor (non-team player) on your island",
+      "Step 2: Switch slots",
+      "Step 3: Verify visitor is teleported away (to their island or spawn)",
+      "Step 4: Verify visitor receives notification about being teleported",
+      "Step 5: Verify visitor is not on the island after switch"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Visitors are teleported to their own island if they have one",
+    "steps": [
+      "Step 1: Visitor has their own island",
+      "Step 2: Visitor is visiting your island",
+      "Step 3: You switch slots",
+      "Step 4: Verify visitor is teleported to their own island (not spawn)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Visitors without island are teleported to spawn",
+    "steps": [
+      "Step 1: Visitor has no island",
+      "Step 2: Visitor is on your island",
+      "Step 3: You switch slots",
+      "Step 4: Verify visitor is teleported to server spawn point"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Visitor teleportation includes configured delay for message reading",
+    "steps": [
+      "Step 1: Set visitors.teleport-delay to 40 ticks in config",
+      "Step 2: Have visitor on island",
+      "Step 3: Switch slots",
+      "Step 4: Verify warning message is shown to visitor",
+      "Step 5: Verify visitor is teleported after 2 seconds (40 ticks), not immediately"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Action bar shows progress during slot switch",
+    "steps": [
+      "Step 1: Initiate slot switch",
+      "Step 2: Watch action bar during the switch process",
+      "Step 3: Verify messages appear like 'Saving current island...'",
+      "Step 4: Verify messages update to 'Clearing location...'",
+      "Step 5: Verify messages update to 'Loading new island...'",
+      "Step 6: Verify final message 'Switch complete!'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Player movement is restricted during slot switch",
+    "steps": [
+      "Step 1: Initiate slot switch",
+      "Step 2: Try to move during the switch process",
+      "Step 3: Verify movement is blocked or player is held in place",
+      "Step 4: After switch completes, verify movement is restored"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Switch completes successfully and shows completion notification",
+    "steps": [
+      "Step 1: Switch from slot 1 to slot 2",
+      "Step 2: Wait for switch to complete",
+      "Step 3: Verify completion message is shown (chat or action bar)",
+      "Step 4: Verify sound effect plays (if configured)",
+      "Step 5: Verify you're now on slot 2 island"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Canceling switch confirmation returns to slot selection GUI",
+    "steps": [
+      "Step 1: Click inactive slot to open switch confirmation",
+      "Step 2: Click Cancel button",
+      "Step 3: Verify no switch occurs",
+      "Step 4: Verify player returns to slot selection GUI",
+      "Step 5: Verify still on original active slot"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot switch cooldown is enforced correctly",
+    "steps": [
+      "Step 1: Set switch-cooldown to 60 seconds in config",
+      "Step 2: Switch from slot 1 to slot 2",
+      "Step 3: Immediately try to switch back to slot 1",
+      "Step 4: Verify error message about cooldown",
+      "Step 5: Verify time remaining is shown (e.g., '59 seconds remaining')",
+      "Step 6: Wait 60 seconds and verify switch is now allowed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot switch cooldown persists across server restarts",
+    "steps": [
+      "Step 1: Switch slots to trigger cooldown",
+      "Step 2: Restart server while cooldown is active",
+      "Step 3: Join back and try to switch again",
+      "Step 4: Verify cooldown is still enforced",
+      "Step 5: Verify remaining time is calculated correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Bypass cooldown permission allows switching without cooldown",
+    "steps": [
+      "Step 1: Give player islandselector.bypass.cooldown.switch permission",
+      "Step 2: Switch from slot 1 to slot 2",
+      "Step 3: Immediately switch back to slot 1",
+      "Step 4: Verify no cooldown error",
+      "Step 5: Verify switch completes successfully"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Setting switch-cooldown to 0 disables cooldown",
+    "steps": [
+      "Step 1: Set switch-cooldown to 0 in config",
+      "Step 2: Reload or restart",
+      "Step 3: Switch between slots multiple times rapidly",
+      "Step 4: Verify no cooldown is enforced",
+      "Step 5: Verify all switches complete successfully"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Right-clicking slot opens slot settings GUI",
+    "steps": [
+      "Step 1: Have an island in slot 1",
+      "Step 2: Open slot selection GUI",
+      "Step 3: Right-click on slot 1",
+      "Step 4: Verify slot settings GUI opens",
+      "Step 5: Verify title shows 'Slot Settings: [Slot Name]'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Slot settings GUI displays current slot preview",
+    "steps": [
+      "Step 1: Open slot settings for a slot",
+      "Step 2: Check slot 4 of the GUI (center of first row)",
+      "Step 3: Verify it shows the slot's current icon",
+      "Step 4: Verify it shows the slot's current name in tooltip"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Slot settings GUI has Rename button with name tag",
+    "steps": [
+      "Step 1: Open slot settings GUI",
+      "Step 2: Locate Rename button (slot 11)",
+      "Step 3: Verify it shows as NAME_TAG item",
+      "Step 4: Verify tooltip shows 'Rename Slot' and explains functionality"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Slot settings GUI has Change Icon button with item frame",
+    "steps": [
+      "Step 1: Open slot settings GUI",
+      "Step 2: Locate Change Icon button (slot 13)",
+      "Step 3: Verify it shows as ITEM_FRAME item",
+      "Step 4: Verify tooltip shows 'Change Icon' and explains to hold an item"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Slot settings GUI has Delete Slot button with warning",
+    "steps": [
+      "Step 1: Open slot settings GUI",
+      "Step 2: Locate Delete Slot button (slot 15)",
+      "Step 3: Verify it shows as TNT or LAVA_BUCKET",
+      "Step 4: Verify name is '&cDelete Slot'",
+      "Step 5: Verify lore includes '&c&lThis cannot be undone!' warning"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Clicking Rename button allows changing slot name",
+    "steps": [
+      "Step 1: Open slot settings for slot 1",
+      "Step 2: Click Rename button",
+      "Step 3: Enter new name via anvil GUI or chat (e.g., 'My Farm')",
+      "Step 4: Verify slot name changes to 'My Farm'",
+      "Step 5: Verify new name appears in slot selection GUI",
+      "Step 6: Verify new name persists after reopening GUI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot name changes are saved to database and persist across restarts",
+    "steps": [
+      "Step 1: Rename slot 1 to 'Main Base'",
+      "Step 2: Restart server",
+      "Step 3: Open slot selection GUI",
+      "Step 4: Verify slot 1 still shows name 'Main Base'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Clicking Change Icon sets slot icon to held item",
+    "steps": [
+      "Step 1: Hold a diamond pickaxe in hand",
+      "Step 2: Open slot settings for slot 1",
+      "Step 3: Click Change Icon button",
+      "Step 4: Verify success message",
+      "Step 5: Close and reopen slot selection GUI",
+      "Step 6: Verify slot 1 now displays diamond pickaxe as icon"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Change Icon fails gracefully if no item held",
+    "steps": [
+      "Step 1: Ensure hand is empty",
+      "Step 2: Open slot settings",
+      "Step 3: Click Change Icon button",
+      "Step 4: Verify error message explaining you must hold an item"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Slot icon changes are saved and persist across restarts",
+    "steps": [
+      "Step 1: Change slot 1 icon to emerald",
+      "Step 2: Restart server",
+      "Step 3: Open slot selection GUI",
+      "Step 4: Verify slot 1 still shows emerald icon"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Clicking Delete Slot opens deletion confirmation",
+    "steps": [
+      "Step 1: Open slot settings for a slot with island",
+      "Step 2: Click Delete Slot button",
+      "Step 3: Verify deletion confirmation GUI opens",
+      "Step 4: Verify confirmation shows slot name being deleted",
+      "Step 5: Verify strong warning about permanent deletion",
+      "Step 6: Verify Confirm and Cancel buttons"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Confirming slot deletion removes island and frees slot",
+    "steps": [
+      "Step 1: Have island in slot 2",
+      "Step 2: Delete slot 2 and confirm",
+      "Step 3: Verify slot 2 schematic file is deleted from disk",
+      "Step 4: Verify slot 2 metadata is removed from database",
+      "Step 5: Open slot selection GUI and verify slot 2 shows as empty (lime dye)",
+      "Step 6: Verify can create new island in slot 2 again"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Deleting active slot switches to another available slot automatically",
+    "steps": [
+      "Step 1: Have islands in slot 1 (active) and slot 2",
+      "Step 2: Delete slot 1 (the active one)",
+      "Step 3: Verify system automatically switches to slot 2",
+      "Step 4: Verify slot 2 island loads in the world",
+      "Step 5: Verify slot 1 is now empty and available"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Deleting last remaining slot deletes island from grid",
+    "steps": [
+      "Step 1: Have only one island in slot 1",
+      "Step 2: Delete slot 1",
+      "Step 3: Verify island is removed from world",
+      "Step 4: Verify grid location becomes available again",
+      "Step 5: Verify player is in claiming mode (no island)",
+      "Step 6: Verify can claim a new location"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Canceling slot deletion returns to slot settings",
+    "steps": [
+      "Step 1: Initiate slot deletion",
+      "Step 2: Click Cancel in confirmation",
+      "Step 3: Verify slot is not deleted",
+      "Step 4: Verify return to slot settings GUI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command /islandselector setname changes slot name",
+    "steps": [
+      "Step 1: Execute /islandselector setname 1 Farm Island",
+      "Step 2: Verify success message",
+      "Step 3: Open slot selection GUI",
+      "Step 4: Verify slot 1 name is 'Farm Island'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command /islandselector seticon changes slot icon to held item",
+    "steps": [
+      "Step 1: Hold oak sapling in hand",
+      "Step 2: Execute /islandselector seticon 1",
+      "Step 3: Verify success message",
+      "Step 4: Open slot selection GUI",
+      "Step 5: Verify slot 1 shows oak sapling icon"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command /islandselector switch initiates slot switch with confirmation",
+    "steps": [
+      "Step 1: Have islands in slots 1 and 2",
+      "Step 2: Execute /islandselector switch 2",
+      "Step 3: Verify switch confirmation GUI opens",
+      "Step 4: Confirm switch",
+      "Step 5: Verify switch to slot 2 completes"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command /islandselector delete initiates slot deletion with confirmation",
+    "steps": [
+      "Step 1: Execute /islandselector delete 2",
+      "Step 2: Verify deletion confirmation GUI opens",
+      "Step 3: Verify shows warning about permanence",
+      "Step 4: Confirm and verify slot 2 is deleted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Only island owner can manage slots (team members cannot)",
+    "steps": [
+      "Step 1: Add a team member to your island",
+      "Step 2: Have team member try /islandselector slots",
+      "Step 3: Verify they see the GUI but cannot switch/delete/rename",
+      "Step 4: Verify error message explaining only owner can manage slots"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Each slot has independent island level",
+    "steps": [
+      "Step 1: Install BSkyBlock Level addon",
+      "Step 2: Create island in slot 1, build to level 100",
+      "Step 3: Create island in slot 2, build to level 50",
+      "Step 4: Open slot GUI and verify slot 1 shows level 100",
+      "Step 5: Verify slot 2 shows level 50",
+      "Step 6: Switch between slots and verify levels remain independent"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Each slot has independent team members",
+    "steps": [
+      "Step 1: In slot 1, add PlayerA to team",
+      "Step 2: Switch to slot 2",
+      "Step 3: Add PlayerB to team (not PlayerA)",
+      "Step 4: Verify slot 1 team has only PlayerA",
+      "Step 5: Verify slot 2 team has only PlayerB",
+      "Step 6: Verify teams don't overlap between slots"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Each slot has independent warp settings",
+    "steps": [
+      "Step 1: In slot 1, enable warp with /island warp",
+      "Step 2: Switch to slot 2",
+      "Step 3: Do NOT enable warp in slot 2",
+      "Step 4: Verify slot 1 has warp enabled (visible in grid GUI)",
+      "Step 5: Verify slot 2 has warp disabled (private)",
+      "Step 6: Verify warp settings are independent per slot"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Automatic backup is created on slot switch",
+    "steps": [
+      "Step 1: Set backups.on-switch to true in config",
+      "Step 2: Build structures in slot 1",
+      "Step 3: Switch from slot 1 to slot 2",
+      "Step 4: Check plugins/IslandSelector/backups/{uuid}/",
+      "Step 5: Verify backup file exists with format slot-1-{timestamp}.schem",
+      "Step 6: Verify backup file is non-zero size"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Backup retention limit is enforced (old backups deleted)",
+    "steps": [
+      "Step 1: Set backups.max-per-slot to 3 in config",
+      "Step 2: Switch slots 5 times to create 5 backups",
+      "Step 3: Check backup directory",
+      "Step 4: Verify only 3 most recent backups remain",
+      "Step 5: Verify oldest 2 backups were deleted automatically"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to force backup works correctly",
+    "steps": [
+      "Step 1: Execute /islandselector admin backup {player} 1",
+      "Step 2: Verify success message",
+      "Step 3: Check backup directory",
+      "Step 4: Verify new backup file was created for slot 1"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Backup system can be disabled in config",
+    "steps": [
+      "Step 1: Set backups.enabled to false in config",
+      "Step 2: Reload or restart",
+      "Step 3: Switch slots",
+      "Step 4: Verify no backup is created",
+      "Step 5: Verify backup directory remains empty or unchanged"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Player with existing island can relocate to new grid position",
+    "steps": [
+      "Step 1: Create island at location D4",
+      "Step 2: Open grid GUI",
+      "Step 3: Click on empty location H8",
+      "Step 4: Verify relocation confirmation GUI opens",
+      "Step 5: Confirm relocation",
+      "Step 6: Verify island physically moves to H8",
+      "Step 7: Verify D4 becomes available again"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Relocation confirmation shows from and to coordinates",
+    "steps": [
+      "Step 1: From island at C5, initiate relocation to F10",
+      "Step 2: Check confirmation GUI",
+      "Step 3: Verify it shows 'Relocate from C5 to F10' or similar",
+      "Step 4: Verify format clearly indicates the move"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Relocation confirmation shows cost if configured",
+    "steps": [
+      "Step 1: Set relocation.cost to 5000 in config",
+      "Step 2: Initiate relocation",
+      "Step 3: Check confirmation GUI",
+      "Step 4: Verify cost is displayed (e.g., 'This will cost $5,000')",
+      "Step 5: Verify Confirm button shows cost will be deducted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Relocation confirmation shows cooldown if applicable",
+    "steps": [
+      "Step 1: Set relocation cooldown to 7 days",
+      "Step 2: Relocate once",
+      "Step 3: Try to relocate again immediately",
+      "Step 4: Verify confirmation or error shows cooldown remaining",
+      "Step 5: Verify time is formatted nicely (e.g., '6 days, 23 hours')"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation copies all blocks to new location using FAWE",
+    "steps": [
+      "Step 1: Build complex structures on island at E5",
+      "Step 2: Relocate to J12",
+      "Step 3: After relocation, visit J12",
+      "Step 4: Verify all blocks are present exactly as they were",
+      "Step 5: Verify chest contents, signs, etc. are preserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation copies all entities to new location",
+    "steps": [
+      "Step 1: Place item frames, armor stands, animals on island",
+      "Step 2: Relocate island",
+      "Step 3: After relocation, verify all entities are present",
+      "Step 4: Verify entity data is preserved (item frame items, armor stand equipment)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation clears old location completely",
+    "steps": [
+      "Step 1: Relocate island from B3 to G9",
+      "Step 2: After relocation, visit B3 in world",
+      "Step 3: Verify location is cleared (void/air)",
+      "Step 4: Verify no blocks or entities remain",
+      "Step 5: Verify B3 shows as available in grid GUI"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation updates BSkyBlock island spawn point",
+    "steps": [
+      "Step 1: Set custom island spawn on island at C4",
+      "Step 2: Relocate to K11",
+      "Step 3: Execute /island go after relocation",
+      "Step 4: Verify you teleport to correct spawn at K11",
+      "Step 5: Verify spawn point was updated to new location"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation updates BSkyBlock warp point if warp enabled",
+    "steps": [
+      "Step 1: Enable island warp at D5",
+      "Step 2: Relocate to H10",
+      "Step 3: Have another player use warp to visit",
+      "Step 4: Verify they warp to island at new location H10",
+      "Step 5: Verify warp coordinates updated correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation teleports island owner to new location",
+    "steps": [
+      "Step 1: Be on island at E6",
+      "Step 2: Initiate relocation to L14",
+      "Step 3: After relocation completes, check your position",
+      "Step 4: Verify you are at island spawn on L14"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation teleports team members to new location",
+    "steps": [
+      "Step 1: Have team member on island",
+      "Step 2: Owner relocates island",
+      "Step 3: Verify team member is teleported to new island location",
+      "Step 4: Verify team member remains on team after relocation"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation teleports visitors away from island",
+    "steps": [
+      "Step 1: Have visitor on island",
+      "Step 2: Relocate island",
+      "Step 3: Verify visitor is teleported to their island or spawn",
+      "Step 4: Verify visitor receives notification about relocation"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation cost is deducted from player balance via Vault",
+    "steps": [
+      "Step 1: Set relocation.cost to 10000",
+      "Step 2: Give player 15000 money",
+      "Step 3: Relocate island",
+      "Step 4: Verify 10000 is deducted from balance",
+      "Step 5: Verify player has 5000 remaining"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot relocate with insufficient funds",
+    "steps": [
+      "Step 1: Set relocation.cost to 10000",
+      "Step 2: Player has only 5000 money",
+      "Step 3: Try to relocate",
+      "Step 4: Verify error message about insufficient funds",
+      "Step 5: Verify relocation is blocked",
+      "Step 6: Verify no money deducted"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation cooldown is enforced",
+    "steps": [
+      "Step 1: Set relocation.cooldown to 300 seconds (5 minutes)",
+      "Step 2: Relocate from A1 to B2",
+      "Step 3: Immediately try to relocate to C3",
+      "Step 4: Verify error about cooldown",
+      "Step 5: Verify time remaining is shown",
+      "Step 6: Wait 5 minutes and verify relocation is allowed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Relocation cooldown persists across restarts",
+    "steps": [
+      "Step 1: Relocate to trigger cooldown",
+      "Step 2: Restart server during cooldown",
+      "Step 3: Try to relocate again",
+      "Step 4: Verify cooldown is still active",
+      "Step 5: Verify remaining time calculated correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Bypass relocation cooldown permission works",
+    "steps": [
+      "Step 1: Give player islandselector.bypass.cooldown.relocate",
+      "Step 2: Relocate island",
+      "Step 3: Immediately relocate again",
+      "Step 4: Verify no cooldown error",
+      "Step 5: Verify second relocation completes"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Bypass relocation cost permission allows free relocation",
+    "steps": [
+      "Step 1: Set relocation cost to 10000",
+      "Step 2: Give player islandselector.bypass.cost.relocate",
+      "Step 3: Player has 0 money",
+      "Step 4: Relocate island",
+      "Step 5: Verify relocation completes without charging money"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Progress indicators shown during relocation",
+    "steps": [
+      "Step 1: Relocate a large island",
+      "Step 2: Watch action bar during process",
+      "Step 3: Verify messages like 'Saving island...', 'Clearing old location...', 'Pasting at new location...'",
+      "Step 4: Verify completion message appears",
+      "Step 5: Verify progress is clear throughout"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot relocate to occupied location",
+    "steps": [
+      "Step 1: Have island at D4",
+      "Step 2: Another player has island at E5",
+      "Step 3: Try to relocate from D4 to E5",
+      "Step 4: Verify error message that location is occupied",
+      "Step 5: Verify relocation is blocked"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot relocate to reserved blocked location",
+    "steps": [
+      "Step 1: Admin reserves F6 (blocked, no price)",
+      "Step 2: Try to relocate to F6",
+      "Step 3: Verify error that location is reserved",
+      "Step 4: Verify relocation blocked"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Can relocate to premium location if purchasing it",
+    "steps": [
+      "Step 1: Admin sets premium location G7 for 20000",
+      "Step 2: Player has 25000 money",
+      "Step 3: Relocate to G7",
+      "Step 4: Verify purchase + relocation confirmation",
+      "Step 5: Confirm and verify 20000 deducted",
+      "Step 6: Verify island relocates to G7",
+      "Step 7: Verify G7 no longer reserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Neighborhood GUI opens with 27 slots and 3x3 layout",
+    "steps": [
+      "Step 1: Create island and execute /islandselector neighbors",
+      "Step 2: Verify GUI opens with 3 rows (27 slots)",
+      "Step 3: Verify title is 'Your Neighborhood'",
+      "Step 4: Verify center slot (slot 12) shows your island with glow"
+    ],
+    "passes": false
+  },
+  {
+    "category": "ui",
+    "description": "Neighborhood GUI shows 8 surrounding neighbor positions",
+    "steps": [
+      "Step 1: Create island at E5",
+      "Step 2: Open neighborhood GUI",
+      "Step 3: Verify slots around center (NW, N, NE, W, E, SW, S, SE) show neighbor islands",
+      "Step 4: Verify positions correspond to D4, E4, F4, D5, F5, D6, E6, F6"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood GUI shows online neighbor with player head",
+    "steps": [
+      "Step 1: Your island at E5, neighbor's island at F5 (east)",
+      "Step 2: Neighbor is online",
+      "Step 3: Open neighborhood GUI",
+      "Step 4: Verify east slot shows neighbor's player head",
+      "Step 5: Verify tooltip shows neighbor info"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood GUI shows offline neighbor with red glass",
+    "steps": [
+      "Step 1: Neighbor to the north is offline",
+      "Step 2: Open neighborhood GUI",
+      "Step 3: Verify north slot shows RED_STAINED_GLASS_PANE",
+      "Step 4: Verify tooltip shows offline status"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood GUI shows empty adjacent locations with green glass",
+    "steps": [
+      "Step 1: Your island at E5, no island to the west (D5)",
+      "Step 2: Open neighborhood GUI",
+      "Step 3: Verify west slot shows GREEN_STAINED_GLASS_PANE",
+      "Step 4: Verify tooltip indicates location is available"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood GUI handles island at grid edge correctly",
+    "steps": [
+      "Step 1: Create island at A1 (top-left corner of grid)",
+      "Step 2: Open neighborhood GUI",
+      "Step 3: Verify NW, N, W positions show as empty/out-of-bounds",
+      "Step 4: Verify no errors occur",
+      "Step 5: Verify SE, S, E positions show normally if applicable"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Right-clicking neighbor with open warp teleports to their island",
+    "steps": [
+      "Step 1: Neighbor to east has warp enabled",
+      "Step 2: Open neighborhood GUI",
+      "Step 3: Right-click on east neighbor slot",
+      "Step 4: Verify you are teleported to neighbor's warp point",
+      "Step 5: Verify BSkyBlock warp permissions respected"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot warp to neighbor with private island",
+    "steps": [
+      "Step 1: Neighbor to south has warp disabled (private)",
+      "Step 2: Open neighborhood GUI",
+      "Step 3: Right-click on south neighbor",
+      "Step 4: Verify error message that island is private",
+      "Step 5: Verify no teleport occurs"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood GUI respects BSkyBlock ban lists",
+    "steps": [
+      "Step 1: Neighbor has banned you from their island",
+      "Step 2: Open neighborhood GUI",
+      "Step 3: Try to warp to neighbor",
+      "Step 4: Verify error that you're banned",
+      "Step 5: Verify no warp occurs"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood GUI Back button returns to main grid",
+    "steps": [
+      "Step 1: Open neighborhood GUI",
+      "Step 2: Click Back to Grid button",
+      "Step 3: Verify main grid GUI opens",
+      "Step 4: Verify centered on your island location"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Neighborhood GUI Slot Selection button opens slot GUI",
+    "steps": [
+      "Step 1: Open neighborhood GUI",
+      "Step 2: Click Slot Selection button",
+      "Step 3: Verify slot selection GUI opens",
+      "Step 4: Verify shows your slots correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to reserve location works",
+    "steps": [
+      "Step 1: Execute /islandselector admin reserve H8",
+      "Step 2: Verify success message",
+      "Step 3: Open grid GUI",
+      "Step 4: Verify H8 shows as gray glass (reserved/blocked)",
+      "Step 5: Verify players cannot claim H8"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to unreserve location works",
+    "steps": [
+      "Step 1: Reserve location I9",
+      "Step 2: Execute /islandselector admin unreserve I9",
+      "Step 3: Verify success message",
+      "Step 4: Open grid GUI",
+      "Step 5: Verify I9 shows as green glass (available)",
+      "Step 6: Verify players can claim I9 again"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to set price makes location purchasable",
+    "steps": [
+      "Step 1: Execute /islandselector admin setprice J10 30000",
+      "Step 2: Verify success message",
+      "Step 3: Open grid GUI",
+      "Step 4: Verify J10 shows as gold block",
+      "Step 5: Verify tooltip shows price 30000",
+      "Step 6: Verify players can purchase J10"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to clear price makes location blocked",
+    "steps": [
+      "Step 1: Set price on K11 to 50000",
+      "Step 2: Execute /islandselector admin clearprice K11",
+      "Step 3: Verify K11 changes from gold block to gray glass",
+      "Step 4: Verify players can no longer purchase (blocked)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Reserved locations persist across server restarts",
+    "steps": [
+      "Step 1: Reserve location L12 with price 40000",
+      "Step 2: Restart server",
+      "Step 3: Open grid GUI",
+      "Step 4: Verify L12 still shows as premium (gold block)",
+      "Step 5: Verify price is still 40000"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot reserve already occupied location",
+    "steps": [
+      "Step 1: Player has island at M13",
+      "Step 2: Admin tries /islandselector admin reserve M13",
+      "Step 3: Verify error message that location is occupied",
+      "Step 4: Verify reservation fails"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to expand grid east adds columns",
+    "steps": [
+      "Step 1: Grid is 10x10 (A-J, 1-10)",
+      "Step 2: Execute /islandselector admin expand east 5",
+      "Step 3: Verify success message",
+      "Step 4: Open grid GUI and scroll right",
+      "Step 5: Verify columns K-O are now available (unlocked)",
+      "Step 6: Verify can claim locations in new columns"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to expand grid south adds rows",
+    "steps": [
+      "Step 1: Grid height is 10",
+      "Step 2: Execute /islandselector admin expand south 3",
+      "Step 3: Verify rows 11-13 are now unlocked",
+      "Step 4: Verify can scroll to and claim those rows"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Grid expansion updates config.yml",
+    "steps": [
+      "Step 1: Expand grid east by 5",
+      "Step 2: Check config.yml",
+      "Step 3: Verify grid.width value increased by 5",
+      "Step 4: Verify expansion persists after restart"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to shrink grid removes empty areas",
+    "steps": [
+      "Step 1: Grid is 20x20, no islands in columns P-T",
+      "Step 2: Execute /islandselector admin shrink east 5",
+      "Step 3: Verify columns P-T become locked (black glass)",
+      "Step 4: Verify width reduced to 15"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot shrink grid if islands exist in affected area",
+    "steps": [
+      "Step 1: Player has island at column S",
+      "Step 2: Admin tries to shrink east removing column S",
+      "Step 3: Verify error message about islands in area",
+      "Step 4: Verify shrink fails and grid unchanged"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Locked grid areas beyond boundaries show as black glass",
+    "steps": [
+      "Step 1: Set grid to 15x15",
+      "Step 2: Open grid GUI and scroll to column P (beyond boundary)",
+      "Step 3: Verify shows BLACK_STAINED_GLASS_PANE",
+      "Step 4: Verify tooltip shows '🔒 Locked Area'",
+      "Step 5: Verify cannot claim locked areas"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin command to force relocate player's island",
+    "steps": [
+      "Step 1: Player has island at N14",
+      "Step 2: Execute /islandselector admin relocate {player} O15",
+      "Step 3: Verify success message",
+      "Step 4: Verify player's island moves to O15 without confirmation",
+      "Step 5: Verify N14 becomes available",
+      "Step 6: Verify bypasses costs and cooldowns"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin info command shows location details",
+    "steps": [
+      "Step 1: Execute /islandselector admin info P16",
+      "Step 2: Verify shows if location is occupied, available, or reserved",
+      "Step 3: If occupied, verify shows owner, level, team count",
+      "Step 4: If reserved, verify shows price if applicable",
+      "Step 5: Verify world coordinates are shown"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin info command shows player island and slot details",
+    "steps": [
+      "Step 1: Execute /islandselector admin info {player}",
+      "Step 2: Verify shows player's island grid location",
+      "Step 3: Verify shows number of slots and active slot",
+      "Step 4: Verify shows slot names and levels",
+      "Step 5: Verify shows cooldown status"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin purge player command removes all slot data with confirmation",
+    "steps": [
+      "Step 1: Execute /islandselector admin purge {player}",
+      "Step 2: Verify confirmation prompt appears",
+      "Step 3: Confirm purge",
+      "Step 4: Verify all slot schematic files deleted for that player",
+      "Step 5: Verify slot metadata removed from database",
+      "Step 6: Verify action logged to audit file"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin purge inactive command with dry-run shows preview",
+    "steps": [
+      "Step 1: Execute /islandselector admin purge inactive 90 --dry-run",
+      "Step 2: Verify list of affected players is shown",
+      "Step 3: Verify no data is actually deleted",
+      "Step 4: Verify shows count of players who would be purged"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin purge inactive command removes data for inactive players",
+    "steps": [
+      "Step 1: Have player who hasn't logged in for 100 days",
+      "Step 2: Execute /islandselector admin purge inactive 90",
+      "Step 3: Confirm purge",
+      "Step 4: Verify that player's slot data is deleted",
+      "Step 5: Verify players active within 90 days are not affected"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin purge banned command removes data for banned players",
+    "steps": [
+      "Step 1: Ban a player from the server",
+      "Step 2: Execute /islandselector admin purge banned",
+      "Step 3: Confirm purge",
+      "Step 4: Verify banned player's slot data is deleted",
+      "Step 5: Verify unbanned players are not affected"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cannot purge player who is currently online",
+    "steps": [
+      "Step 1: Player is online on the server",
+      "Step 2: Admin tries /islandselector admin purge {player}",
+      "Step 3: Verify error message that player is online",
+      "Step 4: Verify purge is blocked"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin reset cooldown command clears switch cooldown",
+    "steps": [
+      "Step 1: Player has active switch cooldown",
+      "Step 2: Execute /islandselector admin resetcooldown {player} switch",
+      "Step 3: Verify success message",
+      "Step 4: Player tries to switch slots",
+      "Step 5: Verify no cooldown is enforced"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin reset cooldown command clears relocate cooldown",
+    "steps": [
+      "Step 1: Player has active relocation cooldown",
+      "Step 2: Execute /islandselector admin resetcooldown {player} relocate",
+      "Step 3: Player tries to relocate",
+      "Step 4: Verify relocation is allowed (no cooldown)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin reset cooldown all clears both cooldowns",
+    "steps": [
+      "Step 1: Player has both switch and relocate cooldowns active",
+      "Step 2: Execute /islandselector admin resetcooldown {player} all",
+      "Step 3: Verify both cooldowns are cleared",
+      "Step 4: Verify player can switch and relocate freely"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin reload command reloads configuration",
+    "steps": [
+      "Step 1: Make changes to config.yml (e.g., change cooldown values)",
+      "Step 2: Execute /islandselector admin reload",
+      "Step 3: Verify success message",
+      "Step 4: Verify new config values are in effect without restart"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Admin version command shows plugin and dependency info",
+    "steps": [
+      "Step 1: Execute /islandselector admin version",
+      "Step 2: Verify shows IslandSelector version",
+      "Step 3: Verify shows BentoBox version",
+      "Step 4: Verify shows BSkyBlock version",
+      "Step 5: Verify shows FAWE version",
+      "Step 6: Verify shows optional dependency status (Vault, PlaceholderAPI, Level)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "PlaceholderAPI %islandselector_location% returns grid coordinates",
+    "steps": [
+      "Step 1: Install PlaceholderAPI",
+      "Step 2: Player has island at Q17",
+      "Step 3: Use placeholder in chat or scoreboard",
+      "Step 4: Verify %islandselector_location% displays 'Q17'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "PlaceholderAPI %islandselector_slot_active_name% returns slot name",
+    "steps": [
+      "Step 1: Rename active slot to 'Mining Hub'",
+      "Step 2: Use placeholder %islandselector_slot_active_name%",
+      "Step 3: Verify it displays 'Mining Hub'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "PlaceholderAPI %islandselector_cooldown_switch% shows formatted time",
+    "steps": [
+      "Step 1: Switch slots to trigger cooldown",
+      "Step 2: Use placeholder %islandselector_cooldown_switch%",
+      "Step 3: Verify it shows formatted time like '45m 30s' or 'Ready'",
+      "Step 4: Verify updates as time passes"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "PlaceholderAPI %islandselector_available% shows count of empty locations",
+    "steps": [
+      "Step 1: Use placeholder %islandselector_available%",
+      "Step 2: Verify it shows number of available grid locations",
+      "Step 3: Create new island and verify count decreases by 1"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "PlaceholderAPI %islandselector_neighbors_online% shows online neighbor count",
+    "steps": [
+      "Step 1: Have 3 neighbors, 2 online and 1 offline",
+      "Step 2: Use placeholder %islandselector_neighbors_online%",
+      "Step 3: Verify it shows '2'",
+      "Step 4: Have neighbor log off and verify count updates to '1'"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command /islandselector locate shows grid coordinates in chat",
+    "steps": [
+      "Step 1: Have island at R18",
+      "Step 2: Execute /islandselector locate",
+      "Step 3: Verify chat message shows 'Your island is located at R18'",
+      "Step 4: Verify also shows world coordinates (X, Z)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command /islandselector find {player} opens grid centered on player",
+    "steps": [
+      "Step 1: Player 'Steve' has island at S19",
+      "Step 2: Execute /islandselector find Steve",
+      "Step 3: Verify grid GUI opens centered on S19",
+      "Step 4: Verify Steve's island is visible in viewport"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command /islandselector help shows command list",
+    "steps": [
+      "Step 1: Execute /islandselector help",
+      "Step 2: Verify list of available commands is shown",
+      "Step 3: Verify descriptions for each command",
+      "Step 4: Verify syntax and examples shown"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Tab completion works for /islandselector subcommands",
+    "steps": [
+      "Step 1: Type '/islandselector ' and press tab",
+      "Step 2: Verify subcommands appear (slots, locate, neighbors, etc.)",
+      "Step 3: Type '/islandselector admin ' and press tab",
+      "Step 4: Verify admin subcommands appear (reserve, expand, purge, etc.)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Tab completion suggests player names for player arguments",
+    "steps": [
+      "Step 1: Type '/islandselector find ' and press tab",
+      "Step 2: Verify online player names appear as suggestions",
+      "Step 3: Type '/islandselector admin info ' and press tab",
+      "Step 4: Verify player names suggested"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Tab completion suggests grid coordinates for coordinate arguments",
+    "steps": [
+      "Step 1: Type '/islandselector admin reserve ' and press tab",
+      "Step 2: Verify coordinate suggestions appear (or at least format hint)",
+      "Step 3: Verify helps admin enter valid coordinates"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Permission islandselector.use is required for basic commands",
+    "steps": [
+      "Step 1: Remove islandselector.use from player",
+      "Step 2: Try /islandselector command",
+      "Step 3: Verify permission error message",
+      "Step 4: Give permission and verify command works"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Permission islandselector.relocate is required to relocate",
+    "steps": [
+      "Step 1: Remove islandselector.relocate from player",
+      "Step 2: Try to relocate island",
+      "Step 3: Verify permission error",
+      "Step 4: Give permission and verify relocation works"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Permission islandselector.admin is required for admin commands",
+    "steps": [
+      "Step 1: Player without admin permission",
+      "Step 2: Try /islandselector admin reserve A1",
+      "Step 3: Verify permission denied error",
+      "Step 4: Give islandselector.admin permission",
+      "Step 5: Verify admin commands work"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Alias /is works as shortcut for /islandselector",
+    "steps": [
+      "Step 1: Execute /is",
+      "Step 2: Verify grid GUI opens (same as /islandselector)",
+      "Step 3: Try /is slots",
+      "Step 4: Verify slot GUI opens"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "All FAWE schematic operations are async and non-blocking",
+    "steps": [
+      "Step 1: Build very large island",
+      "Step 2: Switch slots (triggers save/load)",
+      "Step 3: Monitor server TPS during operation",
+      "Step 4: Verify no TPS drops (operations are async)",
+      "Step 5: Verify server remains responsive"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Grid GUI opens quickly regardless of grid size",
+    "steps": [
+      "Step 1: Set grid to 100x100 (10,000 locations)",
+      "Step 2: Open grid GUI",
+      "Step 3: Verify GUI opens in under 500ms",
+      "Step 4: Verify no lag when scrolling"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cache system prevents redundant database queries",
+    "steps": [
+      "Step 1: Enable debug logging",
+      "Step 2: Open grid GUI multiple times",
+      "Step 3: Check logs for database queries",
+      "Step 4: Verify cache is being used (fewer queries than GUI opens)",
+      "Step 5: Verify cache refreshes on island events"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Player disconnect during slot switch is handled gracefully",
+    "steps": [
+      "Step 1: Initiate slot switch",
+      "Step 2: Disconnect player during the process",
+      "Step 3: Rejoin server",
+      "Step 4: Verify island state is consistent (no corruption)",
+      "Step 5: Verify can complete switch or retry"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Server crash during operation does not corrupt island data",
+    "steps": [
+      "Step 1: Initiate slot switch or relocation",
+      "Step 2: Force server stop during operation",
+      "Step 3: Restart server",
+      "Step 4: Check island data",
+      "Step 5: Verify either operation completed or reverted cleanly",
+      "Step 6: Verify no data corruption"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "FAWE errors are caught and reported to player gracefully",
+    "steps": [
+      "Step 1: Cause FAWE error (e.g., full disk, permissions issue)",
+      "Step 2: Try slot switch",
+      "Step 3: Verify friendly error message shown to player",
+      "Step 4: Verify error logged to console with details",
+      "Step 5: Verify operation fails safely without corruption"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Vault economy integration works correctly for costs",
+    "steps": [
+      "Step 1: Install Vault and economy plugin (e.g., EssentialsX)",
+      "Step 2: Set relocation cost to 1000",
+      "Step 3: Relocate island",
+      "Step 4: Verify Vault deducts money correctly",
+      "Step 5: Verify money operations are logged"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Works correctly when Vault is not installed (free operations)",
+    "steps": [
+      "Step 1: Remove Vault from server",
+      "Step 2: Set costs in config",
+      "Step 3: Try relocation and premium purchases",
+      "Step 4: Verify operations work but no money is charged",
+      "Step 5: Verify warning logged that Vault not found"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Works correctly when PlaceholderAPI is not installed",
+    "steps": [
+      "Step 1: Remove PlaceholderAPI",
+      "Step 2: Restart server with IslandSelector",
+      "Step 3: Verify plugin loads successfully",
+      "Step 4: Verify all features work (placeholders just unavailable)",
+      "Step 5: Verify log shows PlaceholderAPI integration disabled"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Works correctly when Level addon is not installed",
+    "steps": [
+      "Step 1: Remove BSkyBlock Level addon",
+      "Step 2: Restart server",
+      "Step 3: Open grid and slot GUIs",
+      "Step 4: Verify tooltips show without level (or show 'N/A')",
+      "Step 5: Verify all other features work normally"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Messages are customizable via locale files",
+    "steps": [
+      "Step 1: Edit locales/en-US.yml",
+      "Step 2: Change a message (e.g., GUI title or command output)",
+      "Step 3: Reload or restart",
+      "Step 4: Trigger that message in-game",
+      "Step 5: Verify custom message appears"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Color codes in messages are rendered correctly",
+    "steps": [
+      "Step 1: Add color codes to messages in locale file (&a, &c, etc.)",
+      "Step 2: Reload and trigger messages",
+      "Step 3: Verify colors appear correctly in chat and GUIs"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Hex color codes are supported in messages",
+    "steps": [
+      "Step 1: Add hex color code to message (&#FF5555 or similar)",
+      "Step 2: Reload and trigger message",
+      "Step 3: Verify hex color renders correctly (on 1.16+ servers)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "GUI item materials are customizable in config",
+    "steps": [
+      "Step 1: Change gui.items.available from GREEN_STAINED_GLASS_PANE to LIME_CONCRETE",
+      "Step 2: Reload or restart",
+      "Step 3: Open grid GUI",
+      "Step 4: Verify empty locations now show as lime concrete"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Grid dimensions are configurable and respected",
+    "steps": [
+      "Step 1: Set grid.width to 30 and grid.height to 25",
+      "Step 2: Restart server",
+      "Step 3: Scroll through grid",
+      "Step 4: Verify grid extends to column AD (30th column)",
+      "Step 5: Verify grid extends to row 25"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Island spacing is configurable and affects placement",
+    "steps": [
+      "Step 1: Set island-spacing to 800",
+      "Step 2: Restart server",
+      "Step 3: Claim locations A1 and B1",
+      "Step 4: Verify islands are 800 blocks apart (not default 500)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Default slot count is configurable",
+    "steps": [
+      "Step 1: Set slots.default-slots to 3",
+      "Step 2: Restart server",
+      "Step 3: New player joins with islandselector.slots.3 permission",
+      "Step 4: Verify they have access to 3 slots by default"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Cooldown durations are configurable",
+    "steps": [
+      "Step 1: Set switch-cooldown to 120 and relocate cooldown to 86400",
+      "Step 2: Reload",
+      "Step 3: Switch slots and verify 2 minute cooldown",
+      "Step 4: Relocate and verify 1 day cooldown"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Configuration changes take effect on reload without restart",
+    "steps": [
+      "Step 1: Change cooldown value in config.yml",
+      "Step 2: Execute /islandselector admin reload",
+      "Step 3: Verify new cooldown value is enforced immediately",
+      "Step 4: Verify no server restart needed"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Custom event GridLocationClaimEvent is fired on island claim",
+    "steps": [
+      "Step 1: Install test plugin that listens for GridLocationClaimEvent",
+      "Step 2: Claim a grid location",
+      "Step 3: Verify event is fired with correct player and coordinates",
+      "Step 4: Verify event can be cancelled to block claim"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Custom event SlotSwitchEvent is fired on slot switch",
+    "steps": [
+      "Step 1: Install listener for SlotSwitchEvent",
+      "Step 2: Switch from slot 1 to slot 2",
+      "Step 3: Verify event fires with correct fromSlot and toSlot",
+      "Step 4: Verify cancelling event blocks the switch"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Custom event IslandRelocateEvent is fired on relocation",
+    "steps": [
+      "Step 1: Install listener for IslandRelocateEvent",
+      "Step 2: Relocate island from C5 to F10",
+      "Step 3: Verify event fires with fromCoordinates C5 and toCoordinates F10",
+      "Step 4: Verify event includes cost and can be cancelled"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Works on Paper server 1.20.x",
+    "steps": [
+      "Step 1: Install Paper 1.20.x",
+      "Step 2: Install BentoBox, BSkyBlock, FAWE, and IslandSelector",
+      "Step 3: Test all core features",
+      "Step 4: Verify everything works without errors"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Works on Spigot server 1.20.x",
+    "steps": [
+      "Step 1: Install Spigot 1.20.x",
+      "Step 2: Install BentoBox, BSkyBlock, FAWE, and IslandSelector",
+      "Step 3: Test all core features",
+      "Step 4: Verify everything works"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Works on Paper server 1.21.x",
+    "steps": [
+      "Step 1: Install Paper 1.21.x",
+      "Step 2: Install compatible versions of dependencies",
+      "Step 3: Install IslandSelector",
+      "Step 4: Test all features and verify compatibility"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Multiple players can use grid GUI simultaneously without conflicts",
+    "steps": [
+      "Step 1: Have 5 players open grid GUI at same time",
+      "Step 2: Each player scrolls and filters independently",
+      "Step 3: Verify no conflicts or errors",
+      "Step 4: Verify each player sees correct personalized view"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Concurrent slot switches are queued and processed safely",
+    "steps": [
+      "Step 1: Have multiple players initiate slot switches at exact same time",
+      "Step 2: Monitor server for errors",
+      "Step 3: Verify all switches complete successfully",
+      "Step 4: Verify no data corruption or race conditions"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Large islands (100k+ blocks) can be saved and loaded",
+    "steps": [
+      "Step 1: Build massive island with 100,000+ blocks",
+      "Step 2: Switch slots to save as schematic",
+      "Step 3: Verify schematic saves successfully",
+      "Step 4: Switch back to load the island",
+      "Step 5: Verify all blocks are restored correctly",
+      "Step 6: Verify operation completes without timeout or crash"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Complex redstone contraptions are preserved in slot operations",
+    "steps": [
+      "Step 1: Build complex redstone machine on island",
+      "Step 2: Switch to different slot",
+      "Step 3: Switch back to original slot",
+      "Step 4: Verify redstone contraption is intact",
+      "Step 5: Verify it functions correctly after reload"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Entities in minecarts/boats are preserved",
+    "steps": [
+      "Step 1: Place entities in minecarts/boats on island",
+      "Step 2: Switch slots",
+      "Step 3: Switch back",
+      "Step 4: Verify entities still in vehicles",
+      "Step 5: Verify vehicle data preserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Banners with patterns are preserved in slot operations",
+    "steps": [
+      "Step 1: Create banners with complex patterns",
+      "Step 2: Place banners on island",
+      "Step 3: Switch slots",
+      "Step 4: Switch back",
+      "Step 5: Verify banners retain all patterns correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Shulker boxes with items are preserved in slot operations",
+    "steps": [
+      "Step 1: Place shulker boxes filled with items",
+      "Step 2: Switch slots",
+      "Step 3: Switch back",
+      "Step 4: Open shulker boxes",
+      "Step 5: Verify all items inside are preserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Command blocks and their commands are preserved",
+    "steps": [
+      "Step 1: Place command blocks with commands on island",
+      "Step 2: Switch slots",
+      "Step 3: Switch back",
+      "Step 4: Check command blocks",
+      "Step 5: Verify commands are still set correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Mob spawner settings are preserved in slot operations",
+    "steps": [
+      "Step 1: Place spawner with custom entity type and settings",
+      "Step 2: Switch slots",
+      "Step 3: Switch back",
+      "Step 4: Verify spawner entity type preserved",
+      "Step 5: Verify spawner delay and range settings preserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Lecterns with books are preserved",
+    "steps": [
+      "Step 1: Place lecterns with written books",
+      "Step 2: Switch slots",
+      "Step 3: Switch back",
+      "Step 4: Verify books still on lecterns",
+      "Step 5: Verify book content preserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Item frames with items and rotation are preserved",
+    "steps": [
+      "Step 1: Place item frames with items rotated to various positions",
+      "Step 2: Switch slots",
+      "Step 3: Switch back",
+      "Step 4: Verify items still in frames",
+      "Step 5: Verify rotation angles preserved"
+    ],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Armor stands with equipment and poses are preserved",
+    "steps": [
+      "Step 1: Place armor stands with custom poses and equipment",
+      "Step 2: Switch slots",
+      "Step 3: Switch back",
+      "Step 4: Verify armor stand poses preserved",
+      "Step 5: Verify all equipment (armor, items) preserved"
+    ],
+    "passes": false
+  }
+]
