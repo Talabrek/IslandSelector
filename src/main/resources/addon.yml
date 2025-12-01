@@ -1,0 +1,119 @@
+name: IslandSelector
+main: world.bentobox.islandselector.IslandSelector
+version: ${project.version}
+api-version: 2.0.0
+
+authors: [Claude Code]
+description: Grid-based island selection and multi-slot system for BSkyBlock
+
+# This addon requires BentoBox, BSkyBlock, and FastAsyncWorldEdit
+depend:
+  - BentoBox
+  - BSkyBlock
+
+# Optional soft dependencies
+softdepend:
+  - Vault
+  - PlaceholderAPI
+  - Level
+
+# Permissions defined in plugin.yml format
+permissions:
+  # Player permissions
+  islandselector.use:
+    description: Access to basic IslandSelector commands and grid GUI
+    default: true
+
+  islandselector.slots:
+    description: Access to slot selection GUI and slot commands
+    default: true
+
+  islandselector.slots.2:
+    description: Player has access to 2 island slots
+    default: true
+
+  islandselector.slots.3:
+    description: Player has access to 3 island slots
+    default: false
+
+  islandselector.slots.4:
+    description: Player has access to 4 island slots
+    default: false
+
+  islandselector.slots.5:
+    description: Player has access to 5 island slots (maximum)
+    default: false
+
+  islandselector.relocate:
+    description: Can relocate island to a new grid position
+    default: true
+
+  islandselector.neighbors:
+    description: Can use neighborhood view
+    default: true
+
+  islandselector.purchase:
+    description: Can purchase reserved premium locations
+    default: true
+
+  islandselector.warp:
+    description: Can warp to other islands from grid GUI
+    default: true
+
+  # Bypass permissions
+  islandselector.bypass.cooldown.switch:
+    description: Bypass slot switching cooldown
+    default: op
+
+  islandselector.bypass.cooldown.relocate:
+    description: Bypass island relocation cooldown
+    default: op
+
+  islandselector.bypass.cost.relocate:
+    description: Bypass relocation cost
+    default: op
+
+  islandselector.bypass.cost.purchase:
+    description: Bypass premium location purchase cost
+    default: op
+
+  # Admin permissions
+  islandselector.admin:
+    description: Access to all admin commands (parent permission)
+    default: op
+    children:
+      islandselector.admin.reserve: true
+      islandselector.admin.expand: true
+      islandselector.admin.relocate: true
+      islandselector.admin.info: true
+      islandselector.admin.purge: true
+      islandselector.admin.backup: true
+      islandselector.admin.reload: true
+
+  islandselector.admin.reserve:
+    description: Can reserve/unreserve locations and set prices
+    default: op
+
+  islandselector.admin.expand:
+    description: Can expand/shrink grid boundaries
+    default: op
+
+  islandselector.admin.relocate:
+    description: Can force relocate any player's island
+    default: op
+
+  islandselector.admin.info:
+    description: Can view detailed info on any island/location
+    default: op
+
+  islandselector.admin.purge:
+    description: Can purge player slot data
+    default: op
+
+  islandselector.admin.backup:
+    description: Can force backups of player slots
+    default: op
+
+  islandselector.admin.reload:
+    description: Can reload plugin configuration
+    default: op

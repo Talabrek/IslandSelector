@@ -1,0 +1,1989 @@
+<project_specification>
+  <project_name>IslandSelector - BentoBox Addon for BSkyBlock</project_name>
+
+  <overview>
+    IslandSelector is a comprehensive BentoBox addon designed to work alongside BSkyBlock, fundamentally 
+    transforming how players interact with the Skyblock world. This addon replaces the traditional 
+    automatic spiral island placement system with two revolutionary features:
+
+    1. **Grid-Based Island Selection**: Players open an interactive inventory GUI displaying a visual 
+       map of all possible island locations in the world. Each inventory slot represents one island 
+       location on a coordinate grid (A1, B7, C12, etc.). Players can browse the grid, view information 
+       about existing islands, choose where to place their new island, relocate their existing island 
+       to a different location, and warp to public islands directly from the interface.
+
+    2. **Multi-Slot Island System**: Similar to character slots in MMOs, players can maintain multiple 
+       separate islands in different "slots." All slots share the same grid location, but only one is 
+       active (loaded in the world) at a time. Players can switch between slots, with their current 
+       island being saved as a schematic and the new slot's island being loaded in its place. This 
+       enables players to work on multiple distinct projects—a main base, a farming island, an 
+       experimental build—without losing progress on any of them.
+
+    The addon integrates seamlessly with BSkyBlock, using BentoBox's addon API and leveraging 
+    FastAsyncWorldEdit (FAWE) for efficient schematic operations. It provides extensive configuration 
+    options, a robust permission system, admin tools for server management, and PlaceholderAPI 
+    integration for displaying island information throughout the server.
+
+    Key benefits:
+    - Players have agency in choosing their island's location rather than random assignment
+    - Multiple islands per player increases engagement and replayability
+    - Visual grid creates a sense of world and community (see your neighbors!)
+    - Premium location sales provide monetization opportunities for servers
+    - Neighborhood features encourage community building between adjacent islands
+  </overview>
+
+  <technology_stack>
+    <platform>
+      <server>Paper/Spigot 1.20.x - 1.21.x</server>
+      <language>Java 17+</language>
+      <build_tool>Maven or Gradle</build_tool>
+      <api_version>1.20</api_version>
+      <framework>BentoBox Addon API</framework>
+    </platform>
+
+    <dependencies>
+      <required>
+        <dependency name="BentoBox">Core addon framework - provides database abstraction, GUI panels, event system, and addon lifecycle management</dependency>
+        <dependency name="BSkyBlock">The Skyblock gamemode addon - IslandSelector hooks into its island creation, deletion, and management systems</dependency>
+        <dependency name="FastAsyncWorldEdit">Required for all schematic operations - saving slots, loading slots, island relocation. Must be FAWE, not standard WorldEdit, for async support</dependency>
+      </required>
+      <optional>
+        <dependency name="Vault">Economy integration for relocation costs and premium location purchases. Without Vault, these features are disabled or free</dependency>
+        <dependency name="PlaceholderAPI">Enables placeholders for use in scoreboards, tab lists, chat, and other plugins</dependency>
+        <dependency name="Level Addon">BSkyBlock's level calculation addon - if present, island levels are displayed in the grid GUI</dependency>
+      </optional>
+    </dependencies>
+
+    <storage>
+      <database>
+        BentoBox's database abstraction layer supporting:
+        - YAML (default, file-based, good for small servers)
+        - JSON (file-based alternative)
+        - MySQL/MariaDB (recommended for larger servers and networks)
+        - MongoDB (document-based alternative)
+        - SQLite (lightweight relational option)
+      </database>
+      <schematics>
+        FastAsyncWorldEdit schematic format (.schem files)
+        - Location: plugins/IslandSelector/slots/{player-uuid}/slot-{number}.schem
+        - Backups: plugins/IslandSelector/backups/{player-uuid}/slot-{number}-{timestamp}.schem
+      </schematics>
+      <configuration>
+        YAML configuration files in plugins/IslandSelector/
+        - config.yml: Main configuration
+        - locales/: Language files for all messages
+      </configuration>
+      <cache>
+        In-memory caching for:
+        - Island data (owner, level, online status, warp status)
+        - Grid state (which locations are occupied/available)
+        - Player preferences (last viewport position, filter settings)
+        Cache refresh on relevant BentoBox events
+      </cache>
+    </storage>
+
+    <world_management>
+      <coordinate_system>
+        Grid coordinates (A1, B7, etc.) map to world coordinates via configurable formula:
+        - worldX = (columnIndex * islandSpacing) + originX
+        - worldZ = (rowIndex * islandSpacing) + originZ
+        Default: 500 block spacing, origin at (0, 0)
+      </coordinate_system>
+      <island_operations>
+        All island save/load/copy operations use FAWE async API to prevent server lag
+      </island_operations>
+    </world_management>
+  </technology_stack>
+
+  <core_features>
+    <grid_selection_system>
+      <description>
+        A visual inventory-based GUI that displays the entire world as a grid of potential island 
+        locations. Players can scroll through the grid, see which locations are available or occupied, 
+        view detailed information about existing islands, and select locations for their new or 
+        relocated island. The grid creates a sense of place and community by showing players where 
+        they are in relation to others.
+      </description>
+      <features>
+        - Default 20x20 grid (400 possible island locations), expandable by admins
+        - Alphanumeric coordinate system: columns A-Z (then AA-AZ, etc.), rows 1-999
+        - 54-slot chest inventory GUI with scrollable viewport
+        - Center area (7x4 = 28 slots) displays visible portion of grid
+        - Arrow buttons on all four edges for scrolling (left, right, top, bottom)
+        - Shift-click arrows to jump multiple rows/columns at once
+        - Current viewport shown in GUI title (e.g., "Grid View: A1 - G4")
+        - Color-coded location indicators:
+          * Green stained glass: Available/empty location
+          * Player head (online): Occupied, owner is online
+          * Red stained glass: Occupied, owner is offline
+          * Your player head with glow: Your island location
+          * Gold block: Reserved premium location (purchasable)
+          * Gray glass/bedrock: Reserved blocked location (not available)
+          * Black glass: Locked/not yet unlocked grid section
+        - Hover tooltips show detailed island information
+        - Filter buttons: All, Available Only, Online Players Only
+        - Search function to find specific players by name
+        - "Find My Island" button instantly centers view on player's location
+        - "Neighborhood View" button opens 3x3 adjacent islands view
+        - "Slot Selection" button opens the slot management GUI
+        - Grid is expandable via admin commands (unlock new rows/columns over time)
+      </features>
+    </grid_selection_system>
+
+    <slot_system>
+      <description>
+        A multi-island slot system that allows players to maintain multiple separate islands, similar 
+        to character slots in MMOs. Each player has access to a configurable number of slots (default 2, 
+        max 5 via permissions). All slots share the same grid location—only one slot is "active" and 
+        physically present in the world at any time. Switching slots saves the current island as a 
+        FAWE schematic and loads the selected slot's schematic in its place. This enables diverse 
+        gameplay without forcing players to choose between different projects.
+      </description>
+      <features>
+        - Default 2 slots per player, up to 5 with appropriate permissions
+        - Slot availability controlled entirely by permissions (external economy plugins grant perms)
+        - All slots share the same grid location (e.g., all your slots load at C7)
+        - Only one slot active (loaded in world) at a time
+        - Slot switching process:
+          1. Check cooldown (configurable, default 1 hour)
+          2. Save current island as FAWE schematic (async)
+          3. Teleport visitors to their islands or spawn
+          4. Team members remain with island (teleported to safe spot during switch)
+          5. Clear current location (set to void)
+          6. Load new slot's schematic at same location (async)
+          7. Teleport owner and team to island spawn
+        - Each slot is fully independent:
+          * Separate blocks and entities
+          * Separate island level
+          * Separate team members and permissions
+          * Separate warps and settings
+          * Separate progression
+        - Custom slot names (e.g., "Main Base", "Farming Island", "Creative Build")
+        - Custom slot icons (any item, displayed in slot GUI)
+        - Empty slots can create new islands via BSkyBlock schematic selection
+        - Slot deletion removes only that slot (with confirmation)
+        - Only island owner/leader can switch or manage slots
+        - Automatic backup system on every slot switch (configurable retention)
+      </features>
+    </slot_system>
+
+    <slot_selection_gui>
+      <description>
+        A dedicated inventory GUI for managing island slots. Displays all available, locked, and 
+        empty slots with clear visual indicators. Allows switching between slots, creating new 
+        islands in empty slots, renaming slots, and changing slot icons.
+      </description>
+      <features>
+        - 27 or 36 slot chest inventory (depending on max slots configured)
+        - Slot display states:
+          * Active slot: Enchantment glow, custom icon, name, level, "★ ACTIVE" indicator
+          * Inactive slot with island: Custom icon, name, level, "Click to switch"
+          * Empty unlocked slot: Lime dye/green icon, "Click to create new island"
+          * Locked slot: Barrier block, shows which permission unlocks it
+        - Left-click active slot: Shows island info or does nothing
+        - Left-click inactive slot: Opens switch confirmation GUI
+        - Left-click empty slot: Begins BSkyBlock island creation flow
+        - Left-click locked slot: Shows unlock requirements message
+        - Right-click any slot with island: Opens slot settings menu (rename, change icon)
+        - Switch confirmation GUI shows:
+          * Current slot name → New slot name
+          * Warning about visitors being teleported
+          * Cooldown time if applicable
+          * Confirm and Cancel buttons
+        - Progress indicator during switch operation (action bar or boss bar)
+        - "Back to Grid" button returns to main grid GUI
+      </features>
+    </slot_selection_gui>
+
+    <island_claiming>
+      <description>
+        Overrides BSkyBlock's default island creation to route players through the grid selection 
+        GUI. When a player without an island uses the island create command or first joins, they 
+        are shown the grid and must select an available location before their island is created.
+      </description>
+      <features>
+        - Intercepts BSkyBlock's IslandCreateEvent
+        - Players without islands open grid in "claiming mode"
+        - Available (green) slots show "Click to claim this location"
+        - Clicking available slot opens confirmation GUI:
+          * Selected coordinates displayed prominently
+          * Neighboring island owners shown (if any)
+          * Confirm and Cancel buttons
+        - Upon confirmation:
+          * Grid location marked as claimed
+          * BSkyBlock island creation triggered at calculated world coordinates
+          * Island UUID linked to grid coordinates in database
+          * Player teleported to new island
+        - Premium reserved locations can be claimed if player has funds (Vault)
+        - Blocked reserved locations cannot be claimed by players
+      </features>
+    </island_claiming>
+
+    <island_relocation>
+      <description>
+        Allows players with existing islands to physically move their entire island to a different 
+        available grid location. This is a full block-by-block copy operation using FAWE, not just 
+        a data reassignment. The old location is cleared and becomes available for other players.
+      </description>
+      <features>
+        - Physical relocation: all blocks, entities, tile entities copied to new location
+        - Uses FAWE for efficient async copy/paste operations
+        - Relocation process:
+          1. Player selects new location in grid GUI
+          2. Confirmation GUI shows current→new coordinates, cost, cooldown info
+          3. Upon confirmation: cost deducted (if configured), cooldown started
+          4. Current island saved as schematic
+          5. Old location cleared (void)
+          6. Island pasted at new world coordinates
+          7. All BSkyBlock data updated (warps, spawn point, etc.)
+          8. Old grid location marked available
+          9. Player and team teleported to new location
+        - Configurable cooldown between relocations (default: 7 days)
+        - Configurable cost via Vault economy (default: free)
+        - Progress indicator during relocation operation
+        - Cannot relocate to reserved locations unless purchasing them
+        - Admin bypass permission for cooldowns and costs
+        - Handles visitors same as slot switching (teleport away)
+      </features>
+    </island_relocation>
+
+    <reserved_locations>
+      <description>
+        Admin system for reserving specific grid locations. Reserved locations can either be 
+        completely blocked (never claimable) or set as premium purchasable locations with a 
+        price tag. This enables servers to sell "prime real estate" near world center or reserve 
+        areas for future content and events.
+      </description>
+      <features>
+        - Two types of reserved locations:
+          * Blocked: Cannot be claimed by anyone, shown as gray glass
+          * Purchasable: Has a price, players can buy to claim, shown as gold block
+        - Admin commands to reserve/unreserve locations
+        - Admin commands to set/clear prices on reserved locations
+        - Purchasable locations use Vault economy
+        - Purchase flow:
+          1. Player clicks purchasable location in grid
+          2. Confirmation GUI shows location, price, confirm/cancel
+          3. Upon confirmation: money deducted, location becomes player's island
+          4. Normal island creation flow continues
+        - Reserved locations persist across server restarts
+        - Admin GUI for managing all reserved locations (optional enhancement)
+        - Configurable default price for new reserved locations
+        - Premium locations could have special perks (configured separately in BSkyBlock)
+      </features>
+    </reserved_locations>
+
+    <neighborhood_view>
+      <description>
+        A simplified 3x3 GUI showing only the player's island and their 8 immediate neighbors. 
+        Provides quick access to see who's around you and visit neighbors with open warps. 
+        Only available to players who already have an island.
+      </description>
+      <features>
+        - 27-slot chest inventory (3x3 center area for islands)
+        - Center slot: Your island (with glow effect)
+        - Surrounding 8 slots: Adjacent islands (N, NE, E, SE, S, SW, W, NW)
+        - Same visual indicators as main grid:
+          * Player heads for online owners
+          * Red glass for offline owners
+          * Green glass for empty adjacent locations
+        - Hover information same as main grid
+        - Right-click to warp to neighbors with open warps
+        - Shows at-a-glance which neighbors are online
+        - Quick way to build community with adjacent island owners
+        - "Back to Grid" button returns to full grid view
+        - "Slot Selection" button opens slot GUI
+        - Only accessible if player has an island
+      </features>
+    </neighborhood_view>
+
+    <warp_integration>
+      <description>
+        Integration with BSkyBlock's warp system allowing players to teleport to public islands 
+        directly from the grid GUI. Respects all BSkyBlock warp permissions and ban lists.
+      </description>
+      <features>
+        - Grid GUI shows warp status in island tooltips:
+          * "🌐 Warp Open - Right-click to visit"
+          * "🔒 Private Island"
+        - Right-clicking an island with open warp initiates teleport
+        - Respects BSkyBlock visitor permissions
+        - Respects island ban lists (banned players cannot warp)
+        - Works in both main grid GUI and neighborhood view
+        - Warp destination uses BSkyBlock's configured warp point
+        - Failed warp attempts show appropriate error message
+      </features>
+    </warp_integration>
+
+    <hover_information>
+      <description>
+        Detailed tooltip information displayed when hovering over grid slots. Provides comprehensive 
+        island data pulled from BSkyBlock and the addon's own tracking.
+      </description>
+      <features>
+        - Occupied island information:
+          * Owner's name (item is their player head if online)
+          * Active slot name (if set, e.g., "Playing: Farming Island")
+          * Island level (from BSkyBlock Level addon, if installed)
+          * Number of team members
+          * Online status: "🟢 Online" or "🔴 Offline - Last seen: 3 days ago"
+          * Warp status: "🌐 Warp Open" or "🔒 Private"
+          * "Right-click to visit" (if warp open)
+        - Empty location information:
+          * Coordinates (e.g., "Location: C7")
+          * "Left-click to claim this location" (if player has no island)
+          * "Left-click to relocate here" (if player has island elsewhere)
+        - Reserved purchasable location:
+          * "⭐ Premium Location: C7"
+          * "Price: $50,000"
+          * "Click to purchase"
+        - Reserved blocked location:
+          * "🚫 Reserved"
+          * "This location is not available"
+        - Locked grid section:
+          * "🔒 Locked Area"
+          * "This area is not yet available"
+        - Your island:
+          * "🏠 Your Island"
+          * Coordinates
+          * Active slot name
+          * Island level
+          * Member count
+      </features>
+    </hover_information>
+
+    <filtering_and_search>
+      <description>
+        Tools to help players navigate and find specific islands within potentially large grids. 
+        Includes filter toggles and a player search function.
+      </description>
+      <features>
+        - Filter toggle buttons in grid GUI bottom row:
+          * "All" - Show all locations (default)
+          * "Available" - Show only empty/claimable locations
+          * "Online" - Show only islands with online owners
+        - Active filter indicated by enchantment glow on button
+        - Filters persist during session (reset on GUI close or configurable to persist)
+        - Search function:
+          * Click search button (compass or name tag icon)
+          * Opens anvil GUI or prompts in chat
+          * Enter player name (partial matching supported)
+          * If found: Grid centers on that player's island
+          * If not found: Message indicating player not found or has no island
+        - "Find My Island" button:
+          * Instantly centers viewport on player's own island
+          * Disabled/hidden if player has no island
+      </features>
+    </filtering_and_search>
+
+    <grid_expansion>
+      <description>
+        Admin tools to expand or manage the available grid area over time. Allows servers to 
+        start small and unlock new areas as the player base grows or for special events.
+      </description>
+      <features>
+        - Initial grid size configurable (default 20x20)
+        - Maximum grid size configurable (default 100x100)
+        - Admin commands to expand grid:
+          * Expand by direction: `/islandselector admin expand east 5`
+          * Expands grid by adding columns or rows
+        - Admin commands to shrink grid:
+          * Only if no islands in affected area
+          * `/islandselector admin shrink west 3`
+        - Locked areas (beyond current boundaries) shown as black glass
+        - Expansion unlocks those areas (black → green)
+        - Event potential: "New continent unlocked!" announcements
+        - Grid dimensions stored in config, updated by commands
+      </features>
+    </grid_expansion>
+
+    <backup_system>
+      <description>
+        Automatic and manual backup system for island slot data. Protects against data loss 
+        from corruption, accidental deletion, or other issues.
+      </description>
+      <features>
+        - Automatic backup on every slot switch (configurable)
+        - Configurable number of backups to retain per slot (default: 3)
+        - Backup files stored in: plugins/IslandSelector/backups/{uuid}/
+        - Backup naming: slot-{number}-{timestamp}.schem
+        - Old backups automatically pruned when exceeding retention limit
+        - Admin command to force backup: `/islandselector admin backup <player> [slot]`
+        - Potential future: Admin restore command (complex, may be v2)
+        - Backup on server shutdown (optional, configurable)
+        - Backup integrity verification (optional)
+      </features>
+    </backup_system>
+
+    <data_purge_system>
+      <description>
+        Admin tools for managing and cleaning up slot data for inactive or banned players. 
+        No automatic purging—all purges are manual and require confirmation.
+      </description>
+      <features>
+        - No automatic purging (data preserved indefinitely by default)
+        - Admin command to purge specific player: `/islandselector admin purge <player>`
+        - Admin command to purge inactive players: `/islandselector admin purge inactive <days>`
+          * Targets players not logged in for X days
+          * Dry-run option to preview affected players
+          * Confirmation required before execution
+        - Admin command to purge banned players: `/islandselector admin purge banned`
+          * Checks server ban list
+          * Dry-run and confirmation required
+        - Purge removes:
+          * All slot schematic files
+          * Slot metadata from database
+          * Does NOT remove BSkyBlock island data (handled separately)
+        - Purge log written to file for audit trail
+        - Safeguard: Cannot purge players currently online
+      </features>
+    </data_purge_system>
+
+    <visitor_handling>
+      <description>
+        Proper handling of visitors (non-team members) on an island during slot switches 
+        or relocations. Ensures visitors are safely teleported away before island changes.
+      </description>
+      <features>
+        - Before slot switch or relocation:
+          * Detect all visitors currently on the island
+          * Exclude team members (they stay with island)
+        - Visitor teleport priority:
+          1. To their own island (if they have one)
+          2. To server spawn (if no island)
+        - Notification sent to visitors explaining why they were teleported
+        - Brief delay before teleport for message to be read (configurable)
+        - Safe teleport: Ensures destination is safe (not in void, etc.)
+        - Team members:
+          * Remain associated with island
+          * Teleported to temporary safe location during switch
+          * Teleported to island spawn after switch completes
+      </features>
+    </visitor_handling>
+
+    <progress_indicators>
+      <description>
+        Visual feedback during long-running operations like slot switches and island 
+        relocations. Keeps players informed about operation status.
+      </description>
+      <features>
+        - Action bar messages showing current step:
+          * "Saving current island..."
+          * "Clearing location..."
+          * "Loading new island..."
+          * "Switch complete!"
+        - Optional boss bar for progress (configurable)
+        - Estimated time remaining (if calculable)
+        - Player movement restricted during operation (prevents issues)
+        - Graceful handling if player disconnects mid-operation
+        - Operation completion notification (sound + message)
+      </features>
+    </progress_indicators>
+
+    <cooldown_system>
+      <description>
+        Configurable cooldowns for slot switching and island relocation to prevent abuse 
+        and ensure server stability.
+      </description>
+      <features>
+        - Slot switch cooldown:
+          * Default: 1 hour (3600 seconds)
+          * Configurable in config.yml
+          * Per-player tracking
+          * Bypass permission available
+        - Relocation cooldown:
+          * Default: 7 days (604800 seconds)
+          * Configurable in config.yml
+          * Per-player tracking
+          * Bypass permission available
+        - Cooldown display:
+          * Shown in GUI when hovering over actions
+          * Shown in chat when attempting blocked action
+          * Formatted nicely: "2 hours, 15 minutes remaining"
+        - Cooldown stored in database (persists across restarts)
+        - Admin command to reset cooldowns: `/islandselector admin resetcooldown <player> <type>`
+      </features>
+    </cooldown_system>
+  </core_features>
+
+  <gui_specifications>
+    <main_grid_gui>
+      <title>Grid View: {start_coord} - {end_coord}</title>
+      <size>54 slots (6 rows x 9 columns)</size>
+      <layout>
+        Row 1 (slots 0-8):
+        - Slots 0-1: Scroll up arrows (north)
+        - Slots 2-6: Grid display (top row of viewport)
+        - Slots 7-8: Scroll up arrows (north)
+
+        Row 2 (slots 9-17):
+        - Slot 9: Scroll left arrow (west)
+        - Slots 10-16: Grid display (7 columns)
+        - Slot 17: Scroll right arrow (east)
+
+        Row 3 (slots 18-26):
+        - Slot 18: Scroll left arrow (west)
+        - Slots 19-25: Grid display (7 columns)
+        - Slot 26: Scroll right arrow (east)
+
+        Row 4 (slots 27-35):
+        - Slot 27: Scroll left arrow (west)
+        - Slots 28-34: Grid display (7 columns)
+        - Slot 35: Scroll right arrow (east)
+
+        Row 5 (slots 36-44):
+        - Slots 36-37: Scroll down arrows (south)
+        - Slots 38-42: Grid display (bottom row of viewport)
+        - Slots 43-44: Scroll down arrows (south)
+
+        Row 6 (slots 45-53): Control buttons
+        - Slot 45: Filter: All (paper)
+        - Slot 46: Filter: Available (green dye)
+        - Slot 47: Filter: Online (lime dye)
+        - Slot 48: Search (compass)
+        - Slot 49: Find My Island (ender eye)
+        - Slot 50: Neighborhood View (map)
+        - Slot 51: Slot Selection (chest)
+        - Slot 52: Empty (black glass filler)
+        - Slot 53: Close (barrier)
+
+        Grid viewport: 7 columns x 4 rows = 28 island slots visible at once
+      </layout>
+      <navigation_behavior>
+        - Single click arrow: Move 1 row/column in that direction
+        - Shift+click arrow: Move 5 rows/columns (configurable jump amount)
+        - Arrows disabled (grayed out) when at grid boundary
+        - Clicking outside grid area does nothing
+      </navigation_behavior>
+    </main_grid_gui>
+
+    <slot_selection_gui>
+      <title>Your Island Slots</title>
+      <size>27 slots (3 rows x 9 columns)</size>
+      <layout>
+        Row 1 (slots 0-8):
+        - Slot 0: Empty (black glass filler)
+        - Slot 1: Empty (black glass filler)
+        - Slot 2: Slot 1 display
+        - Slot 3: Slot 2 display
+        - Slot 4: Slot 3 display
+        - Slot 5: Slot 4 display
+        - Slot 6: Slot 5 display
+        - Slot 7: Empty (black glass filler)
+        - Slot 8: Empty (black glass filler)
+
+        Row 2 (slots 9-17):
+        - Slots 9-17: Empty (black glass filler) or decorative
+
+        Row 3 (slots 18-26):
+        - Slot 18: Empty (black glass filler)
+        - Slot 19: Empty (black glass filler)
+        - Slot 20: Back to Grid (map)
+        - Slot 21: Empty (black glass filler)
+        - Slot 22: Empty (black glass filler)
+        - Slot 23: Empty (black glass filler)
+        - Slot 24: Close (barrier)
+        - Slot 25: Empty (black glass filler)
+        - Slot 26: Empty (black glass filler)
+
+        Alternative layout for servers with max 3 slots:
+        - Center slots 3, 4, 5 for the 3 slots
+        - Adjust spacing accordingly
+      </layout>
+      <slot_item_display>
+        Active slot:
+        - Item: Custom icon (default: grass block) with enchantment glow
+        - Name: "&a&l{slot_name}" (green, bold)
+        - Lore:
+          * "&7Level: &f{level}"
+          * "&7Members: &f{count}"
+          * ""
+          * "&e★ ACTIVE"
+
+        Inactive slot with island:
+        - Item: Custom icon (default: grass block)
+        - Name: "&f{slot_name}"
+        - Lore:
+          * "&7Level: &f{level}"
+          * "&7Members: &f{count}"
+          * ""
+          * "&eClick to switch to this slot"
+          * "&7Cooldown: {cooldown_remaining}" (if applicable)
+
+        Empty unlocked slot:
+        - Item: Lime dye
+        - Name: "&aEmpty Slot"
+        - Lore:
+          * "&7This slot is available!"
+          * ""
+          * "&eClick to create a new island"
+
+        Locked slot:
+        - Item: Barrier
+        - Name: "&cLocked Slot"
+        - Lore:
+          * "&7This slot is locked."
+          * ""
+          * "&7Unlock with: &f{permission_hint}"
+          * "&7(e.g., VIP rank)"
+      </slot_item_display>
+    </slot_selection_gui>
+
+    <neighborhood_gui>
+      <title>Your Neighborhood</title>
+      <size>27 slots (3 rows x 9 columns)</size>
+      <layout>
+        Row 1 (slots 0-8):
+        - Slot 0-1: Empty (black glass filler)
+        - Slot 2: Northwest neighbor (position -1, -1)
+        - Slot 3: North neighbor (position 0, -1)
+        - Slot 4: Northeast neighbor (position +1, -1)
+        - Slots 5-8: Empty (black glass filler)
+
+        Row 2 (slots 9-17):
+        - Slots 9-10: Empty (black glass filler)
+        - Slot 11: West neighbor (position -1, 0)
+        - Slot 12: YOUR ISLAND (center, glowing)
+        - Slot 13: East neighbor (position +1, 0)
+        - Slots 14-17: Empty (black glass filler)
+
+        Row 3 (slots 18-26):
+        - Slots 18-19: Empty (black glass filler)
+        - Slot 20: Southwest neighbor (position -1, +1)
+        - Slot 21: South neighbor (position 0, +1)
+        - Slot 22: Southeast neighbor (position +1, +1)
+        - Slot 23: Empty (black glass filler)
+        - Slot 24: Back to Grid (map)
+        - Slot 25: Slot Selection (chest)
+        - Slot 26: Close (barrier)
+
+        Neighbors at grid edges show as empty (green glass) even if beyond grid
+      </layout>
+    </neighborhood_gui>
+
+    <confirmation_gui>
+      <title>{action} Confirmation</title>
+      <size>27 slots (3 rows x 9 columns)</size>
+      <layout>
+        Row 1 (slots 0-8):
+        - Slot 4: Information item (paper or relevant icon)
+          * Shows details of the action being confirmed
+          * e.g., "Switch from 'Main Base' to 'Farm Island'"
+          * e.g., "Relocate from C7 to F12"
+          * e.g., "Purchase location D4 for $50,000"
+
+        Row 2 (slots 9-17):
+        - Slot 11: Confirm button (green wool or lime concrete)
+          * Name: "&a&lConfirm"
+          * Lore: "&7Click to proceed"
+        - Slot 13: Information/Warning (yellow wool)
+          * Warnings about the action
+          * e.g., "Visitors will be teleported away"
+          * e.g., "This will cost $50,000"
+        - Slot 15: Cancel button (red wool or red concrete)
+          * Name: "&c&lCancel"
+          * Lore: "&7Click to cancel"
+
+        Row 3 (slots 18-26):
+        - All empty (black glass filler)
+      </layout>
+    </confirmation_gui>
+
+    <slot_settings_gui>
+      <title>Slot Settings: {slot_name}</title>
+      <size>27 slots (3 rows x 9 columns)</size>
+      <layout>
+        Row 1 (slots 0-8):
+        - Slot 4: Current slot preview (custom icon with current name)
+
+        Row 2 (slots 9-17):
+        - Slot 11: Rename (name tag)
+          * Name: "&eRename Slot"
+          * Lore: "&7Click to change this slot's name"
+        - Slot 13: Change Icon (item frame)
+          * Name: "&eChange Icon"
+          * Lore: "&7Hold an item and click to set as icon"
+        - Slot 15: Delete Slot (TNT or lava bucket)
+          * Name: "&cDelete Slot"
+          * Lore: "&7Permanently delete this island"
+          * Lore: "&c&lThis cannot be undone!"
+
+        Row 3 (slots 18-26):
+        - Slot 22: Back (arrow)
+        - Slot 26: Close (barrier)
+      </layout>
+    </slot_settings_gui>
+  </gui_specifications>
+
+  <commands>
+    <player_commands>
+      <command>
+        <syntax>/islandselector</syntax>
+        <aliases>/is, /iselector, /gridpick, /gp</aliases>
+        <description>Opens the main grid selection GUI</description>
+        <permission>islandselector.use</permission>
+      </command>
+
+      <command>
+        <syntax>/islandselector slots</syntax>
+        <aliases>/is slots</aliases>
+        <description>Opens the slot selection GUI</description>
+        <permission>islandselector.slots</permission>
+      </command>
+
+      <command>
+        <syntax>/islandselector locate</syntax>
+        <aliases>/is locate, /is coords</aliases>
+        <description>Shows your island's grid coordinates in chat</description>
+        <permission>islandselector.use</permission>
+        <output>Your island is located at C7 (world coordinates: 1000, 3000)</output>
+      </command>
+
+      <command>
+        <syntax>/islandselector neighbors</syntax>
+        <aliases>/is neighbors, /is hood</aliases>
+        <description>Opens the neighborhood view GUI</description>
+        <permission>islandselector.neighbors</permission>
+      </command>
+
+      <command>
+        <syntax>/islandselector find [player]</syntax>
+        <aliases>/is find</aliases>
+        <description>Centers the grid view on a specific player's island</description>
+        <permission>islandselector.use</permission>
+        <output>Opens grid GUI centered on the player's island, or error if not found</output>
+      </command>
+
+      <command>
+        <syntax>/islandselector setname [slot] [name...]</syntax>
+        <aliases>/is setname, /is rename</aliases>
+        <description>Sets the display name for a slot</description>
+        <permission>islandselector.slots</permission>
+        <example>/is setname 1 My Main Base</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector seticon [slot]</syntax>
+        <aliases>/is seticon</aliases>
+        <description>Sets the slot's icon to the item currently held</description>
+        <permission>islandselector.slots</permission>
+        <note>Player must be holding an item</note>
+      </command>
+
+      <command>
+        <syntax>/islandselector switch [slot]</syntax>
+        <aliases>/is switch</aliases>
+        <description>Switches to a specific slot number (1-5)</description>
+        <permission>islandselector.slots</permission>
+        <example>/is switch 2</example>
+        <note>Opens confirmation GUI before switching</note>
+      </command>
+
+      <command>
+        <syntax>/islandselector delete [slot]</syntax>
+        <aliases>/is delete, /is delslot</aliases>
+        <description>Deletes a specific slot (requires confirmation)</description>
+        <permission>islandselector.slots</permission>
+        <example>/is delete 3</example>
+        <note>Opens confirmation GUI with warnings</note>
+      </command>
+
+      <command>
+        <syntax>/islandselector help</syntax>
+        <aliases>/is help, /is ?</aliases>
+        <description>Shows help information for all commands</description>
+        <permission>islandselector.use</permission>
+      </command>
+    </player_commands>
+
+    <admin_commands>
+      <command>
+        <syntax>/islandselector admin reserve [coords]</syntax>
+        <description>Reserves a grid location (blocks player claiming)</description>
+        <permission>islandselector.admin.reserve</permission>
+        <example>/is admin reserve D4</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin unreserve [coords]</syntax>
+        <description>Removes reservation from a grid location</description>
+        <permission>islandselector.admin.reserve</permission>
+        <example>/is admin unreserve D4</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin setprice [coords] [amount]</syntax>
+        <description>Sets a purchase price for a reserved location (makes it buyable)</description>
+        <permission>islandselector.admin.reserve</permission>
+        <example>/is admin setprice D4 50000</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin clearprice [coords]</syntax>
+        <description>Removes purchase price from reserved location (makes it blocked)</description>
+        <permission>islandselector.admin.reserve</permission>
+        <example>/is admin clearprice D4</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin expand [direction] [amount]</syntax>
+        <description>Expands the grid boundaries</description>
+        <permission>islandselector.admin.expand</permission>
+        <example>/is admin expand east 5</example>
+        <directions>north, south, east, west</directions>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin shrink [direction] [amount]</syntax>
+        <description>Shrinks the grid boundaries (fails if islands in affected area)</description>
+        <permission>islandselector.admin.expand</permission>
+        <example>/is admin shrink west 3</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin relocate [player] [coords]</syntax>
+        <description>Force relocates a player's island to a new location</description>
+        <permission>islandselector.admin.relocate</permission>
+        <example>/is admin relocate Notch F12</example>
+        <note>Bypasses cooldowns and costs</note>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin info [coords|player]</syntax>
+        <description>Shows detailed information about a location or player's island/slots</description>
+        <permission>islandselector.admin.info</permission>
+        <example>/is admin info C7</example>
+        <example>/is admin info Notch</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin purge [player]</syntax>
+        <description>Purges all slot data for a specific player</description>
+        <permission>islandselector.admin.purge</permission>
+        <example>/is admin purge Notch</example>
+        <note>Requires confirmation</note>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin purge inactive [days]</syntax>
+        <description>Purges slot data for players inactive for X days</description>
+        <permission>islandselector.admin.purge</permission>
+        <example>/is admin purge inactive 90</example>
+        <options>--dry-run to preview without deleting</options>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin purge banned</syntax>
+        <description>Purges slot data for all banned players</description>
+        <permission>islandselector.admin.purge</permission>
+        <options>--dry-run to preview without deleting</options>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin backup [player] [slot]</syntax>
+        <description>Forces a backup of a player's slot (or all slots if slot not specified)</description>
+        <permission>islandselector.admin.backup</permission>
+        <example>/is admin backup Notch 1</example>
+        <example>/is admin backup Notch</example>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin resetcooldown [player] [type]</syntax>
+        <description>Resets a player's cooldown</description>
+        <permission>islandselector.admin</permission>
+        <example>/is admin resetcooldown Notch switch</example>
+        <example>/is admin resetcooldown Notch relocate</example>
+        <types>switch, relocate, all</types>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin reload</syntax>
+        <description>Reloads the plugin configuration</description>
+        <permission>islandselector.admin.reload</permission>
+      </command>
+
+      <command>
+        <syntax>/islandselector admin version</syntax>
+        <description>Shows plugin version and dependency information</description>
+        <permission>islandselector.admin</permission>
+      </command>
+    </admin_commands>
+  </commands>
+
+  <permissions>
+    <player_permissions>
+      <permission>
+        <node>islandselector.use</node>
+        <description>Access to /islandselector command and grid GUI</description>
+        <default>true</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.slots</node>
+        <description>Access to slot selection GUI and slot commands</description>
+        <default>true</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.slots.2</node>
+        <description>Player has access to 2 island slots</description>
+        <default>true</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.slots.3</node>
+        <description>Player has access to 3 island slots</description>
+        <default>false</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.slots.4</node>
+        <description>Player has access to 4 island slots</description>
+        <default>false</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.slots.5</node>
+        <description>Player has access to 5 island slots (maximum)</description>
+        <default>false</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.relocate</node>
+        <description>Can relocate island to a new grid position</description>
+        <default>true</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.neighbors</node>
+        <description>Can use neighborhood view</description>
+        <default>true</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.purchase</node>
+        <description>Can purchase reserved premium locations</description>
+        <default>true</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.warp</node>
+        <description>Can warp to other islands from grid GUI</description>
+        <default>true</default>
+      </permission>
+    </player_permissions>
+
+    <bypass_permissions>
+      <permission>
+        <node>islandselector.bypass.cooldown.switch</node>
+        <description>Bypass slot switching cooldown</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.bypass.cooldown.relocate</node>
+        <description>Bypass island relocation cooldown</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.bypass.cost.relocate</node>
+        <description>Bypass relocation cost</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.bypass.cost.purchase</node>
+        <description>Bypass premium location purchase cost</description>
+        <default>op</default>
+      </permission>
+    </bypass_permissions>
+
+    <admin_permissions>
+      <permission>
+        <node>islandselector.admin</node>
+        <description>Access to all admin commands (parent permission)</description>
+        <default>op</default>
+        <children>
+          - islandselector.admin.reserve
+          - islandselector.admin.expand
+          - islandselector.admin.relocate
+          - islandselector.admin.info
+          - islandselector.admin.purge
+          - islandselector.admin.backup
+          - islandselector.admin.reload
+        </children>
+      </permission>
+
+      <permission>
+        <node>islandselector.admin.reserve</node>
+        <description>Can reserve/unreserve locations and set prices</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.admin.expand</node>
+        <description>Can expand/shrink grid boundaries</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.admin.relocate</node>
+        <description>Can force relocate any player's island</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.admin.info</node>
+        <description>Can view detailed info on any island/location</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.admin.purge</node>
+        <description>Can purge player slot data</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.admin.backup</node>
+        <description>Can force backups of player slots</description>
+        <default>op</default>
+      </permission>
+
+      <permission>
+        <node>islandselector.admin.reload</node>
+        <description>Can reload plugin configuration</description>
+        <default>op</default>
+      </permission>
+    </admin_permissions>
+  </permissions>
+
+  <configuration>
+    <config_file>config.yml</config_file>
+    <full_config>
+# IslandSelector Configuration
+# BentoBox Addon for BSkyBlock
+
+# ==========================================
+# GRID SETTINGS
+# ==========================================
+grid:
+  # Starting dimensions of the grid (columns x rows)
+  # Columns: A through T (20 columns)
+  # Rows: 1 through 20
+  width: 20
+  height: 20
+  
+  # Maximum dimensions the grid can be expanded to
+  max-width: 100
+  max-height: 100
+  
+  # World coordinates where grid position A1 is centered
+  # This should typically match your BSkyBlock island starting position
+  origin:
+    x: 0
+    z: 0
+  
+  # Distance in blocks between island centers
+  # Should match your BSkyBlock island distance setting
+  island-spacing: 500
+
+# ==========================================
+# SLOT SETTINGS
+# ==========================================
+slots:
+  # Default number of slots for new players
+  # Players still need the appropriate permission (islandselector.slots.X)
+  default-slots: 2
+  
+  # Maximum possible slots (cannot exceed 5)
+  max-slots: 5
+  
+  # Cooldown between slot switches in seconds
+  # Set to 0 to disable cooldown
+  # Default: 3600 (1 hour)
+  switch-cooldown: 3600
+  
+  # Default slot name for new slots
+  # Placeholders: {number} = slot number
+  default-slot-name: "Island {number}"
+  
+  # Default slot icon (material name)
+  default-slot-icon: GRASS_BLOCK
+
+# ==========================================
+# RELOCATION SETTINGS
+# ==========================================
+relocation:
+  # Cooldown between island relocations in seconds
+  # Set to 0 to disable cooldown
+  # Default: 604800 (7 days)
+  cooldown: 604800
+  
+  # Cost to relocate island (requires Vault)
+  # Set to 0 for free relocation
+  cost: 0
+  
+  # Currency name for display (if using cost)
+  currency-name: "coins"
+
+# ==========================================
+# RESERVED LOCATIONS
+# ==========================================
+reserved:
+  # Default price for new reserved locations
+  # Used when admin reserves without specifying price
+  default-price: 50000
+  
+  # List of reserved locations
+  # Format: "COORD: PRICE" or "COORD: blocked"
+  # Example:
+  # locations:
+  #   - "A1: 100000"
+  #   - "A2: blocked"
+  #   - "B1: 75000"
+  locations: []
+
+# ==========================================
+# BACKUP SETTINGS
+# ==========================================
+backups:
+  # Enable automatic backups
+  enabled: true
+  
+  # Create backup on every slot switch
+  on-switch: true
+  
+  # Maximum backups to keep per slot
+  # Older backups are automatically deleted
+  max-per-slot: 3
+  
+  # Backup on server shutdown (for active slots)
+  on-shutdown: false
+
+# ==========================================
+# GUI SETTINGS
+# ==========================================
+gui:
+  # Items used for grid display
+  items:
+    available: GREEN_STAINED_GLASS_PANE
+    offline: RED_STAINED_GLASS_PANE
+    reserved-blocked: GRAY_STAINED_GLASS_PANE
+    reserved-purchasable: GOLD_BLOCK
+    locked-area: BLACK_STAINED_GLASS_PANE
+    filler: BLACK_STAINED_GLASS_PANE
+    
+  # Navigation arrows
+  arrows:
+    up: ARROW
+    down: ARROW
+    left: ARROW
+    right: ARROW
+    
+  # Control buttons
+  buttons:
+    filter-all: PAPER
+    filter-available: GREEN_DYE
+    filter-online: LIME_DYE
+    search: COMPASS
+    find-my-island: ENDER_EYE
+    neighborhood: FILLED_MAP
+    slots: CHEST
+    close: BARRIER
+    confirm: LIME_WOOL
+    cancel: RED_WOOL
+    back: ARROW
+    
+  # Add enchantment glow to active slot
+  active-slot-glow: true
+  
+  # Number of rows/columns to scroll per click
+  scroll-amount: 1
+  
+  # Number of rows/columns to scroll per shift-click
+  scroll-amount-shift: 5
+
+# ==========================================
+# VISITOR HANDLING
+# ==========================================
+visitors:
+  # Delay before teleporting visitors (in ticks, 20 = 1 second)
+  # Gives them time to read the notification
+  teleport-delay: 40
+  
+  # Message shown to visitors before teleport
+  # Set to empty string to disable
+  warning-message: "&eThe island owner is switching islands. You will be teleported in 2 seconds..."
+
+# ==========================================
+# PERFORMANCE
+# ==========================================
+performance:
+  # Cache duration for island data in seconds
+  # Lower = more database queries, higher = potentially stale data
+  cache-duration: 60
+  
+  # Maximum concurrent schematic operations
+  # Increase on powerful servers, decrease on weaker ones
+  max-concurrent-operations: 2
+
+# ==========================================
+# INTEGRATION
+# ==========================================
+integration:
+  # Vault economy integration
+  vault:
+    enabled: true
+    
+  # PlaceholderAPI integration
+  placeholderapi:
+    enabled: true
+    
+  # BSkyBlock Level addon integration
+  level-addon:
+    enabled: true
+
+# ==========================================
+# DEBUG
+# ==========================================
+debug:
+  # Enable debug logging
+  enabled: false
+  
+  # Log schematic operations
+  log-schematics: false
+  
+  # Log GUI interactions
+  log-gui: false
+    </full_config>
+
+    <locale_file>locales/en-US.yml</locale_file>
+    <locale_notes>
+      All messages are fully customizable via locale files.
+      Supports color codes (&amp;a, &amp;b, etc.) and hex colors (&amp;#FF5555).
+      Supports placeholders like {player}, {coords}, {level}, {price}, {time}, etc.
+      Multiple language files can be created (en-US.yml, es-ES.yml, etc.).
+    </locale_notes>
+  </configuration>
+
+  <placeholders>
+    <provider>PlaceholderAPI</provider>
+    <prefix>islandselector</prefix>
+    
+    <grid_placeholders>
+      <placeholder>
+        <name>%islandselector_location%</name>
+        <description>Player's island grid coordinates</description>
+        <example>C7</example>
+        <note>Returns empty if player has no island</note>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_location_column%</name>
+        <description>Just the column letter of player's island</description>
+        <example>C</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_location_row%</name>
+        <description>Just the row number of player's island</description>
+        <example>7</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_available%</name>
+        <description>Number of available (empty) grid locations</description>
+        <example>342</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_total%</name>
+        <description>Total number of grid locations</description>
+        <example>400</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_occupied%</name>
+        <description>Number of occupied grid locations</description>
+        <example>58</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_neighbors_online%</name>
+        <description>Count of player's neighbors currently online</description>
+        <example>3</example>
+      </placeholder>
+    </grid_placeholders>
+    
+    <slot_placeholders>
+      <placeholder>
+        <name>%islandselector_slot_active%</name>
+        <description>Currently active slot number</description>
+        <example>1</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_slot_active_name%</name>
+        <description>Name of currently active slot</description>
+        <example>Main Base</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_slot_count%</name>
+        <description>Number of slots player has unlocked (via permissions)</description>
+        <example>3</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_slot_used%</name>
+        <description>Number of slots player has islands in</description>
+        <example>2</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_slot_available%</name>
+        <description>Number of empty unlocked slots</description>
+        <example>1</example>
+      </placeholder>
+    </slot_placeholders>
+    
+    <cooldown_placeholders>
+      <placeholder>
+        <name>%islandselector_cooldown_switch%</name>
+        <description>Time remaining on slot switch cooldown (formatted)</description>
+        <example>2h 15m</example>
+        <note>Returns "Ready" or empty if no cooldown</note>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_cooldown_switch_seconds%</name>
+        <description>Switch cooldown remaining in seconds</description>
+        <example>8100</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_cooldown_relocate%</name>
+        <description>Time remaining on relocation cooldown (formatted)</description>
+        <example>5d 12h</example>
+      </placeholder>
+      
+      <placeholder>
+        <name>%islandselector_cooldown_relocate_seconds%</name>
+        <description>Relocation cooldown remaining in seconds</description>
+        <example>475200</example>
+      </placeholder>
+    </cooldown_placeholders>
+  </placeholders>
+
+  <api_events>
+    <description>
+      Custom events fired by IslandSelector that other plugins can listen to.
+      All events are called on the Bukkit event bus and can be cancelled where noted.
+    </description>
+    
+    <grid_events>
+      <event>
+        <name>GridLocationClaimEvent</name>
+        <description>Fired when a player claims a grid location for their island</description>
+        <cancellable>true</cancellable>
+        <properties>
+          - Player player: The player claiming the location
+          - String coordinates: Grid coordinates (e.g., "C7")
+          - Location worldLocation: World coordinates
+          - boolean isPurchase: Whether this is a premium location purchase
+          - double price: Purchase price (0 if not a purchase)
+        </properties>
+      </event>
+      
+      <event>
+        <name>GridLocationReleaseEvent</name>
+        <description>Fired when a grid location becomes available (island deleted or relocated)</description>
+        <cancellable>false</cancellable>
+        <properties>
+          - String coordinates: Grid coordinates being released
+          - UUID previousOwner: UUID of previous island owner
+          - ReleaseReason reason: DELETION, RELOCATION, ADMIN
+        </properties>
+      </event>
+      
+      <event>
+        <name>IslandRelocateEvent</name>
+        <description>Fired when a player initiates island relocation</description>
+        <cancellable>true</cancellable>
+        <properties>
+          - Player player: The player relocating
+          - String fromCoordinates: Original grid coordinates
+          - String toCoordinates: Destination grid coordinates
+          - double cost: Relocation cost
+          - boolean isAdminForced: Whether forced by admin
+        </properties>
+      </event>
+      
+      <event>
+        <name>IslandRelocateCompleteEvent</name>
+        <description>Fired after island relocation completes successfully</description>
+        <cancellable>false</cancellable>
+        <properties>
+          - Player player: The player who relocated
+          - String fromCoordinates: Original grid coordinates
+          - String toCoordinates: New grid coordinates
+          - long duration: Time taken in milliseconds
+        </properties>
+      </event>
+      
+      <event>
+        <name>ReservedLocationPurchaseEvent</name>
+        <description>Fired when a player purchases a premium reserved location</description>
+        <cancellable>true</cancellable>
+        <properties>
+          - Player player: The purchasing player
+          - String coordinates: Grid coordinates being purchased
+          - double price: Purchase price
+        </properties>
+      </event>
+    </grid_events>
+    
+    <slot_events>
+      <event>
+        <name>SlotSwitchEvent</name>
+        <description>Fired when a player initiates a slot switch (before the switch occurs)</description>
+        <cancellable>true</cancellable>
+        <properties>
+          - Player player: The island owner
+          - int fromSlot: Current slot number
+          - int toSlot: Target slot number
+          - String fromSlotName: Name of current slot
+          - String toSlotName: Name of target slot (or null if empty)
+        </properties>
+      </event>
+      
+      <event>
+        <name>SlotSwitchCompleteEvent</name>
+        <description>Fired after a slot switch completes successfully</description>
+        <cancellable>false</cancellable>
+        <properties>
+          - Player player: The island owner
+          - int fromSlot: Previous slot number
+          - int toSlot: New active slot number
+          - long duration: Time taken in milliseconds
+        </properties>
+      </event>
+      
+      <event>
+        <name>SlotCreateEvent</name>
+        <description>Fired when a player creates a new island in an empty slot</description>
+        <cancellable>true</cancellable>
+        <properties>
+          - Player player: The player creating the island
+          - int slotNumber: Slot number being used
+          - String schematicName: BSkyBlock schematic being used
+        </properties>
+      </event>
+      
+      <event>
+        <name>SlotDeleteEvent</name>
+        <description>Fired when a player deletes a slot</description>
+        <cancellable>true</cancellable>
+        <properties>
+          - Player player: The island owner
+          - int slotNumber: Slot being deleted
+          - String slotName: Name of the slot
+          - boolean isActiveSlot: Whether this is the currently active slot
+        </properties>
+      </event>
+      
+      <event>
+        <name>SlotBackupEvent</name>
+        <description>Fired when a slot backup is created</description>
+        <cancellable>false</cancellable>
+        <properties>
+          - UUID ownerUUID: Island owner's UUID
+          - int slotNumber: Slot being backed up
+          - File backupFile: The backup file created
+          - BackupReason reason: SWITCH, MANUAL, SHUTDOWN, ADMIN
+        </properties>
+      </event>
+    </slot_events>
+  </api_events>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Project Setup and Core Framework</title>
+      <tasks>
+        - Create BentoBox addon project structure (Maven or Gradle)
+        - Set up main addon class extending BentoBox Addon
+        - Configure plugin.yml and addon.yml with dependencies
+        - Implement addon lifecycle methods (onEnable, onDisable, onLoad)
+        - Create configuration manager and load config.yml
+        - Set up locale/message system using BentoBox's localization
+        - Create database tables/collections for grid and slot data
+        - Implement FAWE integration and verify availability
+        - Create utility classes (coordinate conversion, formatting)
+        - Set up logging and debug system
+      </tasks>
+      <deliverables>
+        - Addon loads successfully with BentoBox
+        - Configuration loads and saves correctly
+        - Database connection established
+        - FAWE detected and operational
+      </deliverables>
+    </step>
+
+    <step number="2">
+      <title>Grid System Core</title>
+      <tasks>
+        - Design GridCoordinate class (parsing, validation, conversion)
+        - Implement coordinate-to-world-location calculation
+        - Create GridManager class for grid state management
+        - Implement grid location data model (GridLocation entity)
+        - Build database access layer for grid locations
+        - Create grid boundary management (current size, max size)
+        - Implement location status tracking (available, occupied, reserved)
+        - Build grid cache system with refresh on events
+        - Create reserved location management
+        - Write unit tests for coordinate math
+      </tasks>
+      <deliverables>
+        - GridCoordinate correctly parses "A1", "AA27", etc.
+        - World coordinates calculated correctly from grid coords
+        - Grid state persists across restarts
+        - Reserved locations stored and retrieved
+      </deliverables>
+    </step>
+
+    <step number="3">
+      <title>Grid GUI - Basic Display</title>
+      <tasks>
+        - Create base GUI framework using BentoBox Panel API
+        - Implement MainGridGUI class with 54-slot layout
+        - Build viewport management (current position, visible range)
+        - Create item builders for each location state
+        - Implement player head fetching for online owners
+        - Build navigation arrow buttons (up, down, left, right)
+        - Implement scroll functionality (single and shift-click)
+        - Add boundary detection (disable arrows at edges)
+        - Display current viewport in GUI title
+        - Add bottom row control button placeholders
+      </tasks>
+      <deliverables>
+        - Grid GUI opens and displays correctly
+        - Scrolling works in all directions
+        - Location states display with correct items
+        - Player heads show for online island owners
+      </deliverables>
+    </step>
+
+    <step number="4">
+      <title>Grid GUI - Interaction and Features</title>
+      <tasks>
+        - Implement hover tooltips with island information
+        - Integrate BSkyBlock Level addon for island levels
+        - Add online/offline status detection and display
+        - Implement filter system (All, Available, Online)
+        - Create search functionality (anvil GUI or chat input)
+        - Implement "Find My Island" centering
+        - Add click handlers for location selection
+        - Create claiming mode detection (player has no island)
+        - Build confirmation GUI for claims
+        - Hook into BSkyBlock warp system for warp status display
+      </tasks>
+      <deliverables>
+        - Tooltips show complete island information
+        - Filters work correctly and toggle visually
+        - Search finds players and centers view
+        - Clicking locations triggers appropriate actions
+      </deliverables>
+    </step>
+
+    <step number="5">
+      <title>Island Claiming Integration</title>
+      <tasks>
+        - Create BentoBox event listener for IslandCreateEvent
+        - Intercept default island creation to show grid GUI
+        - Implement claim confirmation flow
+        - Calculate world coordinates from selected grid position
+        - Trigger BSkyBlock island creation at correct location
+        - Link island UUID to grid coordinates in database
+        - Handle edge cases (player disconnects during claim, etc.)
+        - Implement premium location purchase flow
+        - Integrate Vault for purchase transactions
+        - Update grid cache after successful claim
+      </tasks>
+      <deliverables>
+        - New players see grid GUI instead of auto-placement
+        - Claiming assigns correct world coordinates
+        - Premium purchases deduct money and claim location
+        - Grid updates immediately after claim
+      </deliverables>
+    </step>
+
+    <step number="6">
+      <title>Slot System Core</title>
+      <tasks>
+        - Design Slot data model (metadata, state, file references)
+        - Create SlotManager class for slot operations
+        - Implement permission checking for slot count
+        - Build slot metadata storage (names, icons, creation dates)
+        - Create schematic file management (paths, naming)
+        - Implement FAWE schematic save operation (async)
+        - Implement FAWE schematic load operation (async)
+        - Build slot state tracking (active slot per island)
+        - Create cooldown system with database persistence
+        - Handle slot file I/O errors gracefully
+      </tasks>
+      <deliverables>
+        - Slot metadata saves and loads correctly
+        - Schematics save to correct file paths
+        - Schematics load back into world correctly
+        - Cooldowns persist across restarts
+      </deliverables>
+    </step>
+
+    <step number="7">
+      <title>Slot Selection GUI</title>
+      <tasks>
+        - Create SlotSelectionGUI class with layout
+        - Implement slot item display for all states
+        - Add enchantment glow for active slot
+        - Build click handlers for each slot type
+        - Create switch confirmation GUI
+        - Implement slot settings GUI (rename, icon, delete)
+        - Add rename functionality (anvil GUI or chat)
+        - Add icon change functionality (held item)
+        - Create delete confirmation with warnings
+        - Add navigation buttons (Back to Grid, Close)
+      </tasks>
+      <deliverables>
+        - Slot GUI displays all slots correctly
+        - Active slot has visual distinction
+        - Settings GUI allows rename/icon/delete
+        - All buttons function correctly
+      </deliverables>
+    </step>
+
+    <step number="8">
+      <title>Slot Switching Logic</title>
+      <tasks>
+        - Implement full switch process orchestration
+        - Build visitor detection on island
+        - Implement visitor teleportation (to their island or spawn)
+        - Handle team member retention during switch
+        - Create safe location finder for team during transition
+        - Implement progress indicators (action bar messages)
+        - Add movement restriction during switch
+        - Handle player disconnect during switch
+        - Implement switch completion notification
+        - Create empty slot → new island creation flow
+        - Trigger BSkyBlock schematic selection for new islands
+      </tasks>
+      <deliverables>
+        - Slot switching works end-to-end
+        - Visitors teleported correctly
+        - Team members stay with island
+        - Progress shown during operation
+        - Empty slots trigger island creation
+      </deliverables>
+    </step>
+
+    <step number="9">
+      <title>Island Relocation</title>
+      <tasks>
+        - Implement relocation flow orchestration
+        - Add cost checking and deduction (Vault)
+        - Build relocation confirmation GUI
+        - Implement FAWE-based island copy operation
+        - Implement location clearing (void)
+        - Implement paste at new coordinates
+        - Update BSkyBlock island data (spawn, warps, etc.)
+        - Update grid coordinates in database
+        - Release old grid location
+        - Handle visitors during relocation
+        - Implement cooldown enforcement
+        - Create progress indicators for long operations
+      </tasks>
+      <deliverables>
+        - Relocation moves all blocks and entities
+        - Old location cleared and available
+        - All island data updated to new location
+        - Costs deducted, cooldowns enforced
+      </deliverables>
+    </step>
+
+    <step number="10">
+      <title>Reserved Locations System</title>
+      <tasks>
+        - Implement admin reserve command
+        - Implement admin unreserve command
+        - Implement price setting/clearing commands
+        - Update grid GUI to show reserved locations
+        - Implement purchase click handler
+        - Create purchase confirmation GUI
+        - Integrate Vault for purchase transactions
+        - Update reserved location storage
+        - Add reserved location listing command
+        - Handle edge cases (reserve occupied location, etc.)
+      </tasks>
+      <deliverables>
+        - Admins can reserve/unreserve locations
+        - Purchasable locations show price in GUI
+        - Players can buy premium locations
+        - Money correctly deducted
+      </deliverables>
+    </step>
+
+    <step number="11">
+      <title>Neighborhood View</title>
+      <tasks>
+        - Create NeighborhoodGUI class with 3x3 layout
+        - Calculate adjacent coordinates from player's location
+        - Handle edge cases (player at grid boundary)
+        - Display same visual indicators as main grid
+        - Implement warp click handler for neighbors
+        - Add navigation buttons (Back, Slots, Close)
+        - Restrict access to players with islands only
+      </tasks>
+      <deliverables>
+        - Neighborhood shows correct 8 neighbors
+        - Edge islands show empty for out-of-bounds
+        - Warping to neighbors works
+      </deliverables>
+    </step>
+
+    <step number="12">
+      <title>Backup System</title>
+      <tasks>
+        - Implement automatic backup on slot switch
+        - Create backup file naming with timestamps
+        - Implement backup retention (delete old backups)
+        - Add admin backup command
+        - Create backup directory structure
+        - Log backup operations
+        - Handle backup failures gracefully
+        - Optional: Backup on shutdown
+      </tasks>
+      <deliverables>
+        - Backups created automatically on switch
+        - Old backups pruned correctly
+        - Admin can force backups
+      </deliverables>
+    </step>
+
+    <step number="13">
+      <title>Admin Tools and Purge System</title>
+      <tasks>
+        - Implement grid expand command
+        - Implement grid shrink command (with validation)
+        - Implement force relocate command
+        - Implement info command (location and player)
+        - Implement purge player command
+        - Implement purge inactive command with dry-run
+        - Implement purge banned command with dry-run
+        - Add confirmation for destructive operations
+        - Create audit logging for admin actions
+        - Implement cooldown reset command
+      </tasks>
+      <deliverables>
+        - All admin commands functional
+        - Purge commands work with confirmations
+        - Audit log tracks admin actions
+      </deliverables>
+    </step>
+
+    <step number="14">
+      <title>Commands and Permissions</title>
+      <tasks>
+        - Register all player commands
+        - Register all admin commands
+        - Implement tab completion for all commands
+        - Create help command with dynamic content
+        - Register all permissions in plugin.yml
+        - Implement permission checking throughout
+        - Add bypass permission checks
+        - Create command aliases
+        - Handle invalid input gracefully with helpful messages
+      </tasks>
+      <deliverables>
+        - All commands registered and functional
+        - Tab completion works
+        - Permissions enforced correctly
+        - Helpful error messages for invalid usage
+      </deliverables>
+    </step>
+
+    <step number="15">
+      <title>PlaceholderAPI Integration</title>
+      <tasks>
+        - Create PlaceholderAPI expansion class
+        - Register all grid placeholders
+        - Register all slot placeholders
+        - Register all cooldown placeholders
+        - Handle edge cases (no island, no data, etc.)
+        - Test placeholders with scoreboards and chat plugins
+        - Document all placeholders
+      </tasks>
+      <deliverables>
+        - All placeholders return correct values
+        - Placeholders work with third-party plugins
+      </deliverables>
+    </step>
+
+    <step number="16">
+      <title>API Events</title>
+      <tasks>
+        - Create all custom event classes
+        - Implement cancellable events correctly
+        - Fire events at appropriate points in code
+        - Document event properties and usage
+        - Create example listener for documentation
+      </tasks>
+      <deliverables>
+        - All events fire correctly
+        - Cancellable events prevent action when cancelled
+        - Events provide useful data to listeners
+      </deliverables>
+    </step>
+
+    <step number="17">
+      <title>Testing and Bug Fixes</title>
+      <tasks>
+        - Test all features on clean server
+        - Test with varying grid sizes
+        - Test slot switching with large islands
+        - Test relocation with complex builds
+        - Test concurrent operations
+        - Test with multiple players
+        - Test edge cases and error conditions
+        - Test server restart during operations
+        - Test with and without optional dependencies
+        - Fix all discovered bugs
+        - Performance testing with many islands
+      </tasks>
+      <deliverables>
+        - All features work as specified
+        - No data loss scenarios
+        - Stable under load
+        - Graceful error handling
+      </deliverables>
+    </step>
+
+    <step number="18">
+      <title>Documentation and Polish</title>
+      <tasks>
+        - Write comprehensive README
+        - Document all configuration options
+        - Document all commands with examples
+        - Document all permissions
+        - Create admin guide
+        - Create player guide
+        - Polish all user-facing messages
+        - Add missing locale entries
+        - Final code cleanup and commenting
+        - Create changelog for release
+      </tasks>
+      <deliverables>
+        - Complete documentation
+        - Professional, consistent messaging
+        - Clean, maintainable code
+        - Ready for release
+      </deliverables>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      <criterion>Grid GUI accurately displays all island locations with correct visual states</criterion>
+      <criterion>Scrolling/navigation works smoothly in all four directions</criterion>
+      <criterion>Island claiming assigns correct world coordinates matching grid position</criterion>
+      <criterion>Slot switching saves and loads islands without any data loss</criterion>
+      <criterion>All blocks, entities, tile entities, and island data preserved in slot operations</criterion>
+      <criterion>Island relocation physically moves all content to new location</criterion>
+      <criterion>Visitors are properly teleported during slot switches and relocations</criterion>
+      <criterion>Team members stay with island during all operations</criterion>
+      <criterion>Reserved locations work correctly with Vault economy</criterion>
+      <criterion>All commands function as documented</criterion>
+      <criterion>Permissions correctly control access to all features</criterion>
+      <criterion>Cooldowns enforced and persist across restarts</criterion>
+      <criterion>Backups created and managed correctly</criterion>
+      <criterion>Purge commands work with proper confirmations</criterion>
+      <criterion>BSkyBlock integration works seamlessly (levels, warps, creation)</criterion>
+    </functionality>
+
+    <performance>
+      <criterion>Grid GUI opens in under 500ms regardless of grid size</criterion>
+      <criterion>Scrolling grid is instant (no visible delay)</criterion>
+      <criterion>Slot switching completes in reasonable time based on island size</criterion>
+      <criterion>No TPS drops during normal GUI operations</criterion>
+      <criterion>All schematic operations are fully async (no main thread blocking)</criterion>
+      <criterion>Memory usage scales linearly with number of islands</criterion>
+      <criterion>Database operations do not cause lag spikes</criterion>
+      <criterion>Cache system prevents redundant database queries</criterion>
+      <criterion>Addon startup completes in under 3 seconds</criterion>
+    </performance>
+
+    <user_experience>
+      <criterion>GUIs are intuitive and self-explanatory</criterion>
+      <criterion>Visual indicators are clear and consistent</criterion>
+      <criterion>Progress shown during long operations</criterion>
+      <criterion>Error messages are helpful and actionable</criterion>
+      <criterion>Confirmation dialogs prevent accidental destructive actions</criterion>
+      <criterion>Cooldown information clearly displayed</criterion>
+      <criterion>Slot names and icons add personalization</criterion>
+      <criterion>Navigation feels natural and responsive</criterion>
+      <criterion>Filter and search help players find what they need</criterion>
+    </user_experience>
+
+    <reliability>
+      <criterion>No data loss on server crash (backups protect data)</criterion>
+      <criterion>Graceful handling of all edge cases</criterion>
+      <criterion>Recovery from interrupted operations (disconnect during switch)</criterion>
+      <criterion>FAWE errors handled gracefully with user notification</criterion>
+      <criterion>Stable across server restarts</criterion>
+      <criterion>Works correctly with BSkyBlock updates</criterion>
+      <criterion>No memory leaks during extended operation</criterion>
+      <criterion>Handles missing optional dependencies gracefully</criterion>
+    </reliability>
+
+    <configurability>
+      <criterion>All messages customizable via locale files</criterion>
+      <criterion>GUI items customizable in config</criterion>
+      <criterion>Grid dimensions and spacing configurable</criterion>
+      <criterion>All cooldowns and costs configurable</criterion>
+      <criterion>Backup settings fully configurable</criterion>
+      <criterion>Feature toggles available where appropriate</criterion>
+      <criterion>Reasonable defaults work out-of-box</criterion>
+      <criterion>Configuration hot-reload where possible</criterion>
+    </configurability>
+
+    <compatibility>
+      <criterion>Works with Paper and Spigot 1.20.x - 1.21.x</criterion>
+      <criterion>Integrates properly with BentoBox addon system</criterion>
+      <criterion>Works alongside other BentoBox addons</criterion>
+      <criterion>Vault integration functions correctly</criterion>
+      <criterion>PlaceholderAPI expansion registers and works</criterion>
+      <criterion>FAWE operations work reliably</criterion>
+    </compatibility>
+  </success_criteria>
+
+  <future_considerations>
+    <version_2_features>
+      <feature>Island preview images/maps when hovering over grid locations</feature>
+      <feature>Seasonal grid resets with competitive leaderboards</feature>
+      <feature>Admin restore command for backups</feature>
+      <feature>Grid visualization on dynmap/bluemap</feature>
+      <feature>Island transfer between players</feature>
+      <feature>Slot templates (pre-made islands for specific purposes)</feature>
+      <feature>Neighborhood chat channel for adjacent islands</feature>
+      <feature>Grid region unlocking tied to server achievements</feature>
+      <feature>Premium location auctions</feature>
+    </version_2_features>
+
+    <technical_debt>
+      <item>Consider supporting standard WorldEdit as FAWE alternative</item>
+      <item>Evaluate BentoBox's native schematic system vs FAWE</item>
+      <item>Potential migration tools for existing servers</item>
+      <item>Performance optimizations for 1000+ island grids</item>
+    </technical_debt>
+  </future_considerations>
+</project_specification>
