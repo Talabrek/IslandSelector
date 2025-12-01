@@ -1,23 +1,19 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 2
+- **Build Date:** Session 3
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **Size:** ~61KB
+- **Size:** ~68KB
 
 ## Features Implemented This Session
 
-This session implemented the core foundation for the Grid Selection GUI:
+This session implemented **Database Persistence** for grid locations:
 
-1. **Basic `/islandselector` command** - Opens the main grid GUI
-2. **Main Grid GUI** - 54-slot inventory with 7x4 grid viewport
-3. **Grid Coordinate System** - Alphanumeric coordinates (A1, B7, AA12, etc.)
-4. **Navigation System** - Scroll arrows for navigating the grid
-5. **Filter System** - Filter buttons for All/Available/Online
-6. **Control Buttons** - Search, Find My Island, Neighborhood View, Slots, Close
-7. **Slot Selection GUI** - Basic GUI for viewing island slots
-8. **Neighborhood GUI** - 3x3 view of surrounding islands
-9. **Admin Commands** - Basic admin commands for reserve/setprice/info/reload
+1. **GridLocationData** - Database model for storing grid location data using BentoBox's database abstraction
+2. **Database Loading** - Grid locations are loaded from database on startup
+3. **Database Saving** - Grid locations are saved to database when modified and on shutdown
+4. **BSkyBlock Sync** - Existing BSkyBlock islands are automatically synced to the grid on startup
+5. **Data Persistence** - Reserved locations and admin changes persist across server restarts
 
 ## Required Dependencies for Testing
 
@@ -60,6 +56,18 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
+### Test #3: Database tables/collections are created on first startup
+**Status:** Ready for testing (NEW)
+**Test Steps:**
+1. Start server with IslandSelector
+2. Check BentoBox database location (YAML/JSON files in database folder or SQL database)
+3. Verify IslandSelector data structures exist for grid locations (GridLocations table/files)
+4. Check console for "Loading grid locations from database..." message
+
+**Expected:** Database structures are created, loading message appears in console
+
+---
+
 ### Test #4: FastAsyncWorldEdit dependency is detected and verified
 **Status:** Ready for testing
 **Test Steps:**
@@ -68,7 +76,7 @@ This session implemented the core foundation for the Grid Selection GUI:
 3. Check console for FAWE detection message
 4. Verify no warnings about missing FAWE
 
-**Expected:** Console shows "FastAsyncWorldEdit found" or similar
+**Expected:** Console shows "All required dependencies found" or similar
 
 ---
 
@@ -133,7 +141,112 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
-### Test #16: Scroll up arrows move viewport north by 1 row
+### Test #10: Occupied islands with online owners show player heads
+**Status:** Ready for testing
+**Test Steps:**
+1. Have a player create an island using BSkyBlock (`/is create`)
+2. Ensure that player is online
+3. Open the grid GUI with a different account
+4. Locate the occupied island slot
+5. Verify it displays as the island owner's player head
+
+**Expected:** Online player's island shows their player head
+
+---
+
+### Test #11: Occupied islands with offline owners show red stained glass
+**Status:** Ready for testing
+**Test Steps:**
+1. Have a player create an island
+2. Have that player disconnect from the server
+3. Join with a different account and open the grid GUI
+4. Locate the offline player's island slot
+5. Verify it displays as RED_STAINED_GLASS_PANE
+
+**Expected:** Offline player's island shows red glass pane
+
+---
+
+### Test #12: Player's own island displays with enchantment glow effect
+**Status:** Ready for testing
+**Test Steps:**
+1. Create an island as a player
+2. Open the grid GUI
+3. Locate your own island in the grid
+4. Verify it has an enchantment glow effect
+5. Verify tooltip shows "Your Island"
+
+**Expected:** Own island has glow effect and special tooltip
+
+---
+
+### Test #13: Reserved blocked locations show as gray stained glass pane
+**Status:** Ready for testing
+**Test Steps:**
+1. As admin, reserve a location with `/islandselector admin reserve A1`
+2. Do not set a price (leave it blocked)
+3. Open grid GUI as a player
+4. Locate position A1
+5. Verify it shows as GRAY_STAINED_GLASS_PANE with "Reserved" tooltip
+
+**Expected:** Reserved blocked location shows gray glass
+
+---
+
+### Test #14: Reserved purchasable locations show as gold blocks
+**Status:** Ready for testing
+**Test Steps:**
+1. As admin, reserve a location and set price: `/islandselector admin setprice B2 50000`
+2. Open grid GUI as a player
+3. Locate position B2
+4. Verify it shows as GOLD_BLOCK
+5. Verify tooltip shows "Premium Location" with price
+
+**Expected:** Premium location shows as gold block with price
+
+---
+
+### Test #15: Reserved locations persist across server restarts (NEW)
+**Status:** Ready for testing
+**Test Steps:**
+1. As admin, reserve location A1: `/islandselector admin reserve A1`
+2. Set a price on B2: `/islandselector admin setprice B2 25000`
+3. Restart the server
+4. Open grid GUI
+5. Verify A1 is still reserved (gray glass)
+6. Verify B2 is still premium with price $25,000
+
+**Expected:** Reserved locations persist after restart
+
+---
+
+### Test #16: BSkyBlock islands are synced to grid on startup (NEW)
+**Status:** Ready for testing
+**Test Steps:**
+1. Create an island using standard BSkyBlock (`/is create`)
+2. Note the island location
+3. Restart the server
+4. Check console for "Syncing grid with BSkyBlock islands..." message
+5. Open grid GUI and verify the island appears in the correct grid position
+
+**Expected:** Existing BSkyBlock islands appear in grid after sync
+
+---
+
+### Test #17: Grid data saves on server shutdown (NEW)
+**Status:** Ready for testing
+**Test Steps:**
+1. Make some changes (reserve locations, etc.)
+2. Stop the server gracefully
+3. Check console for "Saving grid data..." message
+4. Check database files exist in BentoBox database folder
+5. Restart and verify data persisted
+
+**Expected:** "Saving grid data..." message appears, data persists
+
+---
+
+### Test #18: Scroll up arrows move viewport north by 1 row
 **Status:** Ready for testing
 **Test Steps:**
 1. Open grid GUI starting at viewport A1-G4
@@ -146,7 +259,7 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
-### Test #17: Scroll down arrows move viewport south by 1 row
+### Test #19: Scroll down arrows move viewport south by 1 row
 **Status:** Ready for testing
 **Test Steps:**
 1. Open grid GUI
@@ -158,32 +271,7 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
-### Test #18: Scroll left arrows move viewport west by 1 column
-**Status:** Ready for testing
-**Test Steps:**
-1. Open grid GUI
-2. Scroll right first (so you can scroll left)
-3. Click the scroll left arrow buttons
-4. Verify GUI title updates to show viewport moved left
-5. Verify grid content shifts appropriately
-
-**Expected:** Title shows viewport shifted left by 1 column
-
----
-
-### Test #19: Scroll right arrows move viewport east by 1 column
-**Status:** Ready for testing
-**Test Steps:**
-1. Open grid GUI
-2. Click the scroll right arrow buttons
-3. Verify GUI title updates to show viewport moved right
-4. Verify grid content shifts appropriately
-
-**Expected:** Title shows viewport shifted right by 1 column
-
----
-
-### Test: Shift-click scrolls multiple rows/columns
+### Test #20: Shift-click scrolls multiple rows/columns
 **Status:** Ready for testing
 **Test Steps:**
 1. Open grid GUI
@@ -194,7 +282,7 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
-### Test: Filter buttons work correctly
+### Test #21: Filter buttons work correctly
 **Status:** Ready for testing
 **Test Steps:**
 1. Open grid GUI
@@ -207,7 +295,7 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
-### Test: Find My Island button works
+### Test #22: Find My Island button works
 **Status:** Ready for testing
 **Test Steps:**
 1. Create an island as a player
@@ -220,48 +308,40 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
-### Test: Close button works
+### Test #23: Admin reserve command works and persists
 **Status:** Ready for testing
 **Test Steps:**
-1. Open grid GUI
-2. Click the Close button (barrier)
-3. Verify GUI closes
-
-**Expected:** GUI closes
-
----
-
-### Test: Slots button opens Slot Selection GUI
-**Status:** Ready for testing
-**Test Steps:**
-1. Open grid GUI
-2. Click the "Island Slots" button (chest icon)
-3. Verify Slot Selection GUI opens
-
-**Expected:** 27-slot Slot Selection GUI opens
-
----
-
-### Test: Neighborhood button opens Neighborhood View
-**Status:** Ready for testing
-**Test Steps:**
-1. Create an island as a player
-2. Open grid GUI
-3. Click "Neighborhood View" button (map icon)
-4. Verify 3x3 neighborhood GUI opens
-
-**Expected:** 27-slot Neighborhood GUI opens showing surrounding islands
-
----
-
-### Test: Admin reload command works
-**Status:** Ready for testing
-**Test Steps:**
-1. As an operator, run `/islandselector admin reload`
+1. As an operator, run `/islandselector admin reserve C3`
 2. Verify success message appears
-3. Verify no errors in console
+3. Open grid GUI and verify C3 is reserved (gray glass)
+4. Restart server
+5. Verify C3 is still reserved after restart
 
-**Expected:** Configuration reloaded successfully message
+**Expected:** Location reserved and persists across restart
+
+---
+
+### Test #24: Admin setprice command works and persists
+**Status:** Ready for testing
+**Test Steps:**
+1. As an operator, run `/islandselector admin setprice D4 100000`
+2. Verify success message appears
+3. Open grid GUI and verify D4 shows as gold block with price
+4. Restart server
+5. Verify D4 still shows price after restart
+
+**Expected:** Price set and persists across restart
+
+---
+
+### Test #25: Admin info command shows location details
+**Status:** Ready for testing
+**Test Steps:**
+1. Reserve a location and set price: `/islandselector admin setprice E5 50000`
+2. Run `/islandselector admin info E5`
+3. Verify output shows coordinate, status, price, and other info
+
+**Expected:** Location info displayed correctly
 
 ---
 
@@ -279,6 +359,26 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 ---
 
+## New Features in This Session
+
+### Database Persistence
+- Grid location data now persists across server restarts
+- Uses BentoBox's database abstraction (supports YAML, JSON, MySQL, SQLite, MongoDB)
+- Reserved locations and prices persist
+- Occupied locations are tracked in database
+
+### BSkyBlock Sync
+- On startup, existing BSkyBlock islands are automatically synced to the grid
+- Islands are mapped to grid coordinates based on their world position
+- Console shows sync progress and count
+
+### Data Saving
+- Data is saved automatically when changes are made
+- All data is saved on server shutdown
+- Uses async saving for better performance
+
+---
+
 ## Known Limitations (This Session)
 
 1. **Island claiming not yet functional** - Grid shows locations but actual island creation at specific coordinates is not yet implemented
@@ -287,7 +387,6 @@ This session implemented the core foundation for the Grid Selection GUI:
 4. **Warp/visit functionality not yet connected** - Placeholder messages shown
 5. **Search functionality not yet implemented** - Shows "coming soon" message
 6. **Level display not yet integrated** - Level addon integration pending
-7. **Database persistence not yet implemented** - Grid state is not persisted
 
 ---
 
@@ -295,20 +394,21 @@ This session implemented the core foundation for the Grid Selection GUI:
 
 When testing, please report:
 1. Any console errors or warnings
-2. GUI display issues (wrong items, layout problems)
-3. Navigation problems (scrolling not working)
-4. Command errors or unexpected behavior
-5. Missing messages or incorrect text
-6. Permission issues
+2. Database loading/saving issues
+3. Islands not appearing in grid after sync
+4. Reserved locations not persisting
+5. GUI display issues
+6. Navigation problems
+7. Permission issues
 
 ---
 
 ## Next Features to Implement
 
-1. Island claiming with BSkyBlock integration
-2. Island relocation with FAWE
-3. Slot switching system
-4. Database persistence for grid data
+1. **Island Claiming** - Allow players to claim islands at specific grid locations
+2. **Claim Confirmation GUI** - Confirm location selection before creating island
+3. Island relocation with FAWE
+4. Slot switching system
 5. Warp integration
 6. Level addon integration
 7. Search functionality

@@ -80,6 +80,11 @@ public class IslandSelector extends Addon {
 
     @Override
     public void onDisable() {
+        // Save all grid data before shutting down
+        if (gridManager != null) {
+            log("Saving grid data...");
+            gridManager.saveAll();
+        }
         log("IslandSelector disabled.");
     }
 
