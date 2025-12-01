@@ -2,7 +2,12 @@ package world.bentobox.islandselector;
 
 import org.bukkit.Bukkit;
 import world.bentobox.bentobox.api.addons.Addon;
+import world.bentobox.bentobox.api.addons.GameModeAddon;
 import world.bentobox.bentobox.api.configuration.Config;
+import world.bentobox.islandselector.commands.IslandSelectorCommand;
+import world.bentobox.islandselector.managers.GridManager;
+
+import java.util.Optional;
 
 /**
  * IslandSelector - BentoBox Addon
@@ -14,6 +19,7 @@ public class IslandSelector extends Addon {
 
     private static IslandSelector instance;
     private Settings settings;
+    private GridManager gridManager;
 
     @Override
     public void onLoad() {
@@ -41,10 +47,35 @@ public class IslandSelector extends Addon {
             return;
         }
 
+        // Initialize managers
+        gridManager = new GridManager(this);
+
+        // Register commands
+        registerCommands();
+
         log("IslandSelector enabled successfully!");
         log("Version: " + getDescription().getVersion());
         log("Grid Size: " + settings.getGridWidth() + "x" + settings.getGridHeight());
         log("Max Slots: " + settings.getMaxSlots());
+    }
+
+    /**
+     * Register addon commands
+     */
+    private void registerCommands() {
+        // Register main command as standalone
+        new IslandSelectorCommand(this);
+
+        // Also try to hook into BSkyBlock's command
+        Optional<GameModeAddon> bskyblock = getPlugin().getAddonsManager()
+            .getGameModeAddons().stream()
+            .filter(gm -> gm.getDescription().getName().equalsIgnoreCase("BSkyBlock"))
+            .findFirst();
+
+        bskyblock.ifPresent(gm -> {
+            log("Hooking into BSkyBlock commands...");
+            // The IslandSelectorCommand is standalone, accessible via /islandselector
+        });
     }
 
     @Override
@@ -119,5 +150,12 @@ public class IslandSelector extends Addon {
      */
     public Settings getSettings() {
         return settings;
+    }
+
+    /**
+     * Get the grid manager
+     */
+    public GridManager getGridManager() {
+        return gridManager;
     }
 }
