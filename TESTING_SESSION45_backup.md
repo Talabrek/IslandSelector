@@ -1,27 +1,15 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 45 (Latest - Command Tab Completion)
+- **Build Date:** Session 44 (Latest - Neighborhood GUI Enhancements)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
 - **JAR Size:** 188K
-- **Status:** ✅ 44 tests verified, 82 tests pending manual verification
+- **Status:** ✅ 44 tests verified, 78 tests pending manual verification
 
-## Latest Sessions (38-45)
+## Latest Sessions (38-44)
 
-### Session 45: Command Tab Completion ⭐ NEW
-📋 **See [SESSION45_FOR_HUMAN_TESTER.md](SESSION45_FOR_HUMAN_TESTER.md) for quick test guide**
-
-**Features Ready:** 4 tab completion tests
-- `/islandselector <TAB>` shows available subcommands
-- `/islandselector admin <TAB>` shows admin subcommands
-- Permission-based filtering (only shows commands you can use)
-- Partial matching support (type "l" + TAB → "locate")
-
-**Testing Time:** 5-10 minutes
-**Players Required:** 1 account
-**Special Requirements:** None
-
-### Session 44: Neighborhood GUI Enhancements
+### Session 44: Neighborhood GUI Enhancements ⭐ NEW
+📋 **See [SESSION44_FOR_HUMAN_TESTER.md](SESSION44_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 11 neighborhood GUI tests (137-147)
 - Complete 3x3 neighborhood layout with proper button positioning
