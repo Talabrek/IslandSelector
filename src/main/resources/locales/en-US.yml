@@ -201,6 +201,15 @@ commands:
         invalid-direction: "&cInvalid direction: [direction]. Use: north, south, east, or west"
         invalid-amount: "&cInvalid amount: [amount]. Must be a positive number."
 
+      shrink:
+        description: "&7Shrink the grid boundaries"
+        parameters: "&f<direction> <amount>"
+        success: "&aShrunk grid [direction] by [amount] - New size: [width]x[height]"
+        invalid-direction: "&cInvalid direction: [direction]. Use: north, south, east, or west"
+        invalid-amount: "&cInvalid amount: [amount]. Must be a positive number."
+        islands-in-area: "&cCannot shrink: [count] island(s) exist in the area that would be removed!"
+        too-small: "&cCannot shrink: The grid would become too small or inverted!"
+
   # Help and other general commands
     format: "&e{command} &7- {description}"
 
