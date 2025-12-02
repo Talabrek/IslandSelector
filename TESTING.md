@@ -1,12 +1,26 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 41 (Latest - Island Relocation Documentation)
+- **Build Date:** Session 42 (Latest - Neighbor Warp Implementation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 180K
-- **Status:** ✅ 44 tests verified, 55 tests pending manual verification
+- **JAR Size:** 181K
+- **Status:** ✅ 44 tests verified, 59 tests pending manual verification
 
-## Latest Sessions (38-41)
+## Latest Sessions (38-42)
+
+### Session 42: Neighbor Warp/Visit System ⭐ NEW
+📋 **See [SESSION42_FOR_HUMAN_TESTER.md](SESSION42_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 4 neighbor warp tests
+- Right-click neighbor in Neighborhood GUI to warp
+- Warps to neighbor's island center/spawn
+- Error handling for empty slots
+- Error handling for reserved locations
+- Left-click vs right-click behavior
+
+**Testing Time:** 5-10 minutes
+**Players Required:** 2 accounts (adjacent islands)
+**Special Requirements:** None
 
 ### Session 41: Island Relocation System ⭐ NEW
 📋 **See [SESSION41_FOR_HUMAN_TESTER.md](SESSION41_FOR_HUMAN_TESTER.md) for quick test guide**
@@ -67,10 +81,10 @@
 **Testing Time:** 15-20 minutes
 **Players Required:** 3-4 fresh accounts (can only claim once per account)
 
-### Combined Sessions 38-41
-**Total Tests Pending:** 55 tests (7 + 4 + 18 + 26)
-**Combined Testing Time:** 90-120 minutes (comprehensive)
-**If All Pass:** Progress jumps from 44/225 to 99/225 tests (44% complete!)
+### Combined Sessions 38-42
+**Total Tests Pending:** 59 tests (7 + 4 + 18 + 26 + 4)
+**Combined Testing Time:** 95-130 minutes (comprehensive)
+**If All Pass:** Progress jumps from 44/225 to 103/225 tests (46% complete!)
 
 ---
 
@@ -114,7 +128,8 @@ Admin commands:
 
 **Medium Priority:**
 3. Session 40 - Slot System (18 tests) - Advanced feature
-4. Session 39 - Player Search (4 tests) - Quality of life
+4. Session 42 - Neighbor Warp (4 tests) - Quality of life
+5. Session 39 - Player Search (4 tests) - Quality of life
 
 ---
 
@@ -140,9 +155,10 @@ Admin commands:
 | Tests 52-55 | ⏳ PENDING | Player search (Session 39) |
 | Tests 56-73 | ⏳ PENDING | Slot selection (Session 40) |
 | Tests 74-99 | ⏳ PENDING | Island relocation (Session 41) |
-| Tests 100+ | ❌ FAIL | Not yet tested |
+| Tests 133-136 | ⏳ PENDING | Neighbor warp (Session 42) |
+| Tests 100-132, 137+ | ❌ FAIL | Not yet tested |
 
-**Current Status:** 44/225 tests verified, 55 tests pending manual verification
+**Current Status:** 44/225 tests verified, 59 tests pending manual verification
 
 ---
 

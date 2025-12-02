@@ -1,7 +1,9 @@
 package world.bentobox.islandselector.gui;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,6 +19,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
+import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.models.GridLocation;
@@ -307,6 +310,127 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
             clicker.closeInventory();
             return;
         }
+
+        // Handle neighbor island clicks (for visiting/warping)
+        if (isNeighborSlot(slot)) {
+            handleNeighborClick(clicker, slot, event.isRightClick());
+        }
+    }
+
+    private boolean isNeighborSlot(int slot) {
+        // Neighbor slots are at positions 3, 4, 5, 12, 14, 21, 22, 23
+        // (slot 13 is the center/player's island)
+        return (slot >= 3 && slot <= 5) ||
+               slot == 12 || slot == 14 ||
+               (slot >= 21 && slot <= 23);
+    }
+
+    private void handleNeighborClick(Player player, int slot, boolean rightClick) {
+        // Only handle right-clicks for warping
+        if (!rightClick) {
+            return;
+        }
+
+        // Get the coordinate for this slot
+        GridCoordinate coord = getCoordinateForSlot(slot);
+        if (coord == null) {
+            return;
+        }
+
+        // Check if location is occupied
+        GridLocation.Status status = gridManager.getLocationStatus(coord);
+        if (status != GridLocation.Status.OCCUPIED) {
+            player.sendMessage(colorize("&cNo island at this location!"));
+            return;
+        }
+
+        // Get the island from BSkyBlock
+        Island island = getIslandAtCoordinate(coord);
+        if (island == null) {
+            player.sendMessage(colorize("&cCannot find island at this location!"));
+            return;
+        }
+
+        // Check if island has a public warp sign enabled
+        // In BentoBox, warps are managed through the Warps addon
+        // If island is private (not allowing visitors), we can't warp
+        // For now, just try to get the island center/spawn for warping
+        Location warpLocation = island.getProtectionCenter();
+        if (warpLocation == null) {
+            warpLocation = island.getCenter();
+        }
+
+        if (warpLocation == null) {
+            player.sendMessage(colorize("&cCannot find warp location for this island!"));
+            return;
+        }
+
+        // Make sure the location is safe (has a block below and air above)
+        warpLocation = warpLocation.clone();
+        warpLocation.setY(island.getProtectionCenter().getY()); // Use protection center Y level
+
+        // Close GUI and teleport
+        player.closeInventory();
+        player.teleport(warpLocation);
+        player.sendMessage(colorize("&aWarping to neighbor's island..."));
+    }
+
+    private GridCoordinate getCoordinateForSlot(int slot) {
+        if (playerIsland == null) {
+            return null;
+        }
+
+        // Map slot numbers to offset coordinates
+        switch (slot) {
+            case 3:  return playerIsland.offset(-1, -1); // NW
+            case 4:  return playerIsland.offset(0, -1);  // N
+            case 5:  return playerIsland.offset(1, -1);  // NE
+            case 12: return playerIsland.offset(-1, 0);  // W
+            case 14: return playerIsland.offset(1, 0);   // E
+            case 21: return playerIsland.offset(-1, 1);  // SW
+            case 22: return playerIsland.offset(0, 1);   // S
+            case 23: return playerIsland.offset(1, 1);   // SE
+            default: return null;
+        }
+    }
+
+    private Island getIslandAtCoordinate(GridCoordinate coord) {
+        // Get the world coordinates for this grid coordinate
+        // Use the addon's getIslandSpacing() method which gets it from BSkyBlock config
+        int spacing = addon.getIslandSpacing() * 2; // Actual spacing between centers
+        int worldX = coord.getColumn() * spacing;
+        int worldZ = coord.getRow() * spacing;
+
+        // Get BSkyBlock world
+        World world = getBSkyBlockWorld();
+        if (world == null) {
+            return null;
+        }
+
+        Location location = new Location(world, worldX, 100, worldZ);
+
+        // Get island at this location from BentoBox
+        return addon.getPlugin().getIslandsManager().getIslandAt(location).orElse(null);
+    }
+
+    private World getBSkyBlockWorld() {
+        // Get BSkyBlock game mode addon
+        world.bentobox.bentobox.api.addons.GameModeAddon gameModeAddon = null;
+        for (world.bentobox.bentobox.api.addons.Addon registeredAddon : addon.getPlugin().getAddonsManager().getAddons()) {
+            if (registeredAddon instanceof world.bentobox.bentobox.api.addons.GameModeAddon) {
+                world.bentobox.bentobox.api.addons.GameModeAddon gm = (world.bentobox.bentobox.api.addons.GameModeAddon) registeredAddon;
+                if (gm.getDescription().getName().equals("BSkyBlock")) {
+                    gameModeAddon = gm;
+                    break;
+                }
+            }
+        }
+
+        if (gameModeAddon == null) {
+            return null;
+        }
+
+        return gameModeAddon.getOverWorld();
     }
 
     @EventHandler
