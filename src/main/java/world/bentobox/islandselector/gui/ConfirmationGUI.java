@@ -290,13 +290,43 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 break;
 
             case RELOCATE:
-                // Check if player has enough money (if cost > 0)
-                if (price > 0 && !checkAndChargeMoney()) {
+                // Verify location is still available
+                if (!addon.getGridManager().isAvailable(coord)) {
+                    player.sendMessage(colorize("&cThis location is no longer available!"));
                     return;
                 }
-                // TODO: Implement relocation logic
-                player.sendMessage(colorize("&eIsland relocation coming soon!"));
-                createListener.cancelClaim(player);
+
+                // Check cooldown
+                if (!addon.getRelocationManager().canRelocate(player.getUniqueId())) {
+                    long remaining = addon.getRelocationManager().getRemainingCooldown(player.getUniqueId());
+                    String timeStr = addon.getRelocationManager().formatCooldownTime(remaining);
+                    player.sendMessage(colorize("&cYou must wait &e" + timeStr + " &cbefore relocating again!"));
+                    return;
+                }
+
+                // Check if player can afford it
+                if (!addon.getRelocationManager().canAffordRelocation(player)) {
+                    double cost = addon.getSettings().getRelocationCost();
+                    player.sendMessage(colorize("&cYou need &a$" + String.format("%.2f", cost) + " &cto relocate!"));
+                    return;
+                }
+
+                // Charge the player
+                if (!addon.getRelocationManager().chargePlayer(player)) {
+                    player.sendMessage(colorize("&cFailed to charge relocation cost!"));
+                    return;
+                }
+
+                // Get player's current island location
+                GridCoordinate fromCoord = addon.getGridManager().getPlayerIslandCoordinate(player.getUniqueId());
+                if (fromCoord == null) {
+                    player.sendMessage(colorize("&cYou don't have an island to relocate!"));
+                    return;
+                }
+
+                // Start the relocation
+                player.sendMessage(colorize("&aStarting island relocation..."));
+                addon.getRelocationManager().relocateIsland(player, fromCoord, coord);
                 break;
         }
     }

@@ -153,20 +153,21 @@ public class GridGUIListener implements Listener {
     private void handleAvailableClick(Player player, GridCoordinate coord) {
         var gridManager = gui.getAddon().getGridManager();
         var playerIsland = gridManager.getPlayerIslandCoordinate(player.getUniqueId());
+        IslandCreateListener createListener = gui.getAddon().getIslandCreateListener();
 
         if (playerIsland == null) {
             // Player doesn't have an island - initiate claiming
             player.closeInventory();
-            IslandCreateListener createListener = gui.getAddon().getIslandCreateListener();
             // Register this as a pending claim
             createListener.onLocationSelected(player, coord);
             // Open confirmation GUI
             new ConfirmationGUI(gui.getAddon(), player, coord, createListener, ConfirmationGUI.ActionType.CLAIM).open();
         } else {
             // Player has an island - initiate relocation
-            player.sendMessage("\u00A7aYou selected location \u00A7f" + coord.toString() + "\u00A7a for relocation!");
-            player.sendMessage("\u00A77Island relocation coming soon...");
-            // TODO: Implement confirmation GUI and actual relocation
+            player.closeInventory();
+            double relocCost = gui.getAddon().getSettings().getRelocationCost();
+            new ConfirmationGUI(gui.getAddon(), player, coord, createListener,
+                ConfirmationGUI.ActionType.RELOCATE, relocCost).open();
         }
     }
 

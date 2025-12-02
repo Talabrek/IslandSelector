@@ -10,6 +10,7 @@ import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.listeners.SearchListener;
 import world.bentobox.islandselector.managers.BackupManager;
 import world.bentobox.islandselector.managers.GridManager;
+import world.bentobox.islandselector.managers.RelocationManager;
 import world.bentobox.islandselector.managers.SlotManager;
 import world.bentobox.islandselector.managers.SlotSwitchManager;
 
@@ -29,6 +30,7 @@ public class IslandSelector extends Addon {
     private SlotManager slotManager;
     private SlotSwitchManager slotSwitchManager;
     private BackupManager backupManager;
+    private RelocationManager relocationManager;
     private IslandCreateListener islandCreateListener;
     private SearchListener searchListener;
     private int islandSpacing = -1; // Cached from BSkyBlock
@@ -67,6 +69,7 @@ public class IslandSelector extends Addon {
         slotManager = new SlotManager(this);
         slotSwitchManager = new SlotSwitchManager(this);
         backupManager = new BackupManager(this);
+        relocationManager = new RelocationManager(this);
 
         // Register commands
         registerCommands();
@@ -281,6 +284,13 @@ public class IslandSelector extends Addon {
      */
     public BackupManager getBackupManager() {
         return backupManager;
+    }
+
+    /**
+     * Get the relocation manager
+     */
+    public RelocationManager getRelocationManager() {
+        return relocationManager;
     }
 
     /**
