@@ -23,7 +23,9 @@ public class AdminCommand extends CompositeCommand {
         // Add admin subcommands - they use getAddon() to get addon reference
         new AdminReloadCommand(this);
         new AdminReserveCommand(this);
+        new AdminUnreserveCommand(this);
         new AdminSetPriceCommand(this);
+        new AdminClearPriceCommand(this);
         new AdminInfoCommand(this);
         new AdminVersionCommand(this);
     }

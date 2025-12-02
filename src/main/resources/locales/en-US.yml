@@ -162,6 +162,22 @@ commands:
         invalid-coord: "&cInvalid coordinate format: [coord]"
         invalid-price: "&cInvalid price. Must be a positive number."
 
+      unreserve:
+        description: "&7Unreserve a grid location"
+        parameters: "&f<coord>"
+        success: "&aUnreserved location [coord] - it is now available for claiming"
+        not-reserved: "&c[coord] is not reserved"
+        occupied: "&cCannot unreserve [coord] - it is currently occupied by a player"
+        invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
+
+      clearprice:
+        description: "&7Clear the purchase price from a reserved location"
+        parameters: "&f<coord>"
+        success: "&aCleared price for [coord] - it is now blocked (not purchasable)"
+        not-reserved: "&c[coord] is not reserved"
+        no-price: "&c[coord] does not have a purchase price set"
+        invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
+
       info:
         description: "&7Show info about a grid location"
         parameters: "&f<coord>"
