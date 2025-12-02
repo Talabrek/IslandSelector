@@ -1,14 +1,30 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 49 (Latest - Admin Force Relocate)
+- **Build Date:** Session 50 (Latest - Player Search Documentation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
 - **JAR Size:** 212K
-- **Status:** ✅ 44 tests verified, 108+ tests pending manual verification
+- **Status:** ✅ 44 tests verified, 112+ tests pending manual verification
 
-## Latest Sessions (38-49)
+## Latest Sessions (38-50)
 
-### Session 49: Admin Force Relocate Command ⭐ NEW
+### Session 50: Player Search Functionality ⭐ NEW
+📋 **See [SESSION50_FOR_HUMAN_TESTER.md](SESSION50_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 4 search functionality tests (Tests 45-48)
+- Search button (compass icon) in grid GUI
+- Chat-based search interface (type player name)
+- Partial name matching support (case-insensitive)
+- Centers viewport on found islands
+- Works for both online and offline players
+- Error handling for not found / no island
+
+**Testing Time:** 10-15 minutes
+**Players Required:** 2-3 accounts (to search for each other)
+**Special Requirements:** None
+**Complexity:** Simple
+
+### Session 49: Admin Force Relocate Command
 📋 **See [SESSION49_FOR_HUMAN_TESTER.md](SESSION49_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 1 admin command test
