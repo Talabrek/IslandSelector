@@ -314,12 +314,90 @@ public class SlotSwitchManager {
                 }
             }
 
-            // TODO: Handle visitors - teleport them away from the island
+            // Handle visitors - teleport them away from the island
+            teleportVisitorsAway(island, owner);
 
         } catch (Exception e) {
             addon.logError("Failed to teleport players for slot " + slotData.getUniqueId() + ": " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Teleport visitors away from the island during slot switch
+     * Visitors are non-team members who are currently on the island
+     */
+    private void teleportVisitorsAway(Island island, Player owner) {
+        try {
+            // Get all online players
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                // Skip if player is the owner or a team member
+                if (player.getUniqueId().equals(owner.getUniqueId()) ||
+                    island.getMemberSet().contains(player.getUniqueId())) {
+                    continue;
+                }
+
+                // Check if player is on the island
+                if (island.onIsland(player.getLocation())) {
+                    // This is a visitor - teleport them away
+                    handleVisitorTeleport(player, island);
+                }
+            }
+
+        } catch (Exception e) {
+            addon.logError("Failed to teleport visitors: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Handle teleporting a single visitor away from the island
+     */
+    private void handleVisitorTeleport(Player visitor, Island island) {
+        // Get config settings
+        int teleportDelay = addon.getSettings().getVisitorTeleportDelay();
+        String warningMessage = addon.getSettings().getVisitorWarningMessage();
+
+        // Send warning message if configured
+        if (warningMessage != null && !warningMessage.isEmpty()) {
+            visitor.sendMessage(colorize(warningMessage));
+        }
+
+        // Schedule teleportation after delay
+        Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+            // Determine where to teleport the visitor
+            Location destination = getVisitorTeleportDestination(visitor);
+
+            if (destination != null) {
+                visitor.teleport(destination);
+                visitor.sendMessage(colorize("&eYou have been teleported away as the island is switching slots."));
+            } else {
+                // Fallback: teleport to world spawn
+                visitor.teleport(visitor.getWorld().getSpawnLocation());
+                visitor.sendMessage(colorize("&eYou have been teleported to spawn as the island is switching slots."));
+            }
+        }, teleportDelay);
+    }
+
+    /**
+     * Determine where to teleport a visitor
+     * Priority: Their own island > Their team's island > World spawn
+     */
+    private Location getVisitorTeleportDestination(Player visitor) {
+        // Try to get visitor's own island
+        Island visitorIsland = addon.getIslands().getIsland(visitor.getWorld(), visitor.getUniqueId());
+
+        if (visitorIsland != null) {
+            // Visitor has an island - send them home
+            Location spawnPoint = visitorIsland.getSpawnPoint(org.bukkit.World.Environment.NORMAL);
+            if (spawnPoint != null) {
+                return spawnPoint;
+            }
+            return visitorIsland.getCenter();
+        }
+
+        // Visitor has no island - send to world spawn
+        return visitor.getWorld().getSpawnLocation();
     }
 
     /**

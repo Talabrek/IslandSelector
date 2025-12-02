@@ -360,3 +360,20 @@ When testing, please report:
 4. Navigation problems
 5. Permission issues
 6. Island creation failures
+
+---
+
+## Session 16 - Visitor Teleportation
+
+### Features Added
+- **Visitor Detection** - Automatically detects visitors on island during slot switch
+- **Smart Teleportation** - Visitors with islands sent home, others to spawn
+- **Warning System** - Configurable warning message before teleportation
+- **Configurable Delay** - Default 2 seconds (40 ticks) for visitors to read warning
+- **Team Member Protection** - Team members are not treated as visitors
+
+### Tests to Perform (Tests #71-72)
+See `TESTING_SESSION16.md` for detailed test instructions.
+
+Quick test: Have a visitor on your island, switch slots, verify visitor is teleported away.
+
