@@ -73,7 +73,7 @@ public class IslandCreateListener implements Listener {
     }
 
     /**
-     * Handle island creation completion - register in grid
+     * Handle island creation completion - move island to selected grid location and register
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onIslandCreated(IslandCreatedEvent event) {
@@ -85,10 +85,38 @@ public class IslandCreateListener implements Listener {
         confirmedBlueprints.remove(playerUUID);
 
         if (coord != null) {
-            // Register this island in the grid
             Island island = event.getIsland();
             String ownerName = player != null ? player.getName() : "Unknown";
 
+            // Calculate the world coordinates for this grid position
+            int worldX = calculateWorldX(coord);
+            int worldZ = calculateWorldZ(coord);
+
+            // Get the island's current center
+            Location currentCenter = island.getCenter();
+            if (currentCenter == null) {
+                addon.logError("Cannot relocate island - current center is null");
+                return;
+            }
+
+            // Create new center location at the grid coordinates
+            Location newCenter = new Location(
+                currentCenter.getWorld(),
+                worldX,
+                currentCenter.getY(), // Keep same Y level
+                worldZ,
+                currentCenter.getYaw(),
+                currentCenter.getPitch()
+            );
+
+            // Move the island to the new location
+            addon.log("Relocating island from " + currentCenter.getBlockX() + "," + currentCenter.getBlockZ() +
+                     " to " + worldX + "," + worldZ + " (grid " + coord + ")");
+
+            island.setCenter(newCenter);
+            island.setSpawnPoint(org.bukkit.World.Environment.NORMAL, newCenter);
+
+            // Register this island in the grid
             UUID islandUUID = null;
             try {
                 islandUUID = UUID.fromString(island.getUniqueId());
@@ -103,8 +131,29 @@ public class IslandCreateListener implements Listener {
             if (player != null) {
                 player.sendMessage("§a§lIsland Created!");
                 player.sendMessage("§7Your island has been created at location §f" + coord.toString());
+                player.sendMessage("§7World coordinates: §fX: " + worldX + ", Z: " + worldZ);
             }
         }
+    }
+
+    /**
+     * Calculate world X coordinate from grid coordinate
+     */
+    private int calculateWorldX(GridCoordinate coord) {
+        // BSkyBlock's "distance-between-islands" is the offset from center
+        // Real spacing between island centers is distance * 2
+        int spacing = addon.getIslandSpacing() * 2;
+        return coord.getX() * spacing;
+    }
+
+    /**
+     * Calculate world Z coordinate from grid coordinate
+     */
+    private int calculateWorldZ(GridCoordinate coord) {
+        // BSkyBlock's "distance-between-islands" is the offset from center
+        // Real spacing between island centers is distance * 2
+        int spacing = addon.getIslandSpacing() * 2;
+        return coord.getZ() * spacing;
     }
 
     /**

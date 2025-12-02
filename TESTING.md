@@ -1,9 +1,9 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 11 (Latest - Premium Tooltip Enhancement)
+- **Build Date:** Session 12 (Latest - CRITICAL BUG FIX: Island Location Placement)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **Status:** Premium Location Tooltips Fixed - Ready for Testing
+- **Status:** ⚠️ CRITICAL BUG FIXED - Islands Now Created at Correct Coordinates
 
 ## Test Results Summary
 
@@ -13,6 +13,7 @@
 | Tests 26-35 | PASS | Island claiming, blueprint selection |
 | Tests 36-39 | PENDING | Search functionality (Session 10) |
 | Test 40 | PENDING | Premium location tooltips (Session 11) |
+| Tests 41-48 | PENDING | **CRITICAL: Island claiming with correct coordinates (Session 12)** |
 
 ---
 
