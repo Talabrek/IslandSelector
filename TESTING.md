@@ -1,14 +1,32 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 50 (Latest - Player Search Documentation)
+- **Build Date:** Session 51 (Latest - Neighbors Command)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 212K
-- **Status:** ✅ 44 tests verified, 112+ tests pending manual verification
+- **JAR Size:** 216K
+- **Status:** ✅ 44 tests verified, 118+ tests pending manual verification
 
-## Latest Sessions (38-50)
+## Latest Sessions (38-51)
 
-### Session 50: Player Search Functionality ⭐ NEW
+### Session 51: Neighbors Command ⭐ NEW
+📋 **See [SESSION51_FOR_HUMAN_TESTER.md](SESSION51_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 6 neighbors command tests
+- `/islandselector neighbors` - Opens the Neighborhood GUI directly
+- Aliases: `neighbors`, `neighbourhood`, `neighborhood`
+- Shows 3x3 grid centered on player's island
+- Displays all 8 adjacent neighbor positions
+- Online neighbors shown with player heads
+- Offline neighbors shown with red glass
+- Empty positions shown with green glass
+- Error message if player has no island
+
+**Testing Time:** 5-10 minutes
+**Players Required:** 2-3 accounts (to have neighbors)
+**Special Requirements:** None
+**Complexity:** Simple
+
+### Session 50: Player Search Functionality
 📋 **See [SESSION50_FOR_HUMAN_TESTER.md](SESSION50_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 4 search functionality tests (Tests 45-48)
