@@ -1,17 +1,55 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 31 (Latest - Slot Settings GUI)
+- **Build Date:** Session 39 (Latest - Player Search Documentation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 155K
-- **Status:** ✅ 52 tests ready for manual verification
+- **JAR Size:** 180K
+- **Status:** ✅ 44 tests verified, 11 tests pending manual verification
 
-## Latest Session
+## Latest Sessions (38-39)
+
+### Session 39: Player Search Functionality ⭐ NEW
+📋 **See [SESSION39_FOR_HUMAN_TESTER.md](SESSION39_FOR_HUMAN_TESTER.md) for quick test guide**
+📋 **See [TESTING_SESSION39.md](TESTING_SESSION39.md) for detailed testing**
+
+**Features Ready:** 4 search-related tests
+- Search button displays (COMPASS item)
+- Search finds player by name
+- Partial name matching ("Not" finds "Notch")
+- Player not found error handling
+
+**Testing Time:** 10-15 minutes
+**Players Required:** 2-3 accounts
+
+### Session 38: Island Claiming & Premium Locations
+📋 **See [SESSION38_FOR_HUMAN_TESTER.md](SESSION38_FOR_HUMAN_TESTER.md) for quick test guide**
+📋 **See [TESTING_SESSION38.md](TESTING_SESSION38.md) for detailed testing**
+
+**Features Ready:** 7 island claiming tests
+- New player intercepts /island command (CRITICAL TEST!)
+- Click-to-select, double-click-to-confirm flow
+- Confirmation GUI with Confirm/Cancel buttons
+- Island created at selected grid coordinates
+- Premium location tooltips (gold block with price)
+- Grid coordinate mapping verification
+
+**Testing Time:** 15-20 minutes
+**Players Required:** 3-4 fresh accounts (can only claim once per account)
+
+### Combined Sessions 38 + 39
+**Total Tests Pending:** 11 tests (7 + 4)
+**Combined Testing Time:** 20-30 minutes
+**If All Pass:** Progress jumps from 44/225 to 51/225 tests
+
+## Previous Sessions
+📋 **See [TESTING_SESSION37.md](TESTING_SESSION37.md) for Session 37 testing guide**
+
+Session 37 documented existing search functionality previously implemented.
+
 📋 **See [TESTING_SESSION31.md](TESTING_SESSION31.md) for Session 31 testing guide**
 
 Session 31 implemented the Slot Settings GUI, which opens when players right-click on island slots. Provides quick access to rename, change icon, and delete features with visual buttons and command instructions.
 
-## Previous Session
 📋 **See [TESTING_SESSION30.md](TESTING_SESSION30.md) for Session 30 testing guide**
 
 Session 30 implemented the `/islandselector delete` command with confirmation GUI for safely deleting island slots.
