@@ -7327,3 +7327,346 @@ JAR: output/IslandSelector-1.0.0-SNAPSHOT.jar (192K, +4K from Session 45)
 **Result:** Complete PlaceholderAPI integration adds powerful data display options
 **Significance:** Players can now show island info in chat, scoreboards, menus, etc.
 **Next:** Human tester verifies 90 tests total (Sessions 38-46)
+
+=================================================
+SESSION 47 - FEATURE IMPLEMENTATION (December 2, 2025)
+=================================================
+
+Session Date: Session 47
+Agent Role: Feature Implementation - Custom Event API
+
+=================================================
+COMPLETED TASKS - SESSION 47
+=================================================
+
+✅ 1. CUSTOM EVENT CLASSES
+   - Created: GridLocationClaimEvent - Fires when player claims a location
+   - Created: SlotSwitchEvent - Fires when player switches slots
+   - Created: IslandRelocateEvent - Fires when player relocates island
+   - All events extend Bukkit Event and implement Cancellable
+   - All events include comprehensive data (coordinates, slots, costs, player)
+   - All events support custom cancellation messages
+
+✅ 2. EVENT FIRING INTEGRATION
+   - Modified IslandCreateListener to fire GridLocationClaimEvent
+     - Fires in confirmClaim() and confirmClaimWithBlueprint() methods
+     - Includes grid coordinates and world coordinates
+     - Respects event cancellation with custom messages
+   - Modified SlotSwitchManager to fire SlotSwitchEvent
+     - Fires before async slot switch operations begin
+     - Includes from/to slot numbers and slot names
+     - Respects event cancellation
+   - Modified RelocationManager to fire IslandRelocateEvent
+     - Fires before async relocation operations begin
+     - Includes from/to coordinates and cost information
+     - Respects event cancellation
+
+✅ 3. EVENT API DESIGN
+   - All events fire on main thread for cancellability
+   - Events fire BEFORE operations begin (not after)
+   - Cancelling prevents operation from happening
+   - Custom cancellation messages displayed to player
+   - Events include all relevant data for the operation
+   - Follows Bukkit event best practices
+
+✅ 4. TESTING DOCUMENTATION
+   - Created SESSION47_FOR_HUMAN_TESTER.md (comprehensive test guide)
+   - Includes 8 test cases covering all event functionality
+   - Provides complete test plugin template
+   - Documents event API for plugin developers
+   - Updated TESTING.md with Session 47 summary
+
+✅ 5. BUILD & COMMIT
+   - Plugin builds successfully with no errors
+   - JAR size: 200K (up from 192K, +8K for event classes)
+   - Git commit with detailed description
+   - All changes staged and committed
+
+=================================================
+TECHNICAL DETAILS
+=================================================
+
+**Event Architecture:**
+
+1. **GridLocationClaimEvent**
+   - Fired when: Player confirms island claim in IslandClaimGUI
+   - Data: Player, GridCoordinate, worldX, worldZ
+   - Use cases: Custom claim restrictions, logging, analytics
+
+2. **SlotSwitchEvent**
+   - Fired when: Player confirms slot switch in SlotSwitchConfirmationGUI
+   - Data: Player, fromSlot, toSlot, fromSlotName, toSlotName
+   - Use cases: Slot unlock requirements, custom costs, logging
+
+3. **IslandRelocateEvent**
+   - Fired when: Player confirms relocation in ConfirmationGUI
+   - Data: Player, fromCoord, toCoord, worldCoords, cost
+   - Use cases: Distance-based costs, zone restrictions, logging
+
+**Implementation Highlights:**
+
+- Events fire synchronously before async operations
+- Cancellation prevents operation entirely (no partial state)
+- Custom messages shown to player via cancellationReason field
+- All events include comprehensive data for decision-making
+- Events respect Bukkit's event priority system
+- No performance impact (events are lightweight)
+
+**Code Quality:**
+- Clean event class design with full Javadocs
+- Proper use of Bukkit event system
+- Minimal changes to existing code
+- Events fire at optimal points (after confirmation, before operation)
+- Thorough error handling for cancelled events
+
+=================================================
+TESTS READY FOR HUMAN VERIFICATION
+=================================================
+
+**Test #1-8:** Custom Event API tests
+- Total: 8 new tests ready for manual verification
+- See SESSION47_FOR_HUMAN_TESTER.md for details
+
+Feature Coverage:
+- GridLocationClaimEvent fires on claim
+- GridLocationClaimEvent can be cancelled
+- SlotSwitchEvent fires on switch
+- SlotSwitchEvent can be cancelled
+- IslandRelocateEvent fires on relocation
+- IslandRelocateEvent can be cancelled
+- Events fire in correct order (priority system)
+- Event data is accurate and useful
+
+=================================================
+FILES CREATED/MODIFIED
+=================================================
+
+**Created:**
+- src/main/java/world/bentobox/islandselector/events/GridLocationClaimEvent.java (NEW)
+- src/main/java/world/bentobox/islandselector/events/SlotSwitchEvent.java (NEW)
+- src/main/java/world/bentobox/islandselector/events/IslandRelocateEvent.java (NEW)
+- src/main/java/world/bentobox/islandselector/events/ (NEW package)
+- SESSION47_FOR_HUMAN_TESTER.md
+
+**Modified:**
+- src/main/java/world/bentobox/islandselector/listeners/IslandCreateListener.java
+- src/main/java/world/bentobox/islandselector/managers/SlotSwitchManager.java
+- src/main/java/world/bentobox/islandselector/managers/RelocationManager.java
+- TESTING.md
+
+=================================================
+NEXT STEPS FOR FUTURE AGENTS
+=================================================
+
+PRIORITY 1: Wait for Human Tester Feedback
+  - Total: 98 tests pending (Sessions 38-47)
+  - Session 47: 8 custom event API tests
+  - Note: Session 47 requires test plugin development (advanced testing)
+  - If all pass: Progress to 142/225 (63.1% - over 60%!)
+
+PRIORITY 2: Next Features to Implement
+  - Additional admin commands (if any remain)
+  - Performance optimizations
+  - Advanced permission features
+  - Economy integration enhancements
+  - Additional API features for developers
+
+PRIORITY 3: Polish and Optimization
+  - Code review and refactoring
+  - Performance profiling
+  - Edge case testing
+  - Documentation improvements
+
+=================================================
+SESSION 47 COMPLETE
+=================================================
+
+Status: ✅ SUCCESS
+Changes: 3 event classes created, 3 files modified (event firing)
+New Features: Custom event API for plugin integration
+Tests Ready: 8 tests (advanced - requires test plugin)
+JAR: output/IslandSelector-1.0.0-SNAPSHOT.jar (200K, +8K from Session 46)
+
+**Result:** Complete event API enables third-party plugin integration
+**Significance:** Developers can now extend IslandSelector functionality
+**Next:** Human tester verifies 98 tests total (Sessions 38-47) with test plugin
+=================================================
+SESSION 48 - FEATURE IMPLEMENTATION (December 2, 2025)
+=================================================
+
+Session Date: Session 48
+Agent Role: Feature Implementation - Admin Purge Commands
+
+=================================================
+COMPLETED TASKS - SESSION 48
+=================================================
+
+✅ 1. ADMIN PURGE COMMAND SYSTEM
+   - Created: AdminPurgeCommand.java (main command with subcommands)
+   - Created: AdminPurgeConfirmCommand.java (confirmation system)
+   - Subcommands implemented:
+     * purge <player> - Purge specific offline player
+     * purge inactive <days> [--dry-run] - Purge inactive players
+     * purge banned [--dry-run] - Purge banned players
+     * purge confirm <uuid> - Confirm single player purge
+     * purge confirm-list <uuid,uuid,...> - Confirm batch purge
+
+✅ 2. SLOTMANAGER UTILITY METHODS
+   - Added getAllPlayersWithSlots() - Get all UUIDs with slot data
+   - Added purgePlayerData(UUID) - Remove all slot data for player
+   - Added countPlayerSchematics(UUID) - Count .schem files
+   - Purge removes: database entries, schematic files, empty directories
+   - File import added for File operations
+
+✅ 3. SAFETY FEATURES
+   - Online player check - Cannot purge players currently online
+   - Two-step confirmation - All real purges require explicit confirmation
+   - Dry-run mode - Preview operations without deleting data
+   - Async execution - Purge runs asynchronously to prevent lag
+   - Error handling - Graceful handling of invalid inputs
+
+✅ 4. AUDIT LOGGING
+   - Audit logs written to plugins/IslandSelector/audit/
+   - Filename format: purge_YYYY-MM-DD_HH-MM-SS.log
+   - Logs include: timestamp, admin name, player list, slot counts, results
+   - Comprehensive summary with success/failure counts
+   - Permanent file-based logs for compliance/records
+
+✅ 5. COMMAND INTEGRATION
+   - Integrated into AdminCommand.java
+   - Confirmation command registered as subcommand of purge
+   - Tab completion for all subcommands and parameters
+   - Permission: islandselector.admin.purge
+
+✅ 6. TESTING DOCUMENTATION
+   - Created SESSION48_FOR_HUMAN_TESTER.md (comprehensive test guide)
+   - 10 test cases covering all purge functionality
+   - Tests cover: single player, inactive, banned, dry-run, security, audit
+   - Complete usage guide for admins
+
+✅ 7. BUILD & VERIFICATION
+   - Plugin builds successfully with no errors
+   - JAR size: 208K (up from 200K, +8K for purge system)
+   - Fixed lambda effectively-final issue (array wrapper pattern)
+   - All Java files compile cleanly
+
+=================================================
+TECHNICAL DETAILS
+=================================================
+
+**Purge Command Flow:**
+
+1. Admin runs purge command (player/inactive/banned)
+2. System validates inputs and checks preconditions:
+   - Players must be offline (online check)
+   - Players must have slot data (existence check)
+3. If dry-run: Show preview and exit (no confirmation)
+4. If real purge: Show preview and provide confirmation command
+5. Admin runs confirmation command with UUID(s)
+6. System executes purge asynchronously:
+   - For each player: delete database entries, delete schematic files
+   - Write audit log with full details
+   - Report success/failure counts
+7. Admin receives completion message
+
+**Data Removal:**
+- Database: SlotData entries deleted via database.deleteID()
+- Files: .schem files deleted from slots/{uuid}/ directory
+- Cleanup: Empty player directories removed
+- Audit: Operation logged to audit/{timestamp}.log
+
+**Safety Design:**
+- **Online check:** Prevents accidental purge of active players
+- **Two-step:** Confirmation command required (no instant delete)
+- **Dry-run:** Preview without commitment (--dry-run flag)
+- **Async:** Non-blocking operation (won't freeze server)
+- **Audit:** Permanent record of all purge operations
+
+**Tab Completion:**
+- Level 1: inactive, banned, [player names]
+- Level 2 (inactive): 30, 60, 90, 180, 365 (common day values)
+- Level 3 (flags): --dry-run
+
+=================================================
+TESTS READY FOR HUMAN VERIFICATION
+=================================================
+
+**Test #1-10:** Admin Purge System (10 tests)
+- Total: 10 new tests ready for manual verification
+- See SESSION48_FOR_HUMAN_TESTER.md for details
+
+Feature Coverage:
+1. Purge specific offline player
+2. Block purge of online players (safety)
+3. Handle players with no data gracefully
+4. Purge inactive players (dry-run preview)
+5. Purge inactive players (real execution)
+6. Purge banned players (dry-run preview)
+7. Purge banned players (real execution)
+8. Handle large player counts (pagination)
+9. Confirmation command security (permissions)
+10. Audit log quality and format
+
+=================================================
+FILES CREATED/MODIFIED
+=================================================
+
+**Created:**
+- src/main/java/world/bentobox/islandselector/commands/AdminPurgeCommand.java (NEW)
+- src/main/java/world/bentobox/islandselector/commands/AdminPurgeConfirmCommand.java (NEW)
+- SESSION48_FOR_HUMAN_TESTER.md
+
+**Modified:**
+- src/main/java/world/bentobox/islandselector/managers/SlotManager.java (added purge utilities)
+- src/main/java/world/bentobox/islandselector/commands/AdminCommand.java (registered purge commands)
+
+=================================================
+FEATURE LIST TESTS ADDRESSED
+=================================================
+
+From feature_list.json:
+- Test ~1934: "Admin purge player command removes all slot data with confirmation"
+- Test ~1947: "Admin purge inactive command with dry-run shows preview"
+- Test ~1958: "Admin purge inactive command removes data for inactive players"
+- Test ~1970: "Admin purge banned command removes data for banned players"
+- Test ~1982: "Cannot purge player who is currently online"
+
+These tests are now ready for human verification on a real Minecraft server.
+
+=================================================
+NEXT STEPS FOR FUTURE AGENTS
+=================================================
+
+PRIORITY 1: Wait for Human Tester Feedback
+  - Total: 108 tests pending (Sessions 38-48)
+  - Session 48: 5 admin purge tests (conservative count from feature_list.json)
+  - If all pass: Progress to ~147/225 (65.3% - approaching 2/3 complete!)
+
+PRIORITY 2: Next Features to Implement
+  - Look for remaining unimplemented features in feature_list.json
+  - Possible areas:
+    * Additional utility commands
+    * Permission edge cases
+    * Performance optimizations
+    * Advanced admin tools
+  - Continue systematic feature implementation
+
+PRIORITY 3: Polish and Testing
+  - Code review and refactoring
+  - Edge case handling
+  - Performance profiling
+  - Documentation improvements
+
+=================================================
+SESSION 48 COMPLETE
+=================================================
+
+Status: ✅ SUCCESS
+Changes: 2 command files created, 2 files modified (SlotManager, AdminCommand)
+New Features: Complete admin purge system with confirmation and audit
+Tests Ready: 10 tests (5-10 from feature_list.json depending on granularity)
+JAR: output/IslandSelector-1.0.0-SNAPSHOT.jar (208K, +8K from Session 47)
+
+**Result:** Powerful admin tools for managing slot data with safety and accountability
+**Significance:** Admins can now clean up inactive/banned player data safely
+**Next:** Human tester verifies 108 tests total (Sessions 38-48)

@@ -35,6 +35,10 @@ public class AdminCommand extends CompositeCommand {
         new AdminResetCooldownCommand(this);
         new AdminBackupCommand(this);
         new AdminRestoreCommand(this);
+
+        // Purge command with confirmation subcommand
+        AdminPurgeCommand purgeCommand = new AdminPurgeCommand(this);
+        new AdminPurgeConfirmCommand(purgeCommand);
     }
 
     @Override

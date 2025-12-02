@@ -6,6 +6,7 @@ import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
 
+import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -257,5 +258,70 @@ public class SlotManager {
      */
     public void reload() {
         loadAllSlots();
+    }
+
+    /**
+     * Get all player UUIDs that have slot data
+     */
+    public Set<UUID> getAllPlayersWithSlots() {
+        return slotCache.values().stream()
+                .map(SlotData::getPlayerUUIDAsUUID)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Purge all slot data for a player
+     * Removes database entries and deletes schematic files
+     * Should only be called for offline players
+     * @return true if purge was successful
+     */
+    public boolean purgePlayerData(UUID playerUUID) {
+        List<SlotData> slots = getPlayerSlots(playerUUID);
+
+        if (slots.isEmpty()) {
+            return false;
+        }
+
+        boolean success = true;
+
+        // Delete all slots from database and cache
+        for (SlotData slot : slots) {
+            String uniqueId = slot.getUniqueId();
+            slotCache.remove(uniqueId);
+            database.deleteID(uniqueId);
+
+            // Delete schematic file
+            File schematicFile = new File(getSlotSchematicPath(playerUUID, slot.getSlotNumber()));
+            if (schematicFile.exists()) {
+                if (!schematicFile.delete()) {
+                    addon.logError("Failed to delete schematic file: " + schematicFile.getAbsolutePath());
+                    success = false;
+                }
+            }
+        }
+
+        // Delete player's slot directory if it's empty
+        File playerSlotDir = new File(addon.getDataFolder(), "slots/" + playerUUID.toString());
+        if (playerSlotDir.exists() && playerSlotDir.isDirectory()) {
+            String[] files = playerSlotDir.list();
+            if (files != null && files.length == 0) {
+                playerSlotDir.delete();
+            }
+        }
+
+        return success;
+    }
+
+    /**
+     * Get the total number of schematic files for a player
+     */
+    public int countPlayerSchematics(UUID playerUUID) {
+        File playerSlotDir = new File(addon.getDataFolder(), "slots/" + playerUUID.toString());
+        if (!playerSlotDir.exists() || !playerSlotDir.isDirectory()) {
+            return 0;
+        }
+
+        String[] files = playerSlotDir.list((dir, name) -> name.endsWith(".schem"));
+        return files != null ? files.length : 0;
     }
 }
