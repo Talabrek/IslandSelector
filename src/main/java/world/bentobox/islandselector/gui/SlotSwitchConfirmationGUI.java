@@ -182,8 +182,10 @@ public class SlotSwitchConfirmationGUI implements InventoryHolder, Listener {
         }
 
         player.closeInventory();
-        player.sendMessage(colorize("&eSlot switching coming soon..."));
-        // TODO: Implement actual slot switching with FAWE
+        player.sendMessage(colorize("&eStarting slot switch..."));
+
+        // Perform the slot switch using the SlotSwitchManager
+        addon.getSlotSwitchManager().switchSlot(player, fromSlot, toSlot);
     }
 
     private void handleCancel(Player player) {

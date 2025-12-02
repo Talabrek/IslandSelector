@@ -1,10 +1,10 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 14 (Latest - Slot System Foundation & Confirmation GUIs)
+- **Build Date:** Session 15 (Latest - FAWE Slot Switching Implementation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 112K
-- **Status:** ✅ Slot database, manager, and confirmation GUI complete
+- **JAR Size:** 118K
+- **Status:** ✅ Complete slot switching system with FAWE
 
 ## Test Results Summary
 
@@ -18,6 +18,7 @@
 | Tests 49-53 | PENDING | Location validation & premium purchases (Session 13) |
 | Tests 54-61 | PENDING | Slot system UI and permissions (Session 13, improved Session 14) |
 | Tests 62-63 | PENDING | Slot foundation & confirmation GUI (Session 14) |
+| Tests 64-70 | PENDING | FAWE slot switching operations (Session 15) |
 
 ---
 
