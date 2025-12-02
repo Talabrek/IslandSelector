@@ -180,8 +180,8 @@ commands:
         invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
 
       info:
-        description: "&7Show info about a grid location"
-        parameters: "&f<coord>"
+        description: "&7Show info about a grid location or player"
+        parameters: "&f<coord|player>"
         header: "&a&l=== Location [coord] ==="
         empty: "&7Status: &fEmpty (no island)"
         status: "&7Status: &f[status]"
@@ -190,6 +190,18 @@ commands:
         blocked: "&7Reserved: &cBlocked (not purchasable)"
         world-coords: "&7World coordinates: &f[x], [z]"
         invalid-coord: "&cInvalid coordinate format: [coord]"
+        player-not-found: "&cPlayer '[player]' not found"
+        player-no-data: "&cPlayer '[player]' has no IslandSelector data"
+        player-header: "&a&l=== Player Info: [player] ==="
+        player-location: "&7Grid Location: &f[location]"
+        player-world-coords: "&7World Coordinates: &f[x], [z]"
+        player-no-island: "&7Island: &cNone"
+        player-active-slot: "&7Active Slot: &f#[slot] - [name]"
+        player-slot-count: "&7Slots: &f[used]/[total] with islands"
+        player-slots-list: "&7&l--- Slot Details ---"
+        player-slot-entry: "&7  #[number]: &f[name] &7- [status] &7- [island]"
+        player-cooldown: "&7Switch Cooldown: &c[time] remaining"
+        player-no-cooldown: "&7Switch Cooldown: &aNone"
 
       version:
         description: "&7Show plugin version and dependencies"

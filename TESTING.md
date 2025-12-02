@@ -1,15 +1,20 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 25 (Latest - Search Feature Documentation)
+- **Build Date:** Session 26 (Latest - Admin Info Player Lookup)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
 - **JAR Size:** 136K
-- **Status:** ✅ 47 tests ready for manual verification (Tests #28-86)
+- **Status:** ✅ 44 tests ready for manual verification (Tests #28-87)
 
 ## Latest Session
+📋 **See [TESTING_SESSION26.md](TESTING_SESSION26.md) for Session 26 testing guide**
+
+Session 26 enhanced the admin info command to support player lookups. Admins can now query detailed player island and slot information using `/islandselector admin info <player>`.
+
+## Previous Sessions
 📋 **See [TESTING_SESSION25.md](TESTING_SESSION25.md) for Session 25 testing guide**
 
-Session 25 discovered that Player Search functionality (Tests #83-86) was already fully implemented in a previous session. Created comprehensive testing documentation for manual verification.
+Session 25 discovered that Player Search functionality (Tests #83-86) was already fully implemented. Created comprehensive testing documentation for manual verification.
 
 ## Previous Session
 📋 **See [TESTING_SESSION24.md](TESTING_SESSION24.md) for Session 24 testing guide**
