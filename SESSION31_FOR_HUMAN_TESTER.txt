@@ -1,0 +1,410 @@
+=================================================
+SESSION 31 - QUICK START FOR HUMAN TESTER
+=================================================
+
+📦 NEW FEATURE: Slot Settings GUI (Right-Click Menu)
+
+🎯 WHAT WAS IMPLEMENTED:
+- Right-click slots to open settings GUI
+- Settings menu with rename, change icon, and delete buttons
+- Quick access to slot management features
+- Back button to return to slot selection
+- Error handling for empty/locked slots
+
+📂 JAR LOCATION:
+output/IslandSelector-1.0.0-SNAPSHOT.jar (155K)
+
+✅ BUILD STATUS: SUCCESS (37 source files, 0 errors)
+
+=================================================
+QUICK TEST (5 minutes)
+=================================================
+
+1. Copy JAR to plugins/BentoBox/addons/
+2. Restart server
+3. Run: /islandselector slots
+4. Right-click on your island slot
+5. Expected: Settings GUI opens with 3 buttons
+6. Check: Rename, Change Icon, Delete buttons visible
+7. Click "Back to Slots" arrow
+8. Expected: Returns to slot selection GUI
+
+=================================================
+FULL TEST GUIDE
+=================================================
+
+See TESTING_SESSION31.md for comprehensive test plan including:
+- 4 main test cases (Tests #88-91)
+- Edge case testing (empty slots, locked slots)
+- Integration testing (navigation, commands)
+- Performance testing (rapid GUI opening)
+- Visual validation checklist
+
+Estimated testing time: 15-25 minutes for full test
+
+=================================================
+KEY FEATURES TO TEST
+=================================================
+
+✅ Test #88: Right-clicking slot opens settings GUI
+   - Open slot selection GUI
+   - Right-click on slot 1
+   - Settings GUI should open
+   - Title: "Slot Settings: [Slot Name]"
+
+✅ Test #89: Slot preview displays in center
+   - Settings GUI shows slot icon
+   - Shows slot name and number
+   - Shows active/inactive status
+
+✅ Test #90: Rename button with name tag
+   - NAME_TAG item in left position
+   - Shows current slot name
+   - Clicking shows command instructions
+
+✅ Test #91: Change Icon button with item frame
+   - ITEM_FRAME item in middle position
+   - Shows current icon material
+   - Clicking shows command instructions
+
+=================================================
+IMPORTANT BEHAVIORS
+=================================================
+
+Left-Click = Normal Action:
+- Active slot: No action
+- Inactive slot: Opens switch confirmation
+- Empty slot: Shows "create island" message
+- Locked slot: Shows lock message
+
+Right-Click = Settings GUI (NEW!):
+- Slot with island: Opens settings GUI
+- Empty slot: Error message
+- Locked slot: Error message
+
+=================================================
+VALIDATION CHECKLIST
+=================================================
+
+Basic Functionality:
+[ ] Right-click opens settings GUI
+[ ] Settings GUI title shows slot name
+[ ] Preview item shows in center
+[ ] Three buttons visible (Rename, Icon, Delete)
+[ ] Back button returns to slot selection
+
+Visual Elements:
+[ ] Preview uses slot's custom icon
+[ ] Rename button is NAME_TAG
+[ ] Change Icon button is ITEM_FRAME
+[ ] Delete button is TNT (red text)
+[ ] Gray glass panes fill empty slots
+
+Button Functionality:
+[ ] Clicking Rename shows command instructions
+[ ] Clicking Change Icon shows command instructions
+[ ] Clicking Delete shows command instructions
+[ ] All command examples are correct
+[ ] Back button works
+
+Error Handling:
+[ ] Right-click empty slot → Error message
+[ ] Right-click locked slot → Error message
+[ ] Left-click still works normally
+[ ] No console errors
+[ ] No crashes
+
+Integration:
+[ ] Settings show correct slot data
+[ ] Works for all slot numbers (1-5)
+[ ] Active status shown correctly
+[ ] Custom names display correctly
+[ ] Custom icons display correctly
+
+=================================================
+WHAT TO REPORT
+=================================================
+
+✅ If it works:
+"Tests #88-91 passed - Slot settings GUI works perfectly"
+
+❌ If it fails:
+- Which test # failed
+- What was expected vs actual
+- Error messages (console and chat)
+- Steps to reproduce
+
+📋 Common issues to watch for:
+- Right-click not opening settings
+- Settings showing wrong slot data
+- Buttons not clickable
+- GUI not closing properly
+- Console errors about listeners
+- Memory leaks (test rapid opening)
+
+=================================================
+EDGE CASES TO TEST
+=================================================
+
+1. Empty Slot Right-Click:
+   - Player has slot 2 available but empty
+   - Right-click slot 2
+   - Should show: "This slot is empty! Create an island first..."
+
+2. Locked Slot Right-Click:
+   - Slot 3 is locked (no permission)
+   - Right-click slot 3
+   - Should show: "This slot is locked! You cannot view settings..."
+
+3. Multiple Slots:
+   - Open settings for slot 1
+   - Go back, open settings for slot 2
+   - Each should show correct data
+
+4. Active vs Inactive:
+   - Right-click active slot
+   - Preview shows "✔ Currently Active"
+   - Right-click inactive slot
+   - Preview shows "Inactive"
+
+=================================================
+TECHNICAL DETAILS
+=================================================
+
+Files Created:
++ SlotSettingsGUI.java (NEW - settings menu GUI)
+
+Files Modified:
++ SlotSelectionGUI.java (added right-click detection)
+
+GUI Layout:
+- 27 slots (3 rows × 9 columns)
+- Slot 4: Preview (center of row 1)
+- Slot 11: Rename button (NAME_TAG)
+- Slot 13: Change Icon button (ITEM_FRAME)
+- Slot 15: Delete Slot button (TNT)
+- Slot 22: Back button (ARROW)
+
+Click Detection:
+- Left-click: Normal behavior (switch/create)
+- Right-click: Opens settings GUI
+- Both work independently
+
+Error Handling:
+- Empty slots: Cannot open settings
+- Locked slots: Cannot open settings
+- Only slots with islands can open settings
+
+=================================================
+HOW IT WORKS
+=================================================
+
+1. Player runs: /islandselector slots
+2. Slot Selection GUI opens
+3. Player RIGHT-CLICKS on slot 1
+4. Click type detected (RIGHT vs LEFT)
+5. System checks:
+   - Is slot locked? → Error
+   - Is slot empty? → Error
+   - Has island? → Open settings
+6. SlotSettingsGUI opens
+7. Shows:
+   - Slot preview (center)
+   - Rename button (left)
+   - Change Icon button (middle)
+   - Delete button (right)
+   - Back button (bottom)
+8. Player clicks a button
+9. GUI closes, command instructions shown
+10. Player uses command to make changes
+
+Example Flow:
+- Right-click slot 1
+- Settings GUI opens
+- Click "Rename" button
+- See: "Use command: /islandselector setname 1 <name>"
+- Run: /islandselector setname 1 My Base
+- Slot renamed!
+
+=================================================
+COMPARISON TO EXISTING FEATURES
+=================================================
+
+Before Session 31:
+- Only left-click worked in slot GUI
+- Had to remember commands for slot management
+- No quick access to slot settings
+
+After Session 31:
+- Right-click opens settings menu
+- Visual buttons for all slot features
+- Command instructions shown on-demand
+- Quick access without memorizing commands
+- Intuitive GUI-based workflow
+
+Benefits:
+✓ More discoverable (players find features)
+✓ Less memorization required
+✓ Visual feedback for available actions
+✓ Consistent with modern game UX
+✓ Faster workflow (fewer steps)
+
+=================================================
+TESTING PRIORITY
+=================================================
+
+HIGH Priority:
+1. Right-click opens settings GUI (Test #88)
+2. Preview shows correctly (Test #89)
+3. Back button works
+4. No console errors
+
+MEDIUM Priority:
+5. Rename button correct (Test #90)
+6. Change Icon button correct (Test #91)
+7. Delete button visible
+8. Command instructions accurate
+
+LOW Priority:
+9. Edge cases (empty, locked)
+10. Multiple slots
+11. Performance (rapid opening)
+12. Visual polish
+
+=================================================
+INTEGRATION WITH EXISTING FEATURES
+=================================================
+
+Commands Still Work:
+- /islandselector setname <slot> <name>
+- /islandselector seticon <slot>
+- /islandselector delete <slot>
+
+Settings GUI Complements:
+- Shows which commands to use
+- Provides examples
+- Quick reference
+- Doesn't replace commands
+- Adds convenience layer
+
+Design Philosophy:
+- GUI for discovery and guidance
+- Commands for actual changes
+- Best of both worlds
+- Maintains flexibility
+- User-friendly workflow
+
+=================================================
+NEXT STEPS AFTER TESTING
+=================================================
+
+If tests PASS:
+- Report success
+- Tests #88-91 marked as verified
+- Recommended next features:
+  1. Delete slot button in settings (Test #92)
+  2. Slot cooldown display (Tests #84-87)
+  3. Admin backup commands (Tests #114-117)
+  4. Island relocation (Tests #122-132)
+
+If tests FAIL:
+- Report specific failures
+- Developer will fix issues
+- Re-build and re-test
+- Don't proceed to new features
+
+Strategic Notes:
+- Settings GUI is foundation for future features
+- May add more buttons later (teleport, info, etc.)
+- Right-click pattern can extend to other GUIs
+- Good UX improvement for discoverability
+
+=================================================
+TROUBLESHOOTING
+=================================================
+
+Issue: Right-click doesn't open settings
+Fix: Check server version, ensure ClickType.RIGHT supported
+
+Issue: Settings show wrong slot data
+Fix: Verify SlotData passed correctly, check database
+
+Issue: Buttons not clickable
+Fix: Check event listener registration, verify slot numbers
+
+Issue: Console errors about listeners
+Fix: Check HandlerList.unregisterAll() on close
+
+Issue: Memory leaks
+Fix: Test rapid opening/closing, check listener cleanup
+
+Issue: GUI not closing
+Fix: Verify closeInventory() called, check event handling
+
+=================================================
+PERFORMANCE NOTES
+=================================================
+
+Expected Performance:
+- GUI opens instantly (<50ms)
+- No lag on right-click
+- Smooth back button navigation
+- No memory accumulation
+
+Test Method:
+1. Open settings 20 times
+2. Check server TPS (/tps)
+3. Monitor memory usage
+4. Verify no lag spikes
+
+Red Flags:
+- Lag when opening settings
+- TPS drops below 19
+- Memory usage increases over time
+- Console spam
+
+=================================================
+VISUAL EXAMPLES
+=================================================
+
+Slot Selection GUI (before right-click):
+[Slot 1] [Slot 2] [Slot 3] [Slot 4] [Slot 5]
+   ↑
+Right-click here
+
+Settings GUI (after right-click):
+Row 1:  [  ] [  ] [  ] [  ] [PREVIEW] [  ] [  ] [  ] [  ]
+Row 2:  [  ] [  ] [NAME_TAG] [  ] [ITEM_FRAME] [  ] [TNT] [  ] [  ]
+Row 3:  [  ] [  ] [  ] [  ] [ARROW] [  ] [  ] [  ] [  ]
+
+Preview Shows:
+- Icon: Grass Block (or custom)
+- Name: "My Island" (or custom)
+- Info: "Slot #1"
+- Status: "✔ Currently Active" (or "Inactive")
+
+=================================================
+SUCCESS METRICS
+=================================================
+
+Feature is successful if:
+✓ All 4 tests pass (#88-91)
+✓ Right-click detection works
+✓ Settings GUI displays correctly
+✓ All buttons function properly
+✓ Back navigation works
+✓ Error handling works
+✓ No console errors
+✓ Performance is smooth
+✓ Integration with commands works
+✓ User experience is intuitive
+
+Completion Status:
+Tests Implemented: 4 (Tests #88-91)
+Tests Passing: 0 (awaiting manual verification)
+Tests Pending: 4
+Build Status: SUCCESS
+Documentation: COMPLETE
+Ready for Testing: YES
+
+=================================================

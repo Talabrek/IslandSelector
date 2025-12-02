@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -224,6 +225,30 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         return text.replace("&", "\u00A7");
     }
 
+    private void handleSlotRightClick(Player clicker, int slotNumber) {
+        int maxSlots = getPlayerMaxSlots();
+        SlotManager slotManager = addon.getSlotManager();
+
+        // Check if slot is locked
+        if (slotNumber > maxSlots) {
+            clicker.sendMessage(colorize("&cThis slot is locked! You cannot view settings for locked slots."));
+            return;
+        }
+
+        // Get slot data
+        SlotData targetSlot = slotManager.getSlot(clicker.getUniqueId(), slotNumber);
+
+        // Check if slot has an island
+        if (targetSlot == null || !targetSlot.hasIsland()) {
+            clicker.sendMessage(colorize("&cThis slot is empty! Create an island first before viewing settings."));
+            return;
+        }
+
+        // Open slot settings GUI
+        clicker.closeInventory();
+        new SlotSettingsGUI(addon, clicker, targetSlot).open();
+    }
+
     private void handleSlotClick(Player clicker, int slotNumber) {
         int maxSlots = getPlayerMaxSlots();
         SlotManager slotManager = addon.getSlotManager();
@@ -301,7 +326,14 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         for (int i = 0; i < SLOT_POSITIONS.length; i++) {
             if (slot == SLOT_POSITIONS[i]) {
                 int slotNumber = i + 1;
-                handleSlotClick(clicker, slotNumber);
+
+                // Right-click opens settings GUI
+                if (event.getClick() == ClickType.RIGHT) {
+                    handleSlotRightClick(clicker, slotNumber);
+                } else {
+                    // Left-click does normal action (switch/create)
+                    handleSlotClick(clicker, slotNumber);
+                }
                 break;
             }
         }
