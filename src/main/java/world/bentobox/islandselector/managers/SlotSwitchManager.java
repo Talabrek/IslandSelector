@@ -54,6 +54,18 @@ public class SlotSwitchManager {
                 // Step 1: Send progress message
                 sendProgress(player, "&eStarting slot switch...");
 
+                // Step 1.5: Create backup if configured
+                if (addon.getSettings().isBackupOnSwitch()) {
+                    sendProgress(player, "&eCreating backup of current island...");
+                    boolean backed = addon.getBackupManager().createBackup(playerUUID, fromSlot.getSlotNumber());
+                    if (backed) {
+                        addon.log("Auto-backup created for " + player.getName() + " slot " + fromSlot.getSlotNumber());
+                    } else {
+                        addon.logError("Auto-backup failed for " + player.getName() + " slot " + fromSlot.getSlotNumber() + " - continuing switch anyway");
+                        // Don't cancel switch if backup fails - it's a safety feature, not critical
+                    }
+                }
+
                 // Step 2: Save current island to schematic
                 sendProgress(player, "&eSaving current island...");
                 boolean saved = saveIslandToSchematic(fromSlot);
