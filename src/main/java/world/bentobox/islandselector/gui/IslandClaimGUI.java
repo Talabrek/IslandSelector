@@ -311,12 +311,14 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         Material mat = parseMaterial(settings.getItemReservedPurchasable(), Material.GOLD_BLOCK);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(colorize("&6" + coord.toString() + " - Premium"));
+        meta.setDisplayName(colorize("&6⭐ Premium Location: " + coord.toString()));
 
         List<String> lore = new ArrayList<>();
         lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
         lore.add("");
-        lore.add(colorize("&7Price: &a$" + String.format("%.2f", location.getPurchasePrice())));
+        // Format price with commas (e.g., $50,000 instead of $50000.00)
+        String formattedPrice = String.format("%,d", (int) location.getPurchasePrice());
+        lore.add(colorize("&7Price: &a$" + formattedPrice));
         lore.add("");
         lore.add(colorize("&eClick to purchase and claim!"));
 

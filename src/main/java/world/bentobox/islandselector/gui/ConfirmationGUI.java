@@ -150,7 +150,9 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 lore.add(colorize("&7  X: &f" + worldX));
                 lore.add(colorize("&7  Z: &f" + worldZ));
                 lore.add("");
-                lore.add(colorize("&7Price: &a$" + String.format("%.2f", price)));
+                // Format price with commas (e.g., $50,000 instead of $50000.00)
+                String formattedPrice = String.format("%,d", (int) price);
+                lore.add(colorize("&7Price: &a$" + formattedPrice));
                 lore.add("");
                 lore.add(colorize("&eThis premium location costs extra!"));
                 break;
@@ -165,7 +167,9 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 lore.add(colorize("&7  Z: &f" + worldZ));
                 if (price > 0) {
                     lore.add("");
-                    lore.add(colorize("&7Cost: &a$" + String.format("%.2f", price)));
+                    // Format price with commas (e.g., $50,000 instead of $50000.00)
+                    String formattedRelocatePrice = String.format("%,d", (int) price);
+                    lore.add(colorize("&7Cost: &a$" + formattedRelocatePrice));
                 }
                 lore.add("");
                 lore.add(colorize("&c&lWarning: &cYour island will be moved!"));

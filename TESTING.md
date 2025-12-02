@@ -1,9 +1,9 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 10 (Latest - Search Functionality)
+- **Build Date:** Session 11 (Latest - Premium Tooltip Enhancement)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **Status:** Search Feature Implemented - Ready for Testing
+- **Status:** Premium Location Tooltips Fixed - Ready for Testing
 
 ## Test Results Summary
 
@@ -11,7 +11,8 @@
 |------------|--------|-------|
 | Tests 1-25 | PASS | Core GUI, admin commands, persistence |
 | Tests 26-35 | PASS | Island claiming, blueprint selection |
-| Tests 36-39 | PENDING | Search functionality |
+| Tests 36-39 | PENDING | Search functionality (Session 10) |
+| Test 40 | PENDING | Premium location tooltips (Session 11) |
 
 ---
 
