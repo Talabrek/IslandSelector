@@ -25,6 +25,7 @@ public class AdminCommand extends CompositeCommand {
         new AdminReserveCommand(this);
         new AdminSetPriceCommand(this);
         new AdminInfoCommand(this);
+        new AdminVersionCommand(this);
     }
 
     @Override

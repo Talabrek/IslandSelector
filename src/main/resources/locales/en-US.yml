@@ -174,9 +174,10 @@ commands:
         world-coords: "&7World coordinates: &f[x], [z]"
         invalid-coord: "&cInvalid coordinate format: [coord]"
 
+      version:
+        description: "&7Show plugin version and dependencies"
+
   # Help and other general commands
-  help:
-    header: "&a&l=== IslandSelector Commands ==="
     format: "&e{command} &7- {description}"
 
   locate:
