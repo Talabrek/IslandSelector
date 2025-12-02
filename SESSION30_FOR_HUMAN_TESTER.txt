@@ -1,0 +1,252 @@
+=================================================
+SESSION 30 - QUICK START FOR HUMAN TESTER
+=================================================
+
+📦 NEW FEATURE: /islandselector delete command
+
+🎯 WHAT WAS IMPLEMENTED:
+- Command to permanently delete island slots
+- Confirmation GUI with safety warnings
+- Smart handling of edge cases (last slot, active slot, etc.)
+- Tab completion for existing slots
+- Integration with slot management system
+
+📂 JAR LOCATION:
+output/IslandSelector-1.0.0-SNAPSHOT.jar (152K)
+
+✅ BUILD STATUS: SUCCESS (36 source files, 0 errors)
+
+=================================================
+QUICK TEST (3 minutes)
+=================================================
+
+1. Copy JAR to plugins/BentoBox/addons/
+2. Restart server
+3. Create 2 island slots (if not already done)
+4. Run: /islandselector delete 2
+5. Expected: Red warning GUI opens
+6. Click green "CANCEL" button
+7. Expected: Slot 2 still exists
+8. Run: /islandselector delete 2 again
+9. Click red "DELETE SLOT" button
+10. Expected: Slot 2 is permanently deleted
+
+=================================================
+FULL TEST GUIDE
+=================================================
+
+See TESTING_SESSION30.md for comprehensive test plan including:
+- 11 detailed test scenarios
+- Edge case testing (last slot, active slot, invalid input)
+- Permission testing
+- Tab completion testing
+- Persistence testing
+
+Estimated testing time: 25-30 minutes for full test
+
+=================================================
+KEY COMMANDS TO TEST
+=================================================
+
+# Basic delete
+/islandselector delete 1              # Delete slot 1
+/islandselector delete 2              # Delete slot 2
+
+# Tab completion
+/islandselector delete <TAB>          # Shows only existing slots
+
+# Error cases
+/islandselector delete 99             # Invalid slot number
+/islandselector delete abc            # Non-numeric input
+/islandselector delete                # Missing argument
+
+# Verify deletion
+/islandselector slots                 # View remaining slots
+
+=================================================
+IMPORTANT TEST SCENARIOS
+=================================================
+
+✅ Priority 1 - Must Test:
+1. Delete non-active slot → immediate deletion
+2. Cancel deletion → slot preserved
+3. Delete last remaining slot → island removed from world
+
+✅ Priority 2 - Should Test:
+4. Delete active slot → auto-switches to another slot first
+5. Invalid slot number → error message
+6. Non-existent slot → error message
+
+✅ Priority 3 - Nice to Test:
+7. Tab completion shows only existing slots
+8. Permission check works
+9. Multiple deletes in sequence
+10. Persistence after restart
+
+=================================================
+VALIDATION CHECKLIST
+=================================================
+
+Basic Functionality:
+[ ] Command executes without errors
+[ ] Confirmation GUI opens with red warning
+[ ] Warning messages are clear and visible
+[ ] Slot count shown (e.g., "3 slots → 2 remaining")
+
+Confirmation GUI:
+[ ] Red barrier item with warning text
+[ ] Green "CANCEL" button works
+[ ] Red "DELETE SLOT" button works
+[ ] Cancel preserves slot
+[ ] Confirm deletes slot permanently
+
+Edge Cases:
+[ ] Last slot deletion removes island from world
+[ ] Last slot deletion clears grid location
+[ ] Active slot auto-switches before deletion
+[ ] Non-active slot deletes immediately
+
+Error Handling:
+[ ] Invalid slot number rejected
+[ ] Non-existent slot rejected
+[ ] Non-numeric input rejected
+[ ] Helpful error messages displayed
+
+Integration:
+[ ] Tab completion works
+[ ] Permission check works
+[ ] Slot selection GUI updates
+[ ] Grid GUI updates
+[ ] Data persists after restart
+
+=================================================
+WHAT TO REPORT
+=================================================
+
+✅ If it works:
+"Test #103 passed - delete command works as expected"
+
+❌ If it fails:
+- Which test scenario failed
+- Error message received
+- Console errors (if any)
+- Expected vs actual behavior
+
+📋 Specific issues to watch for:
+- GUI not opening
+- Deletion without confirmation
+- Active slot deleted without switching
+- Island not removed when last slot deleted
+- Console errors during deletion
+- Tab completion showing wrong slots
+
+=================================================
+TECHNICAL DETAILS
+=================================================
+
+Files Created:
++ DeleteCommand.java (NEW - command implementation)
++ SlotDeleteConfirmationGUI.java (NEW - confirmation GUI)
+
+Files Modified:
++ IslandSelectorCommand.java (registered command)
++ en-US.yml (added 5 locale messages)
+
+Command: /islandselector delete <slot>
+Permission: islandselector.delete
+Tab Completion: Yes (existing slots only)
+
+Deletion Logic:
+- Last slot: Deletes island from BSkyBlock + clears grid
+- Active slot: Auto-switches to another slot first (5s delay)
+- Non-active slot: Deletes immediately
+- All cases: Confirmation GUI required
+
+=================================================
+HOW IT WORKS
+=================================================
+
+1. Player runs: /islandselector delete 2
+2. Command validates slot exists
+3. Opens confirmation GUI with warnings
+4. Player clicks "DELETE SLOT" (red button)
+5. Logic determines:
+   - If last slot → delete island from world + grid
+   - If active slot → switch to another slot first
+   - If non-active slot → delete immediately
+6. Slot removed from database
+7. Success message displayed
+
+Example (Last Slot):
+- Player: /islandselector delete 1
+- GUI: "⚠ This is your only slot! Deleting it will remove your island from the grid completely."
+- Player clicks: DELETE SLOT
+- Result: Island removed from world, grid location freed, can claim new island
+
+Example (Active Slot):
+- Player: /islandselector delete 1 (while in slot 1)
+- Warning: "⚠ Warning: This is your currently active slot!"
+- Player confirms
+- Message: "This is your active slot. Finding another slot to switch to..."
+- Message: "Switching to slot #2..."
+- (5 second delay for switching)
+- Message: "Slot #1 has been deleted!"
+
+=================================================
+TESTING PRIORITY
+=================================================
+
+HIGH Priority Tests:
+1. Basic deletion (non-active slot)
+2. Cancellation works
+3. Last slot deletion
+
+MEDIUM Priority Tests:
+4. Active slot deletion (auto-switch)
+5. Invalid input handling
+6. Tab completion
+
+LOW Priority Tests:
+7. Permission check
+8. Multiple deletes
+9. Persistence
+
+=================================================
+COMPARISON TO OTHER COMMANDS
+=================================================
+
+Similarities:
+- setname, seticon, delete all use same validation
+- Same slot number checking
+- Same tab completion pattern
+- Same error messages structure
+
+Differences:
+- delete: Opens confirmation GUI (destructive action)
+- delete: Special handling for active/last slot
+- delete: Warns about permanence
+- setname/seticon: Immediate action, no confirmation
+
+=================================================
+NEXT STEPS AFTER TESTING
+=================================================
+
+If test PASSES:
+- Report success
+- Test #103 can be marked as verified
+- Recommend testing search features next (Tests #83-86)
+  (Search is already implemented, just needs verification!)
+
+If test FAILS:
+- Report specific failure
+- Developer will fix issues
+- Re-test after fixes
+
+Recommended Next Features (in order):
+1. Test search functionality (already implemented!)
+2. Slot settings GUI (right-click menu)
+3. Admin backup command
+4. Admin purge commands
+5. Relocation system
+
+=================================================

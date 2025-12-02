@@ -27,6 +27,7 @@ public class IslandSelectorCommand extends CompositeCommand {
         new SlotsCommand(this);
         new SetNameCommand(this);
         new SetIconCommand(this);
+        new DeleteCommand(this);
         new AdminCommand(this);
     }
 

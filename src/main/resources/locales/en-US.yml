@@ -160,6 +160,14 @@ commands:
       slot-not-found: "&cYou don't have an island in slot [slot] yet!"
       no-item: "&cYou must be holding an item to set as the icon!"
 
+    delete:
+      description: "&7Delete an island slot permanently"
+      parameters: "&f<slot>"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-not-found: "&cYou don't have an island in slot [slot]!"
+      warning-active-slot: "&e⚠ Warning: This is your currently active slot!"
+
     admin:
       description: "&7Admin commands for IslandSelector"
 
