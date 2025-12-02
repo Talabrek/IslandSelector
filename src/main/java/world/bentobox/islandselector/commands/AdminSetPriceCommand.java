@@ -14,11 +14,8 @@ import world.bentobox.islandselector.utils.GridCoordinate;
  */
 public class AdminSetPriceCommand extends CompositeCommand {
 
-    private final IslandSelector addon;
-
-    public AdminSetPriceCommand(CompositeCommand parent, IslandSelector addon) {
+    public AdminSetPriceCommand(CompositeCommand parent) {
         super(parent, "setprice");
-        this.addon = addon;
     }
 
     @Override
@@ -35,7 +32,7 @@ public class AdminSetPriceCommand extends CompositeCommand {
             return false;
         }
 
-        String coordStr = args.get(0).toUpperCase();
+        String coordStr = args.get(0);
         GridCoordinate coord = GridCoordinate.parse(coordStr);
 
         if (coord == null) {
@@ -55,6 +52,7 @@ public class AdminSetPriceCommand extends CompositeCommand {
             return false;
         }
 
+        IslandSelector addon = (IslandSelector) getAddon();
         GridManager gridManager = addon.getGridManager();
 
         // If not already reserved, reserve it first

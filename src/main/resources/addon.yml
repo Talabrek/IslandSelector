@@ -1,21 +1,13 @@
 name: IslandSelector
 main: world.bentobox.islandselector.IslandSelector
 version: ${project.version}
-api-version: 2.0.0
+api-version: 1.15.4
 
-authors: [Claude Code]
+authors: Claude Code
 description: Grid-based island selection and multi-slot system for BSkyBlock
 
-# This addon requires BentoBox, BSkyBlock, and FastAsyncWorldEdit
-depend:
-  - BentoBox
-  - BSkyBlock
-
-# Optional soft dependencies
-softdepend:
-  - Vault
-  - PlaceholderAPI
-  - Level
+# Optional addon dependencies (comma-delimited, not YAML list)
+softdepend: Level
 
 # Permissions defined in plugin.yml format
 permissions:

@@ -21,6 +21,7 @@ public class GridLocation {
     private UUID ownerUUID;
     private String ownerName;
     private UUID islandUUID;
+    private String islandId; // BentoBox island unique ID (String, not UUID)
     private boolean reserved;
     private boolean blocked;     // If reserved, is it blocked (not purchasable)?
     private double purchasePrice; // If reserved and purchasable, the price
@@ -67,6 +68,14 @@ public class GridLocation {
 
     public void setIslandUUID(UUID islandUUID) {
         this.islandUUID = islandUUID;
+    }
+
+    public String getIslandId() {
+        return islandId;
+    }
+
+    public void setIslandId(String islandId) {
+        this.islandId = islandId;
     }
 
     public boolean isReserved() {
@@ -130,6 +139,7 @@ public class GridLocation {
         this.ownerUUID = null;
         this.ownerName = null;
         this.islandUUID = null;
+        this.islandId = null;
         this.status = Status.AVAILABLE;
     }
 }

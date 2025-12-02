@@ -15,6 +15,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.managers.GridManager;
@@ -123,22 +124,26 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
 
     private void populateCenterSlot(int slot) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(colorize("&a&l" + playerIsland.toString() + " - Your Island"));
+        SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
+
+        // Set the player's head texture
+        skullMeta.setOwningPlayer(player);
+
+        skullMeta.setDisplayName(colorize("&a&l" + playerIsland.toString() + " - Your Island"));
 
         // Add glow
         Enchantment glow = org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft("unbreaking"));
         if (glow != null) {
-            meta.addEnchant(glow, 1, true);
+            skullMeta.addEnchant(glow, 1, true);
         }
-        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        skullMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 
         List<String> lore = new ArrayList<>();
         lore.add(colorize("&6This is your island!"));
         lore.add(colorize("&7Location: &f" + playerIsland.toString()));
 
-        meta.setLore(lore);
-        item.setItemMeta(meta);
+        skullMeta.setLore(lore);
+        item.setItemMeta(skullMeta);
         inventory.setItem(slot, item);
     }
 
@@ -154,8 +159,10 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
             return;
         }
 
-        GridLocation location = gridManager.getGridLocation(coord);
+        // Get status first - this may register the island from BSkyBlock
         GridLocation.Status status = gridManager.getLocationStatus(coord);
+        // Get location after status check (may have been created)
+        GridLocation location = gridManager.getGridLocation(coord);
 
         switch (status) {
             case AVAILABLE:

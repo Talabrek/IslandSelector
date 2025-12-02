@@ -14,11 +14,8 @@ import world.bentobox.islandselector.utils.GridCoordinate;
  */
 public class AdminReserveCommand extends CompositeCommand {
 
-    private final IslandSelector addon;
-
-    public AdminReserveCommand(CompositeCommand parent, IslandSelector addon) {
+    public AdminReserveCommand(CompositeCommand parent) {
         super(parent, "reserve");
-        this.addon = addon;
     }
 
     @Override
@@ -35,7 +32,7 @@ public class AdminReserveCommand extends CompositeCommand {
             return false;
         }
 
-        String coordStr = args.get(0).toUpperCase();
+        String coordStr = args.get(0);
         GridCoordinate coord = GridCoordinate.parse(coordStr);
 
         if (coord == null) {
@@ -43,6 +40,7 @@ public class AdminReserveCommand extends CompositeCommand {
             return false;
         }
 
+        IslandSelector addon = (IslandSelector) getAddon();
         GridManager gridManager = addon.getGridManager();
         if (gridManager.isReserved(coord)) {
             user.sendMessage("commands.islandselector.admin.reserve.already-reserved", "[coord]", coordStr);

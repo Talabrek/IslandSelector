@@ -15,11 +15,8 @@ import world.bentobox.islandselector.utils.GridCoordinate;
  */
 public class AdminInfoCommand extends CompositeCommand {
 
-    private final IslandSelector addon;
-
-    public AdminInfoCommand(CompositeCommand parent, IslandSelector addon) {
+    public AdminInfoCommand(CompositeCommand parent) {
         super(parent, "info");
-        this.addon = addon;
     }
 
     @Override
@@ -36,7 +33,7 @@ public class AdminInfoCommand extends CompositeCommand {
             return false;
         }
 
-        String coordStr = args.get(0).toUpperCase();
+        String coordStr = args.get(0);
         GridCoordinate coord = GridCoordinate.parse(coordStr);
 
         if (coord == null) {
@@ -44,6 +41,7 @@ public class AdminInfoCommand extends CompositeCommand {
             return false;
         }
 
+        IslandSelector addon = (IslandSelector) getAddon();
         GridManager gridManager = addon.getGridManager();
         GridLocation location = gridManager.getGridLocation(coord);
 
@@ -70,9 +68,9 @@ public class AdminInfoCommand extends CompositeCommand {
             }
         }
 
-        // Show world coordinates
-        int worldX = coord.getColumn() * addon.getSettings().getIslandSpacing() + addon.getSettings().getGridOriginX();
-        int worldZ = coord.getRow() * addon.getSettings().getIslandSpacing() + addon.getSettings().getGridOriginZ();
+        // Show world coordinates (grid 0,0 = world 0,0)
+        int worldX = coord.getX() * addon.getIslandSpacing();
+        int worldZ = coord.getZ() * addon.getIslandSpacing();
         user.sendMessage("commands.islandselector.admin.info.world-coords",
             "[x]", String.valueOf(worldX),
             "[z]", String.valueOf(worldZ));

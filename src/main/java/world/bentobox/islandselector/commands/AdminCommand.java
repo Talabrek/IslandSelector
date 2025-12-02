@@ -4,7 +4,6 @@ import java.util.List;
 
 import world.bentobox.bentobox.api.commands.CompositeCommand;
 import world.bentobox.bentobox.api.user.User;
-import world.bentobox.islandselector.IslandSelector;
 
 /**
  * Admin command for IslandSelector
@@ -12,11 +11,8 @@ import world.bentobox.islandselector.IslandSelector;
  */
 public class AdminCommand extends CompositeCommand {
 
-    private final IslandSelector addon;
-
-    public AdminCommand(CompositeCommand parent, IslandSelector addon) {
+    public AdminCommand(CompositeCommand parent) {
         super(parent, "admin");
-        this.addon = addon;
     }
 
     @Override
@@ -24,11 +20,11 @@ public class AdminCommand extends CompositeCommand {
         setPermission("islandselector.admin");
         setDescription("commands.islandselector.admin.description");
 
-        // Add admin subcommands
-        new AdminReloadCommand(this, addon);
-        new AdminReserveCommand(this, addon);
-        new AdminSetPriceCommand(this, addon);
-        new AdminInfoCommand(this, addon);
+        // Add admin subcommands - they use getAddon() to get addon reference
+        new AdminReloadCommand(this);
+        new AdminReserveCommand(this);
+        new AdminSetPriceCommand(this);
+        new AdminInfoCommand(this);
     }
 
     @Override

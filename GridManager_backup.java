@@ -1,10 +1,11 @@
 package world.bentobox.islandselector.managers;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -17,6 +18,7 @@ import world.bentobox.bentobox.database.Database;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.bentobox.managers.IslandsManager;
 import world.bentobox.islandselector.IslandSelector;
+import world.bentobox.islandselector.Settings;
 import world.bentobox.islandselector.database.GridLocationData;
 import world.bentobox.islandselector.models.GridLocation;
 import world.bentobox.islandselector.utils.GridCoordinate;
@@ -46,9 +48,42 @@ public class GridManager {
         // Initialize database
         this.database = new Database<>(addon, GridLocationData.class);
 
-        // Load from database and sync with BSkyBlock
+        // Clear occupied locations and do a fresh sync with BSkyBlock
+        // This ensures we don't have stale data from previous runs
+        // Reserved locations are preserved
         loadFromDatabase();
+        clearOccupiedLocations();
         syncWithBSkyBlock();
+    }
+
+    /**
+     * Clear all occupied locations (but preserve reserved ones).
+     * This is called before sync to ensure we don't have stale island data.
+     */
+    private void clearOccupiedLocations() {
+        addon.log("Clearing occupied locations for fresh sync...");
+        int cleared = 0;
+
+        // Create a list to avoid ConcurrentModificationException
+        List<String> toRemove = new ArrayList<>();
+
+        for (Map.Entry<String, GridLocation> entry : gridLocations.entrySet()) {
+            GridLocation loc = entry.getValue();
+            if (loc.getStatus() == GridLocation.Status.OCCUPIED) {
+                toRemove.add(entry.getKey());
+                cleared++;
+            }
+        }
+
+        for (String key : toRemove) {
+            gridLocations.remove(key);
+        }
+
+        // Clear lookup maps
+        islandToCoord.clear();
+        playerToCoord.clear();
+
+        addon.log("Cleared " + cleared + " occupied locations.");
     }
 
     /**
@@ -188,18 +223,45 @@ public class GridManager {
 
             // Calculate grid coordinate from island center
             Location center = island.getCenter();
-            GridCoordinate coord = worldToGrid(center.getBlockX(), center.getBlockZ());
 
-            if (coord == null || !isWithinBounds(coord)) {
+            // BSkyBlock places islands at multiples of (distance * 2) in a grid pattern
+            // The "distance-between-islands" setting is actually the offset from center,
+            // so real spacing between island centers is distance * 2
+            int actualSpacing = addon.getIslandSpacing() * 2;
+
+            // Use integer division to get the grid coordinate
+            // This handles both positive and negative coordinates correctly
+            int gridX = Math.floorDiv(center.getBlockX(), actualSpacing);
+            int gridZ = Math.floorDiv(center.getBlockZ(), actualSpacing);
+            GridCoordinate coord = new GridCoordinate(gridX, gridZ);
+
+            addon.log("syncWithBSkyBlock: island center=(" + center.getBlockX() + "," + center.getBlockZ() +
+                ") actualSpacing=" + actualSpacing + " -> grid=" + coord);
+
+            if (!isWithinBounds(coord)) {
+                addon.log("syncWithBSkyBlock: " + coord + " is out of bounds, skipping");
                 skipped++;
                 continue;
             }
 
-            // Check if this location already exists in our grid
-            GridLocation existing = gridLocations.get(coord.toString());
+            // Check if this island is already registered somewhere
+            String islandId = island.getUniqueId();
+            boolean alreadyRegistered = false;
+            for (Map.Entry<String, GridLocation> entry : gridLocations.entrySet()) {
+                if (islandId.equals(entry.getValue().getIslandId())) {
+                    addon.log("syncWithBSkyBlock: island " + islandId + " already registered at " + entry.getKey());
+                    alreadyRegistered = true;
+                    break;
+                }
+            }
+            if (alreadyRegistered) {
+                continue;
+            }
 
+            // Check if this location already has a different island
+            GridLocation existing = gridLocations.get(coord.toString());
             if (existing != null && existing.getStatus() == GridLocation.Status.OCCUPIED) {
-                // Already tracked
+                addon.log("syncWithBSkyBlock: " + coord + " already occupied by " + existing.getOwnerName());
                 continue;
             }
 
@@ -217,22 +279,15 @@ public class GridManager {
 
             // Create or update grid location
             GridLocation location = getOrCreateGridLocation(coord);
-            location.occupy(ownerUUID, ownerName, island.getUniqueId() != null ?
-                UUID.fromString(island.getUniqueId()) : null);
-
-            // Update lookup maps
-            if (island.getUniqueId() != null) {
-                try {
-                    islandToCoord.put(UUID.fromString(island.getUniqueId()), coord);
-                } catch (IllegalArgumentException e) {
-                    // Invalid UUID format, skip
-                }
-            }
+            location.occupy(ownerUUID, ownerName, null);
+            location.setIslandId(island.getUniqueId());
             playerToCoord.put(ownerUUID, coord);
 
             // Save to database
             saveGridLocation(coord);
             synced++;
+
+            addon.log("syncWithBSkyBlock: registered island at " + coord + " for " + ownerName + " (id=" + islandId + ")");
         }
 
         addon.log("Sync complete: " + synced + " islands synced, " + skipped + " skipped.");
@@ -257,10 +312,11 @@ public class GridManager {
      * Check if a coordinate is within the current grid boundaries
      */
     public boolean isWithinBounds(GridCoordinate coord) {
-        return coord.getColumn() >= 0 &&
-               coord.getColumn() < addon.getSettings().getGridWidth() &&
-               coord.getRow() >= 0 &&
-               coord.getRow() < addon.getSettings().getGridHeight();
+        Settings settings = addon.getSettings();
+        return coord.getX() >= settings.getGridMinX() &&
+               coord.getX() <= settings.getGridMaxX() &&
+               coord.getZ() >= settings.getGridMinZ() &&
+               coord.getZ() <= settings.getGridMaxZ();
     }
 
     /**
@@ -326,7 +382,9 @@ public class GridManager {
     }
 
     /**
-     * Get the status of a grid location
+     * Get the status of a grid location.
+     * After initial sync, we trust our cache - islands are registered during sync
+     * and when players create new islands (via events, to be implemented).
      */
     public GridLocation.Status getLocationStatus(GridCoordinate coord) {
         if (!isWithinBounds(coord)) {
@@ -334,10 +392,77 @@ public class GridManager {
         }
 
         GridLocation location = getGridLocation(coord);
-        if (location == null) {
-            return GridLocation.Status.AVAILABLE;
+        if (location != null) {
+            return location.getStatus();
         }
-        return location.getStatus();
+
+        // Not in our cache - this means no island is registered here
+        // The sync on startup should have caught all existing islands
+        return GridLocation.Status.AVAILABLE;
+    }
+
+    /**
+     * Check if there's a BSkyBlock island centered at this grid position and register it.
+     * This checks all islands and finds one whose center matches this grid coordinate,
+     * rather than relying on protection range (which is variable).
+     * @return true if an island was found and registered
+     */
+    private boolean checkAndRegisterIslandAt(GridCoordinate coord) {
+        BentoBox bentoBox = BentoBox.getInstance();
+        if (bentoBox == null || bskyblockWorld == null) {
+            return false;
+        }
+
+        int spacing = addon.getIslandSpacing();
+        IslandsManager islandsManager = bentoBox.getIslandsManager();
+
+        // Iterate through all islands to find one whose center matches this grid coordinate
+        for (Island island : islandsManager.getIslands(bskyblockWorld)) {
+            if (island == null || island.getCenter() == null || island.getOwner() == null) {
+                continue;
+            }
+
+            // Calculate which grid coordinate this island's center belongs to
+            // BSkyBlock places islands at multiples of (distance * 2)
+            int centerX = island.getCenter().getBlockX();
+            int centerZ = island.getCenter().getBlockZ();
+            int actualSpacing = spacing * 2;
+            int islandGridX = Math.floorDiv(centerX, actualSpacing);
+            int islandGridZ = Math.floorDiv(centerZ, actualSpacing);
+
+            // Check if this island's center matches the coordinate we're checking
+            if (islandGridX == coord.getX() && islandGridZ == coord.getZ()) {
+                // Found an island centered at this grid position
+                String islandId = island.getUniqueId();
+
+                // Check if already registered
+                for (GridLocation loc : gridLocations.values()) {
+                    if (islandId.equals(loc.getIslandId())) {
+                        addon.log("checkAndRegisterIslandAt(" + coord + "): island already registered");
+                        return false;
+                    }
+                }
+
+                // Register this island
+                UUID ownerUUID = island.getOwner();
+                String ownerName = Bukkit.getOfflinePlayer(ownerUUID).getName();
+                if (ownerName == null) {
+                    ownerName = "Unknown";
+                }
+
+                GridLocation location = getOrCreateGridLocation(coord);
+                location.occupy(ownerUUID, ownerName, null);
+                location.setIslandId(islandId);
+                playerToCoord.put(ownerUUID, coord);
+                saveGridLocation(coord);
+
+                addon.log("checkAndRegisterIslandAt(" + coord + "): registered for " + ownerName);
+                return true;
+            }
+        }
+
+        // No island found with center at this grid coordinate
+        return false;
     }
 
     /**
@@ -410,7 +535,7 @@ public class GridManager {
             }
         }
 
-        // Try to find from BSkyBlock
+        // Try to find from BSkyBlock and register it in the grid
         BentoBox bentoBox = BentoBox.getInstance();
         if (bentoBox != null && bskyblockWorld != null) {
             Island island = bentoBox.getIslandsManager().getIsland(bskyblockWorld, playerUUID);
@@ -418,7 +543,16 @@ public class GridManager {
                 Location center = island.getCenter();
                 GridCoordinate coord = worldToGrid(center.getBlockX(), center.getBlockZ());
                 if (coord != null && isWithinBounds(coord)) {
+                    // Register this island in the grid
+                    String ownerName = Bukkit.getOfflinePlayer(playerUUID).getName();
+                    if (ownerName == null) {
+                        ownerName = "Unknown";
+                    }
+                    GridLocation location = getOrCreateGridLocation(coord);
+                    location.occupy(playerUUID, ownerName, null);
+                    location.setIslandId(island.getUniqueId());
                     playerToCoord.put(playerUUID, coord);
+                    saveGridLocation(coord);
                     return coord;
                 }
             }

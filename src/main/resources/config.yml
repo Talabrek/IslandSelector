@@ -15,15 +15,14 @@ grid:
   max-width: 100
   max-height: 100
 
-  # World coordinates where grid position A1 is centered
+  # World coordinates where grid position 0,0 is centered
   # This should typically match your BSkyBlock island starting position
   origin:
     x: 0
     z: 0
 
-  # Distance in blocks between island centers
-  # Should match your BSkyBlock island distance setting
-  island-spacing: 500
+  # Note: Island spacing is automatically detected from BSkyBlock's configuration
+  # (distance-between-islands setting in BSkyBlock's config.yml)
 
 # ==========================================
 # SLOT SETTINGS

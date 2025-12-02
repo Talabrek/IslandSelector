@@ -5,28 +5,25 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Represents a coordinate on the island grid (e.g., A1, B7, AA12)
- * Column is the letter part (A = 0, B = 1, etc.)
- * Row is the number part (1 = 0, 2 = 1, etc.)
+ * Represents a coordinate on the island grid with (0,0) at the center.
+ * Supports negative coordinates in all directions.
+ * Display format: "X,Z" (e.g., "0,0", "-5,3", "10,-7")
  */
 public class GridCoordinate {
 
-    // Pattern for parsing coordinates like A1, B7, AA12, etc.
-    private static final Pattern COORD_PATTERN = Pattern.compile("^([A-Z]+)(\\d+)$");
+    // Pattern for parsing coordinates like "0,0", "-5,3", "10,-7"
+    private static final Pattern COORD_PATTERN = Pattern.compile("^(-?\\d+),(-?\\d+)$");
 
-    private final int column;  // 0-indexed (A = 0, B = 1, etc.)
-    private final int row;     // 0-indexed (1 = 0, 2 = 1, etc.)
+    private final int x;  // Column (positive = east, negative = west)
+    private final int z;  // Row (positive = south, negative = north)
 
-    public GridCoordinate(int column, int row) {
-        if (column < 0 || row < 0) {
-            throw new IllegalArgumentException("Column and row must be non-negative");
-        }
-        this.column = column;
-        this.row = row;
+    public GridCoordinate(int x, int z) {
+        this.x = x;
+        this.z = z;
     }
 
     /**
-     * Parse a coordinate string like "A1", "B7", "AA12"
+     * Parse a coordinate string like "0,0", "-5,3", "10,-7"
      * @param coordStr The coordinate string
      * @return GridCoordinate or null if invalid
      */
@@ -35,93 +32,80 @@ public class GridCoordinate {
             return null;
         }
 
-        Matcher matcher = COORD_PATTERN.matcher(coordStr.toUpperCase().trim());
+        // Remove spaces
+        String cleaned = coordStr.replaceAll("\\s+", "");
+
+        Matcher matcher = COORD_PATTERN.matcher(cleaned);
         if (!matcher.matches()) {
             return null;
         }
 
-        String columnStr = matcher.group(1);
-        String rowStr = matcher.group(2);
-
         try {
-            int column = lettersToColumn(columnStr);
-            int row = Integer.parseInt(rowStr) - 1; // Convert 1-indexed to 0-indexed
-
-            if (row < 0) {
-                return null;
-            }
-
-            return new GridCoordinate(column, row);
+            int x = Integer.parseInt(matcher.group(1));
+            int z = Integer.parseInt(matcher.group(2));
+            return new GridCoordinate(x, z);
         } catch (NumberFormatException e) {
             return null;
         }
     }
 
     /**
-     * Convert letter(s) to column index (A = 0, B = 1, ..., Z = 25, AA = 26, etc.)
+     * Get the X coordinate (column)
      */
-    private static int lettersToColumn(String letters) {
-        int result = 0;
-        for (int i = 0; i < letters.length(); i++) {
-            result = result * 26 + (letters.charAt(i) - 'A' + 1);
-        }
-        return result - 1; // Make 0-indexed
+    public int getX() {
+        return x;
     }
 
     /**
-     * Convert column index to letter(s) (0 = A, 1 = B, ..., 25 = Z, 26 = AA, etc.)
+     * Get the Z coordinate (row)
      */
-    private static String columnToLetters(int column) {
-        StringBuilder result = new StringBuilder();
-        column++; // Make 1-indexed for calculation
-        while (column > 0) {
-            column--;
-            result.insert(0, (char) ('A' + (column % 26)));
-            column /= 26;
-        }
-        return result.toString();
+    public int getZ() {
+        return z;
     }
 
+    /**
+     * Legacy method - returns X for compatibility
+     */
     public int getColumn() {
-        return column;
+        return x;
     }
 
+    /**
+     * Legacy method - returns Z for compatibility
+     */
     public int getRow() {
-        return row;
+        return z;
     }
 
     /**
-     * Get the column as letters (A, B, ..., Z, AA, AB, etc.)
-     */
-    public String getColumnLetters() {
-        return columnToLetters(column);
-    }
-
-    /**
-     * Get the row as a 1-indexed number for display
-     */
-    public int getDisplayRow() {
-        return row + 1;
-    }
-
-    /**
-     * Get the coordinate string (e.g., "A1", "B7", "AA12")
+     * Get the coordinate string (e.g., "0,0", "-5,3")
      */
     @Override
     public String toString() {
-        return getColumnLetters() + getDisplayRow();
+        return x + "," + z;
     }
 
     /**
      * Get a coordinate offset from this one
      */
-    public GridCoordinate offset(int columnOffset, int rowOffset) {
-        int newColumn = column + columnOffset;
-        int newRow = row + rowOffset;
-        if (newColumn < 0 || newRow < 0) {
-            return null;
-        }
-        return new GridCoordinate(newColumn, newRow);
+    public GridCoordinate offset(int xOffset, int zOffset) {
+        return new GridCoordinate(x + xOffset, z + zOffset);
+    }
+
+    /**
+     * Calculate distance to another coordinate
+     */
+    public double distanceTo(GridCoordinate other) {
+        int dx = other.x - this.x;
+        int dz = other.z - this.z;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /**
+     * Calculate Manhattan distance to another coordinate
+     */
+    public int manhattanDistanceTo(GridCoordinate other) {
+        return Math.abs(other.x - this.x) + Math.abs(other.z - this.z);
     }
 
     @Override
@@ -129,11 +113,11 @@ public class GridCoordinate {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         GridCoordinate that = (GridCoordinate) o;
-        return column == that.column && row == that.row;
+        return x == that.x && z == that.z;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(column, row);
+        return Objects.hash(x, z);
     }
 }

@@ -2,6 +2,7 @@ package world.bentobox.islandselector;
 
 import world.bentobox.bentobox.api.configuration.ConfigComment;
 import world.bentobox.bentobox.api.configuration.ConfigEntry;
+import world.bentobox.bentobox.api.configuration.ConfigObject;
 import world.bentobox.bentobox.api.configuration.StoreAt;
 
 /**
@@ -9,36 +10,26 @@ import world.bentobox.bentobox.api.configuration.StoreAt;
  * Maps to config.yml structure
  */
 @StoreAt(filename = "config.yml", path = "addons/IslandSelector")
-public class Settings {
+public class Settings implements ConfigObject {
 
-    // Grid Settings
-    @ConfigComment("Grid starting width (columns)")
-    @ConfigEntry(path = "grid.width")
-    private int gridWidth = 20;
+    // Grid Settings - Grid is centered at 0,0
+    @ConfigComment("Minimum X coordinate (western boundary)")
+    @ConfigEntry(path = "grid.min-x")
+    private int gridMinX = -10;
 
-    @ConfigComment("Grid starting height (rows)")
-    @ConfigEntry(path = "grid.height")
-    private int gridHeight = 20;
+    @ConfigComment("Maximum X coordinate (eastern boundary)")
+    @ConfigEntry(path = "grid.max-x")
+    private int gridMaxX = 10;
 
-    @ConfigComment("Maximum grid width")
-    @ConfigEntry(path = "grid.max-width")
-    private int gridMaxWidth = 100;
+    @ConfigComment("Minimum Z coordinate (northern boundary)")
+    @ConfigEntry(path = "grid.min-z")
+    private int gridMinZ = -10;
 
-    @ConfigComment("Maximum grid height")
-    @ConfigEntry(path = "grid.max-height")
-    private int gridMaxHeight = 100;
+    @ConfigComment("Maximum Z coordinate (southern boundary)")
+    @ConfigEntry(path = "grid.max-z")
+    private int gridMaxZ = 10;
 
-    @ConfigComment("Grid origin X coordinate")
-    @ConfigEntry(path = "grid.origin.x")
-    private int gridOriginX = 0;
-
-    @ConfigComment("Grid origin Z coordinate")
-    @ConfigEntry(path = "grid.origin.z")
-    private int gridOriginZ = 0;
-
-    @ConfigComment("Distance between islands in blocks")
-    @ConfigEntry(path = "grid.island-spacing")
-    private int islandSpacing = 500;
+    // Note: Island spacing is automatically detected from BSkyBlock's configuration
 
     // Slot Settings
     @ConfigComment("Default number of slots")
@@ -104,6 +95,31 @@ public class Settings {
     @ConfigEntry(path = "gui.active-slot-glow")
     private boolean activeSlotGlow = true;
 
+    // GUI Item Settings
+    @ConfigComment("Item for available locations")
+    @ConfigEntry(path = "gui.items.available")
+    private String itemAvailable = "GREEN_STAINED_GLASS_PANE";
+
+    @ConfigComment("Item for offline player islands")
+    @ConfigEntry(path = "gui.items.offline")
+    private String itemOffline = "RED_STAINED_GLASS_PANE";
+
+    @ConfigComment("Item for reserved blocked locations")
+    @ConfigEntry(path = "gui.items.reserved-blocked")
+    private String itemReservedBlocked = "GRAY_STAINED_GLASS_PANE";
+
+    @ConfigComment("Item for reserved purchasable locations")
+    @ConfigEntry(path = "gui.items.reserved-purchasable")
+    private String itemReservedPurchasable = "GOLD_BLOCK";
+
+    @ConfigComment("Item for locked areas")
+    @ConfigEntry(path = "gui.items.locked-area")
+    private String itemLockedArea = "BLACK_STAINED_GLASS_PANE";
+
+    @ConfigComment("Item for filler slots")
+    @ConfigEntry(path = "gui.items.filler")
+    private String itemFiller = "BLACK_STAINED_GLASS_PANE";
+
     // Visitor Settings
     @ConfigComment("Visitor teleport delay in ticks")
     @ConfigEntry(path = "visitors.teleport-delay")
@@ -150,61 +166,52 @@ public class Settings {
 
     // Getters and Setters
 
+    public int getGridMinX() {
+        return gridMinX;
+    }
+
+    public void setGridMinX(int gridMinX) {
+        this.gridMinX = gridMinX;
+    }
+
+    public int getGridMaxX() {
+        return gridMaxX;
+    }
+
+    public void setGridMaxX(int gridMaxX) {
+        this.gridMaxX = gridMaxX;
+    }
+
+    public int getGridMinZ() {
+        return gridMinZ;
+    }
+
+    public void setGridMinZ(int gridMinZ) {
+        this.gridMinZ = gridMinZ;
+    }
+
+    public int getGridMaxZ() {
+        return gridMaxZ;
+    }
+
+    public void setGridMaxZ(int gridMaxZ) {
+        this.gridMaxZ = gridMaxZ;
+    }
+
+    /**
+     * Get the grid width (number of columns)
+     */
     public int getGridWidth() {
-        return gridWidth;
+        return gridMaxX - gridMinX + 1;
     }
 
-    public void setGridWidth(int gridWidth) {
-        this.gridWidth = gridWidth;
-    }
-
+    /**
+     * Get the grid height (number of rows)
+     */
     public int getGridHeight() {
-        return gridHeight;
+        return gridMaxZ - gridMinZ + 1;
     }
 
-    public void setGridHeight(int gridHeight) {
-        this.gridHeight = gridHeight;
-    }
-
-    public int getGridMaxWidth() {
-        return gridMaxWidth;
-    }
-
-    public void setGridMaxWidth(int gridMaxWidth) {
-        this.gridMaxWidth = gridMaxWidth;
-    }
-
-    public int getGridMaxHeight() {
-        return gridMaxHeight;
-    }
-
-    public void setGridMaxHeight(int gridMaxHeight) {
-        this.gridMaxHeight = gridMaxHeight;
-    }
-
-    public int getGridOriginX() {
-        return gridOriginX;
-    }
-
-    public void setGridOriginX(int gridOriginX) {
-        this.gridOriginX = gridOriginX;
-    }
-
-    public int getGridOriginZ() {
-        return gridOriginZ;
-    }
-
-    public void setGridOriginZ(int gridOriginZ) {
-        this.gridOriginZ = gridOriginZ;
-    }
-
-    public int getIslandSpacing() {
-        return islandSpacing;
-    }
-
-    public void setIslandSpacing(int islandSpacing) {
-        this.islandSpacing = islandSpacing;
-    }
 
     public int getDefaultSlots() {
         return defaultSlots;
@@ -404,5 +411,55 @@ public class Settings {
 
     public void setLogGUI(boolean logGUI) {
         this.logGUI = logGUI;
+    }
+
+    // GUI Item Getters and Setters
+
+    public String getItemAvailable() {
+        return itemAvailable;
+    }
+
+    public void setItemAvailable(String itemAvailable) {
+        this.itemAvailable = itemAvailable;
+    }
+
+    public String getItemOffline() {
+        return itemOffline;
+    }
+
+    public void setItemOffline(String itemOffline) {
+        this.itemOffline = itemOffline;
+    }
+
+    public String getItemReservedBlocked() {
+        return itemReservedBlocked;
+    }
+
+    public void setItemReservedBlocked(String itemReservedBlocked) {
+        this.itemReservedBlocked = itemReservedBlocked;
+    }
+
+    public String getItemReservedPurchasable() {
+        return itemReservedPurchasable;
+    }
+
+    public void setItemReservedPurchasable(String itemReservedPurchasable) {
+        this.itemReservedPurchasable = itemReservedPurchasable;
+    }
+
+    public String getItemLockedArea() {
+        return itemLockedArea;
+    }
+
+    public void setItemLockedArea(String itemLockedArea) {
+        this.itemLockedArea = itemLockedArea;
+    }
+
+    public String getItemFiller() {
+        return itemFiller;
+    }
+
+    public void setItemFiller(String itemFiller) {
+        this.itemFiller = itemFiller;
     }
 }

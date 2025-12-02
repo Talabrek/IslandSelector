@@ -133,8 +133,48 @@ gui:
     cancel: "&c&lCancel"
     cancel-desc: "&7Click to cancel"
 
-# Commands
+# Commands - BentoBox uses "commands.<addon>.<command>.<key>" format
 commands:
+  islandselector:
+    description: "&7Open the island grid selector"
+
+    slots:
+      description: "&7Manage your island slots"
+
+    admin:
+      description: "&7Admin commands for IslandSelector"
+
+      reload:
+        description: "&7Reload configuration"
+        success: "&aConfiguration reloaded successfully!"
+
+      reserve:
+        description: "&7Reserve a grid location"
+        parameters: "&f<coord>"
+        success: "&aReserved location [coord]"
+        already-reserved: "&c[coord] is already reserved"
+        invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
+
+      setprice:
+        description: "&7Set purchase price for a location"
+        parameters: "&f<coord> <price>"
+        success: "&aSet price for [coord] to $[price]"
+        invalid-coord: "&cInvalid coordinate format: [coord]"
+        invalid-price: "&cInvalid price. Must be a positive number."
+
+      info:
+        description: "&7Show info about a grid location"
+        parameters: "&f<coord>"
+        header: "&a&l=== Location [coord] ==="
+        empty: "&7Status: &fEmpty (no island)"
+        status: "&7Status: &f[status]"
+        owner: "&7Owner: &f[owner]"
+        purchasable: "&7Purchasable: &aYes &7(Price: $[price])"
+        blocked: "&7Reserved: &cBlocked (not purchasable)"
+        world-coords: "&7World coordinates: &f[x], [z]"
+        invalid-coord: "&cInvalid coordinate format: [coord]"
+
+  # Help and other general commands
   help:
     header: "&a&l=== IslandSelector Commands ==="
     format: "&e{command} &7- {description}"
@@ -147,94 +187,6 @@ commands:
     enter-name: "&eEnter player name to search:"
     not-found: "&cPlayer '{player}' not found or has no island."
     found: "&aOpening grid centered on {player}'s island at {coords}"
-
-  setname:
-    success: "&aRenamed slot {slot} to '{name}'"
-    invalid-slot: "&cInvalid slot number. Must be 1-{max}"
-    no-island: "&cSlot {slot} doesn't have an island."
-
-  seticon:
-    success: "&aChanged slot {slot} icon to {item}"
-    no-item: "&cYou must be holding an item to set as the icon!"
-    invalid-slot: "&cInvalid slot number."
-
-  switch:
-    confirm: "&eOpening confirmation for slot switch..."
-    invalid-slot: "&cInvalid slot number."
-    already-active: "&cThat slot is already active!"
-    empty-slot: "&cThat slot is empty. Create an island in it first!"
-    cooldown: "&cYou must wait {time} before switching again."
-
-  delete:
-    confirm: "&eOpening confirmation for slot deletion..."
-    invalid-slot: "&cInvalid slot number."
-    no-island: "&cThat slot is empty."
-
-# Admin commands
-admin:
-  reserve:
-    success: "&aReserved location {coords}"
-    already-occupied: "&cCannot reserve {coords} - location is occupied"
-
-  unreserve:
-    success: "&aUnreserved location {coords}"
-    not-reserved: "&c{coords} is not reserved"
-
-  setprice:
-    success: "&aSet price for {coords} to ${price}"
-
-  clearprice:
-    success: "&aCleared price for {coords}"
-
-  expand:
-    success: "&aExpanded grid {direction} by {amount}"
-    max-size: "&cCannot expand beyond maximum size ({max})"
-
-  shrink:
-    success: "&aShrunk grid {direction} by {amount}"
-    islands-exist: "&cCannot shrink - islands exist in that area"
-    min-size: "&cCannot shrink below minimum size"
-
-  relocate:
-    success: "&aForce relocated {player}'s island to {coords}"
-    player-not-found: "&cPlayer not found"
-    no-island: "&c{player} has no island"
-
-  info:
-    location-header: "&a&l=== Location {coords} ==="
-    location-status: "&7Status: &f{status}"
-    location-owner: "&7Owner: &f{owner}"
-    location-world: "&7World coords: &f{x}, {z}"
-
-    player-header: "&a&l=== {player}'s Islands ==="
-    player-location: "&7Grid Location: &f{coords}"
-    player-slots: "&7Slots: &f{used}/{total}"
-    player-active: "&7Active Slot: &f{slot}"
-
-  purge:
-    confirm: "&eAre you sure? Type command again to confirm."
-    success: "&aPurged data for {count} players"
-    player-online: "&cCannot purge {player} - they are online"
-
-  backup:
-    success: "&aBackup created for {player} slot {slot}"
-    failed: "&cBackup failed - check console for errors"
-
-  resetcooldown:
-    success: "&aReset {type} cooldown for {player}"
-
-  reload:
-    success: "&aConfiguration reloaded"
-
-  version:
-    header: "&a&l=== IslandSelector Version Info ==="
-    version: "&7IslandSelector: &f{version}"
-    bentobox: "&7BentoBox: &f{bentobox}"
-    bskyblock: "&7BSkyBlock: &f{bskyblock}"
-    fawe: "&7FAWE: &f{fawe}"
-    vault: "&7Vault: &f{vault}"
-    papi: "&7PlaceholderAPI: &f{papi}"
-    level: "&7Level: &f{level}"
 
 # In-game notifications
 notifications:

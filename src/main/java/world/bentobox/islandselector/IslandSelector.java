@@ -4,7 +4,9 @@ import org.bukkit.Bukkit;
 import world.bentobox.bentobox.api.addons.Addon;
 import world.bentobox.bentobox.api.addons.GameModeAddon;
 import world.bentobox.bentobox.api.configuration.Config;
+import world.bentobox.bentobox.api.configuration.WorldSettings;
 import world.bentobox.islandselector.commands.IslandSelectorCommand;
+import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.managers.GridManager;
 
 import java.util.Optional;
@@ -20,6 +22,8 @@ public class IslandSelector extends Addon {
     private static IslandSelector instance;
     private Settings settings;
     private GridManager gridManager;
+    private IslandCreateListener islandCreateListener;
+    private int islandSpacing = -1; // Cached from BSkyBlock
 
     @Override
     public void onLoad() {
@@ -47,16 +51,47 @@ public class IslandSelector extends Addon {
             return;
         }
 
+        // Detect island spacing from BSkyBlock
+        detectIslandSpacing();
+
         // Initialize managers
         gridManager = new GridManager(this);
 
         // Register commands
         registerCommands();
 
+        // Register listeners
+        registerListeners();
+
         log("IslandSelector enabled successfully!");
         log("Version: " + getDescription().getVersion());
         log("Grid Size: " + settings.getGridWidth() + "x" + settings.getGridHeight());
+        log("Island Spacing: " + islandSpacing + " blocks (from BSkyBlock)");
         log("Max Slots: " + settings.getMaxSlots());
+    }
+
+    /**
+     * Detect island spacing from BSkyBlock's configuration
+     */
+    private void detectIslandSpacing() {
+        Optional<GameModeAddon> bskyblock = getPlugin().getAddonsManager()
+            .getGameModeAddons().stream()
+            .filter(gm -> gm.getDescription().getName().equalsIgnoreCase("BSkyBlock"))
+            .findFirst();
+
+        if (bskyblock.isPresent()) {
+            WorldSettings worldSettings = bskyblock.get().getWorldSettings();
+            if (worldSettings != null) {
+                islandSpacing = worldSettings.getIslandDistance();
+                log("Detected island spacing from BSkyBlock: " + islandSpacing + " blocks");
+            } else {
+                islandSpacing = 400; // Fallback default
+                logWarning("Could not get BSkyBlock world settings, using default spacing: " + islandSpacing);
+            }
+        } else {
+            islandSpacing = 400; // Fallback default
+            logWarning("BSkyBlock not found, using default spacing: " + islandSpacing);
+        }
     }
 
     /**
@@ -76,6 +111,16 @@ public class IslandSelector extends Addon {
             log("Hooking into BSkyBlock commands...");
             // The IslandSelectorCommand is standalone, accessible via /islandselector
         });
+    }
+
+    /**
+     * Register addon listeners
+     */
+    private void registerListeners() {
+        // Register island creation interceptor
+        islandCreateListener = new IslandCreateListener(this);
+        registerListener(islandCreateListener);
+        log("Registered island creation interceptor");
     }
 
     @Override
@@ -103,19 +148,17 @@ public class IslandSelector extends Addon {
      * Check if all required dependencies are present
      */
     private boolean checkDependencies() {
-        // Check for BentoBox (should always be present)
-        if (!Bukkit.getPluginManager().isPluginEnabled("BentoBox")) {
-            logError("BentoBox is not installed or enabled!");
+        // Check for BSkyBlock addon (it's a BentoBox addon, not a Bukkit plugin)
+        boolean hasBSkyBlock = getPlugin().getAddonsManager()
+            .getGameModeAddons().stream()
+            .anyMatch(gm -> gm.getDescription().getName().equalsIgnoreCase("BSkyBlock"));
+
+        if (!hasBSkyBlock) {
+            logError("BSkyBlock addon is not installed or enabled!");
             return false;
         }
 
-        // Check for BSkyBlock
-        if (!Bukkit.getPluginManager().isPluginEnabled("BSkyBlock")) {
-            logError("BSkyBlock is not installed or enabled!");
-            return false;
-        }
-
-        // Check for FastAsyncWorldEdit
+        // Check for FastAsyncWorldEdit (this IS a Bukkit plugin)
         if (!Bukkit.getPluginManager().isPluginEnabled("FastAsyncWorldEdit")) {
             logError("FastAsyncWorldEdit (FAWE) is not installed or enabled!");
             logError("IslandSelector requires FAWE for schematic operations.");
@@ -124,10 +167,18 @@ public class IslandSelector extends Addon {
 
         log("All required dependencies found.");
 
-        // Check optional dependencies
+        // Check optional Bukkit plugin dependencies
         checkOptionalDependency("Vault", "Economy integration disabled");
         checkOptionalDependency("PlaceholderAPI", "Placeholder integration disabled");
-        checkOptionalDependency("Level", "Island level display disabled");
+
+        // Check optional BentoBox addon dependencies
+        boolean hasLevel = getPlugin().getAddonsManager()
+            .getAddonByName("Level").isPresent();
+        if (hasLevel) {
+            log("Level addon found - integration enabled");
+        } else {
+            log("Level addon not found - Island level display disabled");
+        }
 
         return true;
     }
@@ -162,5 +213,27 @@ public class IslandSelector extends Addon {
      */
     public GridManager getGridManager() {
         return gridManager;
+    }
+
+    /**
+     * Get the island spacing (distance between islands)
+     * This is detected from BSkyBlock's configuration
+     */
+    public int getIslandSpacing() {
+        return islandSpacing;
+    }
+
+    /**
+     * Get the island create listener
+     */
+    public IslandCreateListener getIslandCreateListener() {
+        return islandCreateListener;
+    }
+
+    /**
+     * Get the Bukkit server
+     */
+    public org.bukkit.Server getServer() {
+        return Bukkit.getServer();
     }
 }

@@ -13,11 +13,8 @@ import world.bentobox.islandselector.gui.MainGridGUI;
  */
 public class IslandSelectorCommand extends CompositeCommand {
 
-    private final IslandSelector addon;
-
     public IslandSelectorCommand(IslandSelector addon) {
         super(addon, "islandselector", "is", "isgrid");
-        this.addon = addon;
     }
 
     @Override
@@ -26,14 +23,15 @@ public class IslandSelectorCommand extends CompositeCommand {
         setOnlyPlayer(true);
         setDescription("commands.islandselector.description");
 
-        // Add subcommands
-        new SlotsCommand(this, addon);
-        new AdminCommand(this, addon);
+        // Add subcommands - they use getAddon() to get addon reference
+        new SlotsCommand(this);
+        new AdminCommand(this);
     }
 
     @Override
     public boolean execute(User user, String label, List<String> args) {
         // Open the main grid GUI
+        IslandSelector addon = (IslandSelector) getAddon();
         new MainGridGUI(addon, user.getPlayer()).open();
         return true;
     }

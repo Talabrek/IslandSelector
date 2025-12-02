@@ -13,11 +13,8 @@ import world.bentobox.islandselector.gui.SlotSelectionGUI;
  */
 public class SlotsCommand extends CompositeCommand {
 
-    private final IslandSelector addon;
-
-    public SlotsCommand(CompositeCommand parent, IslandSelector addon) {
+    public SlotsCommand(CompositeCommand parent) {
         super(parent, "slots", "slot");
-        this.addon = addon;
     }
 
     @Override
@@ -30,6 +27,7 @@ public class SlotsCommand extends CompositeCommand {
     @Override
     public boolean execute(User user, String label, List<String> args) {
         // Open the slot selection GUI
+        IslandSelector addon = (IslandSelector) getAddon();
         new SlotSelectionGUI(addon, user.getPlayer()).open();
         return true;
     }

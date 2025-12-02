@@ -10,6 +10,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.InventoryHolder;
 
+import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 /**
@@ -65,7 +66,6 @@ public class GridGUIListener implements Listener {
             gui.scrollRight(shift);
             return;
         }
-
         // Handle control buttons
         if (slot == gui.getFilterAllSlot()) {
             gui.setFilter(MainGridGUI.FilterType.ALL);
@@ -155,9 +155,12 @@ public class GridGUIListener implements Listener {
 
         if (playerIsland == null) {
             // Player doesn't have an island - initiate claiming
-            player.sendMessage("\u00A7aYou selected location \u00A7f" + coord.toString() + "\u00A7a for your new island!");
-            player.sendMessage("\u00A77Island creation at specific locations coming soon...");
-            // TODO: Implement confirmation GUI and actual claiming
+            player.closeInventory();
+            IslandCreateListener createListener = gui.getAddon().getIslandCreateListener();
+            // Register this as a pending claim
+            createListener.onLocationSelected(player, coord);
+            // Open confirmation GUI
+            new ConfirmationGUI(gui.getAddon(), player, coord, createListener, ConfirmationGUI.ActionType.CLAIM).open();
         } else {
             // Player has an island - initiate relocation
             player.sendMessage("\u00A7aYou selected location \u00A7f" + coord.toString() + "\u00A7a for relocation!");
@@ -171,6 +174,8 @@ public class GridGUIListener implements Listener {
      */
     private void handleVisitClick(Player player, GridCoordinate coord) {
         var gridManager = gui.getAddon().getGridManager();
+        // Ensure status is checked first (may register island from BSkyBlock)
+        gridManager.getLocationStatus(coord);
         var location = gridManager.getGridLocation(coord);
 
         if (location == null || location.getOwnerUUID() == null) {
@@ -194,9 +199,12 @@ public class GridGUIListener implements Listener {
      */
     private void handleViewIslandInfo(Player player, GridCoordinate coord) {
         var gridManager = gui.getAddon().getGridManager();
+        // Ensure status is checked first (may register island from BSkyBlock)
+        gridManager.getLocationStatus(coord);
         var location = gridManager.getGridLocation(coord);
 
         if (location == null) {
+            player.sendMessage("\u00A77No island information available.");
             return;
         }
 
@@ -215,10 +223,20 @@ public class GridGUIListener implements Listener {
      * Handle click on purchasable reserved location
      */
     private void handlePurchaseClick(Player player, GridCoordinate coord, double price) {
-        player.sendMessage("\u00A76Premium location: " + coord.toString());
-        player.sendMessage("\u00A77Price: \u00A7a$" + String.format("%.2f", price));
-        player.sendMessage("\u00A77Purchase confirmation coming soon...");
-        // TODO: Implement purchase confirmation GUI
+        var gridManager = gui.getAddon().getGridManager();
+        var playerIsland = gridManager.getPlayerIslandCoordinate(player.getUniqueId());
+
+        if (playerIsland == null) {
+            // Player doesn't have an island - initiate premium claim
+            player.closeInventory();
+            IslandCreateListener createListener = gui.getAddon().getIslandCreateListener();
+            createListener.onLocationSelected(player, coord);
+            new ConfirmationGUI(gui.getAddon(), player, coord, createListener,
+                ConfirmationGUI.ActionType.PURCHASE, price).open();
+        } else {
+            // Player already has island - can't purchase another location for new island
+            player.sendMessage("\u00A7cYou already have an island. Use relocation to move.");
+        }
     }
 
     @EventHandler

@@ -12,11 +12,8 @@ import world.bentobox.islandselector.IslandSelector;
  */
 public class AdminReloadCommand extends CompositeCommand {
 
-    private final IslandSelector addon;
-
-    public AdminReloadCommand(CompositeCommand parent, IslandSelector addon) {
+    public AdminReloadCommand(CompositeCommand parent) {
         super(parent, "reload");
-        this.addon = addon;
     }
 
     @Override
@@ -27,6 +24,7 @@ public class AdminReloadCommand extends CompositeCommand {
 
     @Override
     public boolean execute(User user, String label, List<String> args) {
+        IslandSelector addon = (IslandSelector) getAddon();
         addon.onReload();
         user.sendMessage("commands.islandselector.admin.reload.success");
         return true;
