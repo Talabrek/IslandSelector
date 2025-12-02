@@ -12,6 +12,7 @@ import world.bentobox.bentobox.api.events.island.IslandCreatedEvent;
 import world.bentobox.bentobox.api.events.island.IslandDeleteEvent;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
+import world.bentobox.islandselector.events.GridLocationClaimEvent;
 import world.bentobox.islandselector.gui.IslandClaimGUI;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.managers.SlotManager;
@@ -189,6 +190,25 @@ public class IslandCreateListener implements Listener {
     public void confirmClaimWithBlueprint(Player player, GridCoordinate coord, String blueprintBundleKey) {
         UUID playerUUID = player.getUniqueId();
 
+        // Calculate world coordinates
+        int worldX = calculateWorldX(coord);
+        int worldZ = calculateWorldZ(coord);
+
+        // Fire GridLocationClaimEvent
+        GridLocationClaimEvent event = new GridLocationClaimEvent(player, coord, worldX, worldZ);
+        Bukkit.getPluginManager().callEvent(event);
+
+        // Check if event was cancelled
+        if (event.isCancelled()) {
+            addon.log("GridLocationClaimEvent cancelled for " + player.getName() + " at " + coord);
+            if (event.getCancellationReason() != null) {
+                player.sendMessage("§c" + event.getCancellationReason());
+            } else {
+                player.sendMessage("§cYou cannot claim this location.");
+            }
+            return;
+        }
+
         // Store the pending claim
         pendingClaims.put(playerUUID, coord);
         confirmedBlueprints.put(playerUUID, blueprintBundleKey);
@@ -206,6 +226,25 @@ public class IslandCreateListener implements Listener {
      */
     public void confirmClaim(Player player, GridCoordinate coord) {
         UUID playerUUID = player.getUniqueId();
+
+        // Calculate world coordinates
+        int worldX = calculateWorldX(coord);
+        int worldZ = calculateWorldZ(coord);
+
+        // Fire GridLocationClaimEvent
+        GridLocationClaimEvent event = new GridLocationClaimEvent(player, coord, worldX, worldZ);
+        Bukkit.getPluginManager().callEvent(event);
+
+        // Check if event was cancelled
+        if (event.isCancelled()) {
+            addon.log("GridLocationClaimEvent cancelled for " + player.getName() + " at " + coord);
+            if (event.getCancellationReason() != null) {
+                player.sendMessage("§c" + event.getCancellationReason());
+            } else {
+                player.sendMessage("§cYou cannot claim this location.");
+            }
+            return;
+        }
 
         // Store the pending claim
         pendingClaims.put(playerUUID, coord);

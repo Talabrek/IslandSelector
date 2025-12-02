@@ -1,14 +1,30 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 46 (Latest - PlaceholderAPI Integration)
+- **Build Date:** Session 47 (Latest - Custom Event API)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 192K
-- **Status:** ✅ 44 tests verified, 90 tests pending manual verification
+- **JAR Size:** 200K
+- **Status:** ✅ 44 tests verified, 98 tests pending manual verification
 
-## Latest Sessions (38-46)
+## Latest Sessions (38-47)
 
-### Session 46: PlaceholderAPI Integration ⭐ NEW
+### Session 47: Custom Event API ⭐ NEW
+📋 **See [SESSION47_FOR_HUMAN_TESTER.md](SESSION47_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 8 custom event API tests
+- GridLocationClaimEvent - Fires when player claims a location
+- SlotSwitchEvent - Fires when player switches slots
+- IslandRelocateEvent - Fires when player relocates island
+- All events are cancellable with custom messages
+- Allows other plugins to hook into IslandSelector operations
+- Events fire BEFORE operations begin
+
+**Testing Time:** 20-30 minutes
+**Players Required:** 2-3 accounts
+**Special Requirements:** Test plugin (template provided in test guide)
+**Complexity:** Advanced (requires basic Java/plugin development)
+
+### Session 46: PlaceholderAPI Integration
 📋 **See [SESSION46_FOR_HUMAN_TESTER.md](SESSION46_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 8 PlaceholderAPI tests

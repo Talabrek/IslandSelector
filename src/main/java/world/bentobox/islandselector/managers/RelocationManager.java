@@ -25,6 +25,7 @@ import world.bentobox.bentobox.database.Database;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.RelocationData;
+import world.bentobox.islandselector.events.IslandRelocateEvent;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 import java.util.UUID;
@@ -160,6 +161,56 @@ public class RelocationManager {
      * Perform island relocation asynchronously
      */
     public void relocateIsland(Player player, GridCoordinate fromCoord, GridCoordinate toCoord) {
+        UUID playerUUID = player.getUniqueId();
+
+        // Calculate cost and world coordinates for the event
+        double cost = addon.getSettings().getRelocationCost();
+        boolean bypassCost = player.hasPermission("islandselector.bypass.cost.relocate");
+        if (bypassCost) {
+            cost = 0;
+        }
+
+        int fromWorldX = calculateWorldX(fromCoord);
+        int fromWorldZ = calculateWorldZ(fromCoord);
+        int toWorldX = calculateWorldX(toCoord);
+        int toWorldZ = calculateWorldZ(toCoord);
+
+        // Fire IslandRelocateEvent on main thread BEFORE starting the async operation
+        IslandRelocateEvent event = new IslandRelocateEvent(
+            player,
+            fromCoord,
+            toCoord,
+            fromWorldX,
+            fromWorldZ,
+            toWorldX,
+            toWorldZ,
+            cost
+        );
+
+        Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+            Bukkit.getPluginManager().callEvent(event);
+
+            // Check if event was cancelled
+            if (event.isCancelled()) {
+                addon.log("IslandRelocateEvent cancelled for " + player.getName() +
+                         " from " + fromCoord + " to " + toCoord);
+                if (event.getCancellationReason() != null) {
+                    player.sendMessage("§c" + event.getCancellationReason());
+                } else {
+                    player.sendMessage("§cIsland relocation cancelled.");
+                }
+                return;
+            }
+
+            // Event not cancelled - proceed with relocation asynchronously
+            performRelocationAsync(player, fromCoord, toCoord);
+        });
+    }
+
+    /**
+     * Internal method to perform the actual relocation asynchronously
+     */
+    private void performRelocationAsync(Player player, GridCoordinate fromCoord, GridCoordinate toCoord) {
         UUID playerUUID = player.getUniqueId();
 
         // Run asynchronously

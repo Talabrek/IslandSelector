@@ -23,6 +23,7 @@ import org.bukkit.entity.Player;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
+import world.bentobox.islandselector.events.SlotSwitchEvent;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,6 +47,40 @@ public class SlotSwitchManager {
      * This is run asynchronously to avoid blocking the server
      */
     public void switchSlot(Player player, SlotData fromSlot, SlotData toSlot) {
+        UUID playerUUID = player.getUniqueId();
+
+        // Fire SlotSwitchEvent on main thread BEFORE starting the async operation
+        SlotSwitchEvent event = new SlotSwitchEvent(
+            player,
+            fromSlot.getSlotNumber(),
+            toSlot.getSlotNumber(),
+            fromSlot.getSlotName(),
+            toSlot.getSlotName()
+        );
+        Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+            Bukkit.getPluginManager().callEvent(event);
+
+            // Check if event was cancelled
+            if (event.isCancelled()) {
+                addon.log("SlotSwitchEvent cancelled for " + player.getName() +
+                         " from slot " + fromSlot.getSlotNumber() + " to " + toSlot.getSlotNumber());
+                if (event.getCancellationReason() != null) {
+                    player.sendMessage("§c" + event.getCancellationReason());
+                } else {
+                    player.sendMessage("§cSlot switch cancelled.");
+                }
+                return;
+            }
+
+            // Event not cancelled - proceed with the switch asynchronously
+            performSlotSwitchAsync(player, fromSlot, toSlot);
+        });
+    }
+
+    /**
+     * Internal method to perform the actual slot switch asynchronously
+     */
+    private void performSlotSwitchAsync(Player player, SlotData fromSlot, SlotData toSlot) {
         UUID playerUUID = player.getUniqueId();
 
         // Run asynchronously to avoid blocking main thread
