@@ -302,6 +302,20 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
     }
 
     private boolean checkAndChargeMoney() {
+        // Check for bypass permission based on action type
+        String bypassPerm = null;
+        if (actionType == ActionType.PURCHASE) {
+            bypassPerm = "islandselector.bypass.cost.purchase";
+        } else if (actionType == ActionType.RELOCATE) {
+            bypassPerm = "islandselector.bypass.cost.relocate";
+        }
+
+        // If player has bypass permission, skip payment
+        if (bypassPerm != null && player.hasPermission(bypassPerm)) {
+            player.sendMessage(colorize("&7(Cost bypassed due to permission)"));
+            return true;
+        }
+
         // Check for Vault
         if (!Bukkit.getPluginManager().isPluginEnabled("Vault")) {
             player.sendMessage(colorize("&cEconomy system not available!"));

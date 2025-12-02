@@ -122,7 +122,7 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         lore.add(colorize("&7Level: &f0"));
         lore.add(colorize("&7Members: &f1"));
         lore.add("");
-        lore.add(colorize("&e ACTIVE"));
+        lore.add(colorize("&e★ ACTIVE"));
 
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -207,6 +207,21 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         return text.replace("&", "\u00A7");
     }
 
+    private void handleSlotClick(Player clicker, int slotNumber) {
+        int maxSlots = getPlayerMaxSlots();
+
+        // Check if slot is locked
+        if (slotNumber > maxSlots) {
+            clicker.sendMessage(colorize("&cThis slot is locked!"));
+            clicker.sendMessage(colorize("&7You need permission: &fislandselector.slots." + slotNumber));
+            return;
+        }
+
+        // TODO: Implement slot switching and creation logic
+        // For now, just show a message
+        clicker.sendMessage(colorize("&7Slot switching and creation coming soon..."));
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getInventory().getHolder() instanceof SlotSelectionGUI)) {
@@ -242,7 +257,7 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         for (int i = 0; i < SLOT_POSITIONS.length; i++) {
             if (slot == SLOT_POSITIONS[i]) {
                 int slotNumber = i + 1;
-                clicker.sendMessage(colorize("&7Slot switching coming soon..."));
+                handleSlotClick(clicker, slotNumber);
                 break;
             }
         }
