@@ -6,6 +6,7 @@ import world.bentobox.bentobox.api.commands.CompositeCommand;
 import world.bentobox.bentobox.api.user.User;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.managers.GridManager;
+import world.bentobox.islandselector.models.GridLocation;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 /**
@@ -42,6 +43,14 @@ public class AdminReserveCommand extends CompositeCommand {
 
         IslandSelector addon = (IslandSelector) getAddon();
         GridManager gridManager = addon.getGridManager();
+
+        // Check if location is already occupied by a player's island
+        GridLocation location = gridManager.getGridLocation(coord);
+        if (location != null && location.getOwnerUUID() != null) {
+            user.sendMessage("commands.islandselector.admin.reserve.occupied", "[coord]", coordStr);
+            return false;
+        }
+
         if (gridManager.isReserved(coord)) {
             user.sendMessage("commands.islandselector.admin.reserve.already-reserved", "[coord]", coordStr);
             return false;

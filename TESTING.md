@@ -1,15 +1,15 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 21 (Latest - Admin Unreserve & ClearPrice Commands)
+- **Build Date:** Session 22 (Latest - Admin Reserve Validation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 128K
-- **Status:** ✅ 37 tests ready for manual verification (Tests #28-76)
+- **JAR Size:** 132K
+- **Status:** ✅ 38 tests ready for manual verification (Tests #28-77)
 
 ## Latest Session
-📋 **See [TESTING_SESSION21.md](TESTING_SESSION21.md) for Session 21 testing guide**
+📋 **See [TESTING_SESSION22.md](TESTING_SESSION22.md) for Session 22 testing guide**
 
-Session 21 implemented Tests #75-76: Admin unreserve and clearprice commands for location management.
+Session 22 implemented Test #77: Enhanced validation for admin reserve command (cannot reserve occupied locations).
 
 **Quick Test:**
 ```

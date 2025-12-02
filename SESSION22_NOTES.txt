@@ -1,0 +1,309 @@
+=================================================
+SESSION 22 - ADMIN RESERVE COMMAND VALIDATION
+=================================================
+
+Session Date: Session 22
+Agent Role: Feature implementation (Validation enhancement)
+
+=================================================
+SESSION 22 OVERVIEW
+=================================================
+
+**Purpose:** Implement Test #77 - Cannot reserve already occupied location
+
+Following the autonomous development workflow:
+1. Reviewed current codebase and progress notes
+2. Identified Test #77 as next unimplemented feature
+3. Enhanced existing admin reserve command with validation
+4. Built successfully and prepared for manual testing
+
+**Key Achievement:** Improved admin command safety with occupation checking
+
+=================================================
+WORK COMPLETED - SESSION 22
+=================================================
+
+✅ 1. IMPLEMENTED TEST #77 - CANNOT RESERVE OCCUPIED LOCATION
+   - Issue: Admin reserve command didn't check if location was occupied
+   - Risk: Admins could accidentally reserve player islands
+   - Implementation: Added occupation validation to AdminReserveCommand
+   - Features:
+     * Checks if location has an owner before allowing reservation
+     * Shows clear error message if location is occupied
+     * Prevents accidental reservation of player islands
+     * Maintains all existing reserve command functionality
+   - Validation: Uses GridLocation.getOwnerUUID() != null check
+   - File Modified: src/main/java/world/bentobox/islandselector/commands/AdminReserveCommand.java
+
+✅ 2. ADDED LOCALE STRING
+   - Modified: src/main/resources/locales/en-US.yml
+   - Added: commands.islandselector.admin.reserve.occupied
+   - Message: "&cCannot reserve [coord] - it is currently occupied by a player's island"
+   - Consistent with unreserve command's occupied message
+
+✅ 3. ADDED IMPORT
+   - Added import: world.bentobox.islandselector.models.GridLocation
+   - Required to access GridLocation for owner checking
+   - Clean, minimal code change
+
+✅ 4. BUILT AND TESTED COMPILATION
+   - Build: ✅ SUCCESS
+   - Errors: 0
+   - Warnings: 1 (same deprecated API warning as before - SlotSwitchManager)
+   - JAR Size: 132K (was 128K, +4K)
+   - Source Files: 29 (unchanged, modified existing file)
+
+✅ 5. CREATED TESTING DOCUMENTATION
+   - File: TESTING_SESSION22.md
+   - Comprehensive test guide for Test #77
+   - Includes edge cases and regression testing
+   - Quick 2-minute smoke test provided
+   - Clear pass/fail criteria
+
+✅ 6. UPDATED MAIN TESTING FILE
+   - Modified: TESTING.md
+   - Updated to Session 22
+   - Updated test count: 38 tests ready for testing (was 37)
+   - Updated JAR size: 132K (was 128K)
+   - Reference to TESTING_SESSION22.md
+
+=================================================
+TECHNICAL DETAILS
+=================================================
+
+**Code Changes:**
+
+1. AdminReserveCommand.java:
+   - Added GridLocation import
+   - Added occupation check before reservation
+   - Check: location != null && location.getOwnerUUID() != null
+   - Placement: Before "already reserved" check (correct order)
+   - Error handling: Uses existing locale message system
+
+2. en-US.yml:
+   - Added "occupied" message to reserve command section
+   - Consistent with unreserve command's message format
+   - Follows BentoBox color code conventions
+
+**Validation Logic:**
+
+```java
+// Check if location is already occupied by a player's island
+GridLocation location = gridManager.getGridLocation(coord);
+if (location != null && location.getOwnerUUID() != null) {
+    user.sendMessage("commands.islandselector.admin.reserve.occupied", "[coord]", coordStr);
+    return false;
+}
+```
+
+**Why This Order:**
+1. First check: Invalid coordinate format
+2. Second check: Location is occupied (NEW)
+3. Third check: Location already reserved
+4. Finally: Proceed with reservation
+
+This order makes logical sense and provides the most specific error messages.
+
+=================================================
+TEST SPECIFICATION
+=================================================
+
+**Test #77: Cannot reserve already occupied location**
+
+Description: Admin reserve command prevents reserving locations that have player islands
+
+Test Steps:
+1. Player has island at M13 (or any coordinate like 5,5)
+2. Admin tries /islandselector admin reserve M13
+3. Verify error message that location is occupied
+4. Verify reservation fails (location remains occupied, not reserved)
+
+Expected Results:
+- Error message: "Cannot reserve M13 - it is currently occupied by a player's island"
+- Command returns false (failure)
+- Location status unchanged (still occupied)
+- GUI still shows player head (not gray glass)
+
+Edge Cases:
+- Multiple players with different islands → all protected
+- Just-claimed location → immediately protected
+- Reserve empty, then claim, then try reserve again → protected
+
+Regression Tests:
+- Can still reserve empty locations
+- Already-reserved error still works
+- SetPrice still works on reserved locations
+- Admin info still shows correct status
+
+Status: ✅ IMPLEMENTED, READY FOR MANUAL TESTING
+
+=================================================
+COMPARISON WITH SESSION 21
+=================================================
+
+**Session 21:**
+- Implemented 2 new commands (unreserve, clearprice)
+- Added 2 new command files
+- Added 16 locale strings
+- JAR: 128K
+- Tests: #75-76
+
+**Session 22:**
+- Enhanced 1 existing command (reserve)
+- Modified 1 command file
+- Added 1 locale string
+- JAR: 132K (+4K)
+- Tests: #77
+
+**Why JAR Grew:**
+Session 21's new commands were already included in the JAR.
+Session 22's modification somehow triggered JAR size increase.
+This is normal - could be metadata, optimizations, or build differences.
+
+=================================================
+BUILD INFORMATION
+=================================================
+
+**JAR Details:**
+- Location: output/IslandSelector-1.0.0-SNAPSHOT.jar
+- Size: 132K (was 128K)
+- Compilation: Clean, 0 errors
+- Build Time: ~3.5 seconds
+
+**File Changes:**
+- Modified: AdminReserveCommand.java (+6 lines)
+- Modified: en-US.yml (+1 line)
+- Created: TESTING_SESSION22.md
+- Created: SESSION22_NOTES.txt
+- Modified: TESTING.md
+
+**Git Status:**
+- Files modified: 4
+- Files added: 2
+- Ready to commit
+
+=================================================
+TESTING NOTES
+=================================================
+
+**How to Test:**
+1. Install JAR: output/IslandSelector-1.0.0-SNAPSHOT.jar
+2. See TESTING_SESSION22.md for detailed test cases
+3. Quick verification:
+   - Create island at 5,5
+   - Try: /islandselector admin reserve 5,5
+   - Should fail with "occupied" error
+   - Try: /islandselector admin reserve 20,20
+   - Should succeed (empty location)
+
+**What to Verify:**
+- Occupied locations cannot be reserved
+- Error message is clear and helpful
+- Empty locations can still be reserved normally
+- Already-reserved error still works
+- Admin info shows correct status
+
+**Expected Behavior:**
+✅ Reserve empty location → Success
+✅ Reserve occupied location → Error (occupied)
+✅ Reserve reserved location → Error (already reserved)
+✅ Reserve invalid coord → Error (invalid format)
+
+=================================================
+NEXT STEPS FOR HUMAN TESTER
+=================================================
+
+**PRIORITY 1: TEST NEW FEATURE (Test #77)**
+
+The human tester should:
+1. Install: output/IslandSelector-1.0.0-SNAPSHOT.jar
+2. Test admin reserve validation:
+   - Create island at a location
+   - Try to reserve that location
+   - Verify error message
+   - Verify location not reserved
+3. Test regression (reserve empty locations still works)
+4. Report results
+
+**PRIORITY 2: REGRESSION TEST**
+
+Verify existing commands still work:
+- /islandselector admin reserve (empty locations)
+- /islandselector admin setprice
+- /islandselector admin info
+- /islandselector admin unreserve
+
+=================================================
+NEXT STEPS FOR AUTONOMOUS AGENT (Session 23+)
+=================================================
+
+**If Test #77 Passes:**
+- Mark as passing in feature_list.json
+- Proceed to Tests #78-80 (Grid expansion/shrink commands)
+- Grid expansion will require significant new code
+
+**If Test Fails:**
+- Read tester feedback
+- Fix reported issues
+- Re-build and re-test
+- Do NOT implement new features until this passes
+
+**Upcoming Features (Tests #78-80):**
+- Test #78: Admin command to expand grid east adds columns
+- Test #79: Admin command to expand grid south adds rows
+- Test #80: Grid expansion updates config.yml
+- Test #81: Admin command to shrink grid removes empty areas
+- Test #82: Cannot shrink grid if islands exist in affected area
+
+**Technical Preview - Grid Expansion:**
+Grid expansion will require:
+- New admin commands (expand, shrink)
+- Config.yml updates
+- Boundary recalculation
+- GUI updates to show new areas
+- Validation to prevent data loss
+- Persistence across restarts
+
+This is a more complex feature than Session 22's simple validation.
+
+=================================================
+KEY LEARNINGS - SESSION 22
+=================================================
+
+1. **Simple fixes can be powerful:** Adding one check protects all player islands
+   - Small code change, big impact on safety
+   - Always validate admin actions against existing data
+
+2. **Validation order matters:** Check from most specific to most general
+   - Invalid format → Occupied → Already reserved → Success
+   - Users get the most relevant error message first
+
+3. **Consistency is important:** Matched unreserve command's "occupied" message
+   - Admins see consistent language across commands
+   - Easier to understand and remember
+
+4. **Regression testing is critical:** Enhanced command still needs to work normally
+   - Added validation shouldn't break existing functionality
+   - Test both new validation AND old behavior
+
+5. **JAR size can vary:** 128K → 132K despite minimal code changes
+   - Don't worry about small size fluctuations
+   - Could be build system differences, metadata, etc.
+
+=================================================
+SESSION 22 COMPLETE
+=================================================
+
+Work completed: Test #77 implementation
+Type: Autonomous agent session (validation enhancement)
+Build status: ✅ SUCCESS
+Testing status: ⏳ 1 NEW TEST READY FOR MANUAL TESTING (38 total pending)
+
+Tests implemented this session: 1 (Test #77)
+Tests passing: 44/225
+Tests pending testing: 38/225
+Tests remaining: 143/225
+
+Progress: 36.4% implemented, 19.6% verified
+
+**Session 22 Result:** Admin reserve command now safely validates against occupied locations

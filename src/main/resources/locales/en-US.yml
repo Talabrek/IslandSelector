@@ -153,6 +153,7 @@ commands:
         parameters: "&f<coord>"
         success: "&aReserved location [coord]"
         already-reserved: "&c[coord] is already reserved"
+        occupied: "&cCannot reserve [coord] - it is currently occupied by a player's island"
         invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
 
       setprice:
