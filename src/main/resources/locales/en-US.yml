@@ -258,6 +258,28 @@ commands:
         invalid-type: "&cInvalid cooldown type. Use: switch, relocate, or all"
         player-not-found: "&cPlayer not found"
 
+      backup:
+        description: "&7Create a backup of a player's island slot"
+        parameters: "&f<player> <slot>"
+        creating: "&eCreating backup for [player] slot [slot]..."
+        success: "&aBackup created for [player] slot [slot] &7(Total backups: [count])"
+        failed: "&cFailed to create backup for [player] slot [slot]"
+        player-not-found: "&cPlayer '[player]' not found"
+        invalid-slot: "&cInvalid slot number. Must be between 1-10"
+
+      restore:
+        description: "&7Restore a backup to a player's island slot"
+        parameters: "&f<player> <slot> [backup-file]"
+        restoring: "&eRestoring backup for [player] slot [slot]..."
+        restoring-file: "&7File: &f[file]"
+        restoring-date: "&7Backup date: &f[date]"
+        success: "&aSuccessfully restored [file] for [player] slot [slot]"
+        failed: "&cFailed to restore backup for [player] slot [slot]"
+        player-not-found: "&cPlayer '[player]' not found"
+        invalid-slot: "&cInvalid slot number. Must be between 1-10"
+        backup-not-found: "&cBackup file '[file]' not found for this player"
+        no-backups: "&cNo backups found for [player] slot [slot]"
+
   # Help and other general commands
     format: "&e{command} &7- {description}"
 

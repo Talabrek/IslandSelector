@@ -32,6 +32,7 @@ public class AdminCommand extends CompositeCommand {
         new AdminShrinkCommand(this);
         new AdminResetCooldownCommand(this);
         new AdminBackupCommand(this);
+        new AdminRestoreCommand(this);
     }
 
     @Override

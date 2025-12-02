@@ -4,12 +4,15 @@ import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard;
+import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardWriter;
 import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
+import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
+import com.sk89q.worldedit.session.ClipboardHolder;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -224,5 +227,109 @@ public class BackupManager {
             name.startsWith("slot-" + slotNumber + "-") && name.endsWith(".schem"));
 
         return backupFiles != null ? backupFiles.length : 0;
+    }
+
+    /**
+     * List all backup files for a specific player and slot
+     * Returns files sorted by timestamp (newest first)
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number
+     * @return Array of backup files, or empty array if none found
+     */
+    public File[] listBackups(UUID playerUUID, int slotNumber) {
+        File playerDir = getPlayerBackupDirectory(playerUUID);
+        if (!playerDir.exists()) {
+            return new File[0];
+        }
+
+        File[] backupFiles = playerDir.listFiles((dir, name) ->
+            name.startsWith("slot-" + slotNumber + "-") && name.endsWith(".schem"));
+
+        if (backupFiles == null || backupFiles.length == 0) {
+            return new File[0];
+        }
+
+        // Sort by last modified time (newest first)
+        java.util.Arrays.sort(backupFiles, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+
+        return backupFiles;
+    }
+
+    /**
+     * Restore a backup to a specific slot
+     * This replaces the current island content with the backup
+     * @param backupFile The backup file to restore from
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number to restore to
+     * @return true if restore was successful, false otherwise
+     */
+    public boolean restoreBackup(File backupFile, UUID playerUUID, int slotNumber) {
+        if (!backupFile.exists()) {
+            addon.logError("Backup file not found: " + backupFile.getAbsolutePath());
+            return false;
+        }
+
+        SlotData slotData = addon.getSlotManager().getSlot(playerUUID, slotNumber);
+        if (slotData == null) {
+            addon.logError("Slot " + slotNumber + " not found for player " + playerUUID);
+            return false;
+        }
+
+        if (slotData.getIslandUUID() == null) {
+            addon.logError("Slot " + slotNumber + " has no island for player " + playerUUID);
+            return false;
+        }
+
+        return loadBackupToWorld(backupFile, slotData);
+    }
+
+    /**
+     * Load a backup schematic file to the world at the slot's island location
+     */
+    private boolean loadBackupToWorld(File backupFile, SlotData slotData) {
+        try {
+            // Get island location
+            Island island = addon.getIslands().getIslandById(slotData.getIslandUUID()).orElse(null);
+            if (island == null) {
+                addon.logError("Island not found for slot: " + slotData.getUniqueId());
+                return false;
+            }
+
+            Location center = island.getCenter();
+            World world = center.getWorld();
+            if (world == null) {
+                addon.logError("Island world is null for slot: " + slotData.getUniqueId());
+                return false;
+            }
+
+            // Load clipboard from backup file
+            Clipboard clipboard;
+            try {
+                clipboard = BuiltInClipboardFormat.SPONGE_SCHEMATIC.load(backupFile);
+            } catch (IOException e) {
+                addon.logError("Failed to load backup file: " + e.getMessage());
+                return false;
+            }
+
+            // Paste to world
+            com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(world);
+            try (EditSession editSession = WorldEdit.getInstance().newEditSession(weWorld)) {
+                Operation operation = new ClipboardHolder(clipboard)
+                    .createPaste(editSession)
+                    .to(BlockVector3.at(center.getX(), center.getY(), center.getZ()))
+                    .ignoreAirBlocks(false)
+                    .build();
+
+                Operations.complete(operation);
+            }
+
+            addon.log("Restored backup " + backupFile.getName() + " for slot: " + slotData.getUniqueId());
+            return true;
+
+        } catch (Exception e) {
+            addon.logError("Failed to restore backup " + backupFile.getName() + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 }
