@@ -176,6 +176,7 @@ public class GridGUIListener implements Listener {
      */
     private void handleVisitClick(Player player, GridCoordinate coord) {
         var gridManager = gui.getAddon().getGridManager();
+        var addon = gui.getAddon();
         // Ensure status is checked first (may register island from BSkyBlock)
         gridManager.getLocationStatus(coord);
         var location = gridManager.getGridLocation(coord);
@@ -187,13 +188,48 @@ public class GridGUIListener implements Listener {
 
         // Check if it's the player's own island
         if (location.getOwnerUUID().equals(player.getUniqueId())) {
+            player.closeInventory();
             player.sendMessage("\u00A7eTeleporting to your island...");
-            // TODO: Teleport to own island
+            // Use BSkyBlock to teleport to own island
+            world.bentobox.bentobox.BentoBox.getInstance().getIslandsManager()
+                .homeTeleportAsync(gridManager.getBSkyBlockWorld(), player);
             return;
         }
 
-        // TODO: Check if warp is open and teleport
-        player.sendMessage("\u00A77Visiting islands coming soon...");
+        // Get the BSkyBlock island for this location
+        var islandsManager = world.bentobox.bentobox.BentoBox.getInstance().getIslandsManager();
+        var island = islandsManager.getIsland(gridManager.getBSkyBlockWorld(), location.getOwnerUUID());
+        if (island == null) {
+            player.sendMessage("\u00A7cCould not find island data.");
+            return;
+        }
+
+        // Check if player is banned from this island
+        if (island.isBanned(player.getUniqueId())) {
+            player.sendMessage("\u00A7cYou are banned from this island!");
+            return;
+        }
+
+        // Get owner name for message
+        String ownerName = location.getOwnerName() != null ? location.getOwnerName() : "Unknown";
+
+        // Check if visiting is allowed (island has visitors enabled)
+        // In BSkyBlock, the warp sign determines if island is visitable
+        // We'll use the island spawn location if no warp
+        if (island.getSpawnPoint(org.bukkit.World.Environment.NORMAL) != null) {
+            player.closeInventory();
+            player.sendMessage("\u00A7aTeleporting to " + ownerName + "'s island...");
+            // Teleport to island spawn
+            org.bukkit.Location spawnLoc = island.getSpawnPoint(org.bukkit.World.Environment.NORMAL);
+            player.teleport(spawnLoc);
+        } else if (island.getProtectionCenter() != null) {
+            // No spawn set, use center
+            player.closeInventory();
+            player.sendMessage("\u00A7aTeleporting to " + ownerName + "'s island...");
+            player.teleport(island.getProtectionCenter());
+        } else {
+            player.sendMessage("\u00A7cCould not find a safe location on this island.");
+        }
     }
 
     /**

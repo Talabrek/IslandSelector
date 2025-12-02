@@ -72,11 +72,13 @@ public class FindCommand extends CompositeCommand {
             return false;
         }
 
-        // Open grid GUI (will open at default location - centering will be added later)
-        // TODO: Add centerOnLocation() method to MainGridGUI to center on specific coords
+        // Open grid GUI centered on the target player's island
         Player player = user.getPlayer();
         MainGridGUI gui = new MainGridGUI(addon, player);
         gui.open();
+
+        // Center the viewport on the found island
+        gui.centerViewportOn(gridCoord);
 
         user.sendMessage("commands.islandselector.find.success",
             "[player]", targetName,
