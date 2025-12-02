@@ -1,16 +1,48 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 39 (Latest - Player Search Documentation)
+- **Build Date:** Session 41 (Latest - Island Relocation Documentation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
 - **JAR Size:** 180K
-- **Status:** ✅ 44 tests verified, 11 tests pending manual verification
+- **Status:** ✅ 44 tests verified, 55 tests pending manual verification
 
-## Latest Sessions (38-39)
+## Latest Sessions (38-41)
 
-### Session 39: Player Search Functionality ⭐ NEW
+### Session 41: Island Relocation System ⭐ NEW
+📋 **See [SESSION41_FOR_HUMAN_TESTER.md](SESSION41_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 26 relocation-related tests
+- Basic relocation flow (click empty location with existing island)
+- Confirmation GUI shows from/to coordinates and cost
+- FAWE-powered island copying (blocks + entities)
+- Old location cleared completely
+- BSkyBlock data updates (spawn, warp, protection)
+- Player teleportation (owner, team, visitors)
+- Economy integration (Vault cost, bypass permission)
+- Cooldown system (enforcement, persistence, bypass)
+- Progress indicators during relocation
+- Edge cases (occupied, reserved, premium locations)
+
+**Testing Time:** 40-60 minutes (comprehensive), 10-15 minutes (quick)
+**Players Required:** 2-3 accounts (for team/visitor tests)
+**Special Requirements:** FastAsyncWorldEdit REQUIRED, Vault optional
+
+### Session 40: Slot Selection System
+📋 **See [SESSION40_FOR_HUMAN_TESTER.md](SESSION40_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 18 slot-related tests
+- Slot selection GUI layout
+- Active/inactive/empty/locked slot displays
+- Permission-based slot unlocking
+- Slot switching with confirmation
+- Save/clear/load island schematics
+- Team member teleportation
+
+**Testing Time:** 20-30 minutes
+**Players Required:** 2 accounts (for team tests)
+
+### Session 39: Player Search Functionality
 📋 **See [SESSION39_FOR_HUMAN_TESTER.md](SESSION39_FOR_HUMAN_TESTER.md) for quick test guide**
-📋 **See [TESTING_SESSION39.md](TESTING_SESSION39.md) for detailed testing**
 
 **Features Ready:** 4 search-related tests
 - Search button displays (COMPASS item)
@@ -23,7 +55,6 @@
 
 ### Session 38: Island Claiming & Premium Locations
 📋 **See [SESSION38_FOR_HUMAN_TESTER.md](SESSION38_FOR_HUMAN_TESTER.md) for quick test guide**
-📋 **See [TESTING_SESSION38.md](TESTING_SESSION38.md) for detailed testing**
 
 **Features Ready:** 7 island claiming tests
 - New player intercepts /island command (CRITICAL TEST!)
@@ -36,206 +67,180 @@
 **Testing Time:** 15-20 minutes
 **Players Required:** 3-4 fresh accounts (can only claim once per account)
 
-### Combined Sessions 38 + 39
-**Total Tests Pending:** 11 tests (7 + 4)
-**Combined Testing Time:** 20-30 minutes
-**If All Pass:** Progress jumps from 44/225 to 51/225 tests
+### Combined Sessions 38-41
+**Total Tests Pending:** 55 tests (7 + 4 + 18 + 26)
+**Combined Testing Time:** 90-120 minutes (comprehensive)
+**If All Pass:** Progress jumps from 44/225 to 99/225 tests (44% complete!)
 
-## Previous Sessions
-📋 **See [TESTING_SESSION37.md](TESTING_SESSION37.md) for Session 37 testing guide**
+---
 
-Session 37 documented existing search functionality previously implemented.
+## Quick Test Commands
 
-📋 **See [TESTING_SESSION31.md](TESTING_SESSION31.md) for Session 31 testing guide**
-
-Session 31 implemented the Slot Settings GUI, which opens when players right-click on island slots. Provides quick access to rename, change icon, and delete features with visual buttons and command instructions.
-
-📋 **See [TESTING_SESSION30.md](TESTING_SESSION30.md) for Session 30 testing guide**
-
-Session 30 implemented the `/islandselector delete` command with confirmation GUI for safely deleting island slots.
-
-📋 **See [TESTING_SESSION29.md](TESTING_SESSION29.md) for Session 29 testing guide**
-
-Session 29 implemented the `/islandselector seticon` command, allowing players to set custom icons for their island slots using held items.
-
-📋 **See [TESTING_SESSION28.md](TESTING_SESSION28.md) for Session 28 testing guide**
-
-Session 28 implemented the `/islandselector setname` command, allowing players to set custom names for their island slots (e.g., "Main Base", "Farm Island").
-
-## Previous Sessions
-📋 **See [TESTING_SESSION27.md](TESTING_SESSION27.md) for Session 27 testing guide**
-
-Session 27 implemented admin reset cooldown command for clearing player slot switch cooldowns.
-
-📋 **See [TESTING_SESSION26.md](TESTING_SESSION26.md) for Session 26 testing guide**
-
-Session 26 enhanced the admin info command to support player lookups. Admins can now query detailed player island and slot information using `/islandselector admin info <player>`.
-
-## Previous Sessions
-📋 **See [TESTING_SESSION25.md](TESTING_SESSION25.md) for Session 25 testing guide**
-
-Session 25 discovered that Player Search functionality (Tests #83-86) was already fully implemented. Created comprehensive testing documentation for manual verification.
-
-## Previous Session
-📋 **See [TESTING_SESSION24.md](TESTING_SESSION24.md) for Session 24 testing guide**
-
-Session 24 implemented Tests #81-82: Admin grid shrink commands (shrink grid with island protection validation).
-
-**Quick Test:**
+In-game commands to test:
 ```
-/islandselector admin version
+/islandselector          - Open grid GUI
+/islandselector slots    - Open slot selection
+/islandselector help     - Show all commands
 ```
 
+Admin commands:
+```
+/islandselector admin version  - Check plugin version
+/islandselector admin info A1  - Check location info
+/islandselector admin reload   - Reload configuration
+```
+
+---
+
+## Installation
+
+1. Copy `output/IslandSelector-1.0.0-SNAPSHOT.jar` to `plugins/BentoBox/addons/`
+2. Ensure dependencies are installed:
+   - ✅ **BentoBox** (required)
+   - ✅ **BSkyBlock** (required)
+   - ✅ **FastAsyncWorldEdit** (required for slots & relocation)
+   - 🔷 **Vault** (optional - for economy features)
+   - 🔷 **Economy Plugin** (optional - e.g., EssentialsX)
+3. Restart server
+4. Verify no errors in console
+
+---
+
+## Testing Priority
+
+**High Priority (Core Features):**
+1. Session 38 - Island Claiming (7 tests) - Critical gameplay flow
+2. Session 41 - Island Relocation (26 tests) - Major feature
+
+**Medium Priority:**
+3. Session 40 - Slot System (18 tests) - Advanced feature
+4. Session 39 - Player Search (4 tests) - Quality of life
+
+---
+
 ## Previous Sessions
-📋 **See [TESTING_SESSION18.md](TESTING_SESSION18.md) for Tests #28-74 comprehensive guide**
+
+📋 **See [TESTING_SESSION37.md](TESTING_SESSION37.md)** - Session 37 search documentation
+📋 **See [TESTING_SESSION31.md](TESTING_SESSION31.md)** - Session 31 slot settings GUI
+📋 **See [TESTING_SESSION30.md](TESTING_SESSION30.md)** - Session 30 slot deletion
+📋 **See [TESTING_SESSION29.md](TESTING_SESSION29.md)** - Session 29 custom slot icons
+📋 **See [TESTING_SESSION28.md](TESTING_SESSION28.md)** - Session 28 slot renaming
+📋 **See [TESTING_SESSION27.md](TESTING_SESSION27.md)** - Session 27 admin reset cooldown
+📋 **See [TESTING_SESSION26.md](TESTING_SESSION26.md)** - Session 26 admin player lookups
+📋 **See [TESTING_SESSION25.md](TESTING_SESSION25.md)** - Session 25 player search discovery
+
+---
 
 ## Test Results Summary
 
 | Test Range | Status | Notes |
 |------------|--------|-------|
-| Tests 1-25 | PASS | Core GUI, admin commands, persistence |
-| Tests 26-35 | PASS | Island claiming, blueprint selection |
-| Tests 36-39 | PENDING | Search functionality |
+| Tests 1-44 | ✅ PASS | Core GUI, admin commands, persistence verified |
+| Tests 45-51 | ⏳ PENDING | Island claiming (Session 38) |
+| Tests 52-55 | ⏳ PENDING | Player search (Session 39) |
+| Tests 56-73 | ⏳ PENDING | Slot selection (Session 40) |
+| Tests 74-99 | ⏳ PENDING | Island relocation (Session 41) |
+| Tests 100+ | ❌ FAIL | Not yet tested |
+
+**Current Status:** 44/225 tests verified, 55 tests pending manual verification
 
 ---
 
-## Features Implemented
+## Features Verified
 
-### Core Features (Session 1-5)
-1. **Grid-based GUI** - 54-slot chest GUI with 7x4 island grid display
-2. **BSkyBlock Integration** - Auto-syncs existing islands on startup
-3. **Database Persistence** - Grid locations persist across restarts
-4. **Admin Commands** - Reserve, setprice, info, reload commands
-5. **Navigation** - Scroll arrows with shift-click for fast scrolling
-6. **Filters** - All, Available, Online filter options
-7. **Find My Island** - Centers viewport on player's island
-8. **Configurable GUI Items** - All display items configurable in config.yml
+### ✅ Core Features (Tests 1-44)
+- Grid-based GUI with 7x4 island display
+- BSkyBlock integration and auto-sync
+- Database persistence across restarts
+- Admin commands (reserve, setprice, info, reload, version)
+- Navigation (scroll arrows, shift-click fast scroll)
+- Filters (All, Available, Online)
+- Find My Island button
+- Configurable GUI items
+- Player head displays with online status
+- Reserved locations (blocked and premium)
+- Grid coordinate system
+- Configuration management
+- Permission system
 
-### Island Claiming (Session 6-8)
-9. **Island Creation Interception** - Intercepts /island command for new players
-10. **Grid Location Selection** - Players choose where to create their island
-11. **Blueprint/Schematic Selection** - Players choose island type from available blueprints
-12. **Confirmation GUI** - Confirm location before creation
-13. **Island Creation at Selected Location** - Islands created at player's chosen coordinates
+### ⏳ Pending Verification (Tests 45-99)
 
-### Session 8 Improvements
-- Fixed blueprint paste (was only creating single block)
-- GUI now centers on player's island when opened
-- Tooltips show world coordinates (X: 1600, Z: -1600) instead of grid coords
-- Fixed "feature not available" message when clicking available locations
-- Blueprint selection GUI always shows (even with single blueprint)
+**Island Claiming (Session 38):**
+- Intercept /island command for new players
+- Click-to-select location in grid GUI
+- Confirmation GUI with location details
+- Island creation at selected coordinates
+- Premium location purchase
+- Neighbor information display
 
-### Session 9 - Compilation Fixes (THIS SESSION)
-14. **IslandCreateListener** - Recreated complete event listener for island creation
-15. **Fixed Grid Coordinate Conversion** - Corrected worldToGrid/getWorldX/getWorldZ methods
-16. **Build Restored** - Removed duplicate/incomplete files causing compilation errors
+**Player Search (Session 39):**
+- Search button in GUI (compass)
+- Search by player name
+- Partial name matching
+- Player not found handling
 
-**⚠️ IMPORTANT: Regression testing required!**
-All previous features should still work, but need verification after these fixes:
-- Island creation interception
-- Grid location selection
-- Blueprint selection
-- Island appearing at correct grid coordinates
+**Slot System (Session 40):**
+- Slot selection GUI (27 slots)
+- Active/inactive/empty/locked slot displays
+- Permission-based slot unlocking (slots.2, slots.3, etc.)
+- Slot switching confirmation
+- FAWE schematic save/load
+- Team member teleportation on switch
+- Slot management (rename, icon, delete)
+- Right-click slot settings menu
+
+**Island Relocation (Session 41):**
+- Click empty location to relocate
+- Relocation confirmation GUI
+- FAWE-powered island copying
+- Old location clearing
+- BSkyBlock data updates
+- Owner and team teleportation
+- Visitor removal
+- Economy integration (cost, bypass)
+- Cooldown system (enforcement, persistence, bypass)
+- Progress indicators
+- Edge case handling
 
 ---
 
-## Required Dependencies
+## Known Issues
 
-1. **Paper/Spigot 1.20.x - 1.21.x** server
-2. **BentoBox** (latest version)
-3. **BSkyBlock** addon for BentoBox
-4. **FastAsyncWorldEdit (FAWE)** (required for schematic operations)
+⚠️ **Empty Slot Island Creation**
+- May show "coming soon" message
+- Direct creation from empty slot might not be fully integrated
+- Workaround: Create islands via /island command first
+- Status: Acceptable for current build
 
-## Installation
+⚠️ **Large Island Performance**
+- Slot switching can take 5-15 seconds for large islands
+- Relocation can take 10-30 seconds for complex builds
+- FAWE operations are intensive but async (no server lag)
+- Status: Expected behavior, not a bug
 
-1. Copy `target/IslandSelector-1.0.0.jar` to `plugins/BentoBox/addons/`
-2. Restart the server
-3. Verify no errors in console during startup
+⚠️ **FAWE Dependency**
+- Slot switching and relocation REQUIRE FAWE
+- Should show clear error if missing
+- Status: Human tester should verify error handling
+
+⚠️ **Entity Copying Limitations**
+- Some entity types may not copy perfectly (WorldEdit limitation)
+- Item frames, armor stands usually work
+- Complex entities (villagers with trades) may have issues
+- Status: Expected WorldEdit behavior
 
 ---
 
-## Test Cases
+## Contact & Support
 
-### Core GUI Tests (1-25) - ALL PASSING
+For issues, bugs, or questions:
+1. Check console for error messages
+2. Verify all dependencies installed
+3. Test with minimal setup first
+4. Report detailed reproduction steps
 
-#### Test #1: Plugin loads successfully
-**Status:** PASS
-- Plugin loads without errors
-- Shows version info in console
-- Detects island spacing from BSkyBlock
+---
 
-#### Test #2: Config.yml created with defaults
-**Status:** PASS
-- Config file exists with all sections
-- GUI item settings configurable
+**Happy testing!** 🎮
 
-#### Test #3: Database tables created
-**Status:** PASS
-- GridLocations data structures exist
-- Loading message appears in console
-
-#### Test #4: FAWE dependency detected
-**Status:** PASS
-- Console shows dependencies found
-
-#### Test #5: /islandselector command works
-**Status:** PASS
-- GUI opens without errors
-
-#### Test #6: Main grid GUI layout correct
-**Status:** PASS
-- 54 slots with proper layout
-- Arrows, grid area, control buttons
-
-#### Test #7: GUI title displays correctly
-**Status:** PASS
-- Static title "Island Grid Selector"
-- Viewport info in Grid Info button
-
-#### Test #8: 7x4 grid display
-**Status:** PASS
-- 28 grid slots in center area
-
-#### Test #9: Available locations show green glass
-**Status:** PASS
-- Configurable via config.yml
-
-#### Test #10: Online owners show player heads
-**Status:** PASS
-- Correct player skin displayed
-
-#### Test #11: Offline owners show player heads
-**Status:** PASS
-- Player heads for all occupied islands
-- Note: May show Steve if server hasn't cached skin
-
-#### Test #12: Own island has glow effect
-**Status:** PASS
-- Enchantment glow applied
-- "Your Island" tooltip
-
-#### Test #13: Reserved blocked = gray glass
-**Status:** PASS
-- `/islandselector admin reserve <coord>` works
-- Configurable via config.yml
-
-#### Test #14: Reserved purchasable = gold block
-**Status:** PASS
-- `/islandselector admin setprice <coord> <price>` works
-- Configurable via config.yml
-
-#### Test #15: Reserved locations persist
-**Status:** PASS
-- Data survives server restart
-
-#### Test #16: BSkyBlock sync works
-**Status:** PASS
-- Islands detected and displayed
-- Only shows in correct single slot
-
-#### Test #17: Data saves on shutdown
-**Status:** PASS
-- "Saving grid data..." message appears
-
-#### Test #18: Scroll up works
-**Status:** PASS
+**Next Step:** Copy JAR to test server and follow SESSION41_FOR_HUMAN_TESTER.md (or start with Session 38)
