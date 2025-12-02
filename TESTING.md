@@ -1,17 +1,25 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 29 (Latest - Slot Icon Command)
+- **Build Date:** Session 31 (Latest - Slot Settings GUI)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 144K
-- **Status:** ✅ 47 tests ready for manual verification
+- **JAR Size:** 155K
+- **Status:** ✅ 52 tests ready for manual verification
 
 ## Latest Session
-📋 **See [TESTING_SESSION29.md](TESTING_SESSION29.md) for Session 29 testing guide**
+📋 **See [TESTING_SESSION31.md](TESTING_SESSION31.md) for Session 31 testing guide**
 
-Session 29 implemented the `/islandselector seticon` command, allowing players to set custom icons for their island slots using held items (e.g., hold diamond pickaxe, set as slot icon).
+Session 31 implemented the Slot Settings GUI, which opens when players right-click on island slots. Provides quick access to rename, change icon, and delete features with visual buttons and command instructions.
 
 ## Previous Session
+📋 **See [TESTING_SESSION30.md](TESTING_SESSION30.md) for Session 30 testing guide**
+
+Session 30 implemented the `/islandselector delete` command with confirmation GUI for safely deleting island slots.
+
+📋 **See [TESTING_SESSION29.md](TESTING_SESSION29.md) for Session 29 testing guide**
+
+Session 29 implemented the `/islandselector seticon` command, allowing players to set custom icons for their island slots using held items.
+
 📋 **See [TESTING_SESSION28.md](TESTING_SESSION28.md) for Session 28 testing guide**
 
 Session 28 implemented the `/islandselector setname` command, allowing players to set custom names for their island slots (e.g., "Main Base", "Farm Island").
