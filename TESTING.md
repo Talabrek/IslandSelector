@@ -1,14 +1,30 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 45 (Latest - Command Tab Completion)
+- **Build Date:** Session 46 (Latest - PlaceholderAPI Integration)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 188K
-- **Status:** ✅ 44 tests verified, 82 tests pending manual verification
+- **JAR Size:** 192K
+- **Status:** ✅ 44 tests verified, 90 tests pending manual verification
 
-## Latest Sessions (38-45)
+## Latest Sessions (38-46)
 
-### Session 45: Command Tab Completion ⭐ NEW
+### Session 46: PlaceholderAPI Integration ⭐ NEW
+📋 **See [SESSION46_FOR_HUMAN_TESTER.md](SESSION46_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 8 PlaceholderAPI tests
+- %islandselector_location% - Player's grid coordinates
+- %islandselector_slot_active_name% - Active slot name
+- %islandselector_cooldown_switch% - Slot switch cooldown (formatted)
+- %islandselector_available% - Count of available locations
+- %islandselector_neighbors_online% - Count of online neighbors
+- Integration with chat/scoreboard/menu plugins
+- Graceful handling when PlaceholderAPI not installed
+
+**Testing Time:** 15-20 minutes
+**Players Required:** 2-3 accounts (for neighbor testing)
+**Special Requirements:** PlaceholderAPI plugin (optional but needed for testing)
+
+### Session 45: Command Tab Completion
 📋 **See [SESSION45_FOR_HUMAN_TESTER.md](SESSION45_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 4 tab completion tests

@@ -7148,3 +7148,182 @@ JAR: output/IslandSelector-1.0.0-SNAPSHOT.jar (188K)
 **Result:** Tab completion adds polish and usability to command system
 **Significance:** Quality-of-life improvement for all players and admins
 **Next:** Human tester verifies 82 tests total (Sessions 38-45)
+
+=================================================
+SESSION 46 - FEATURE IMPLEMENTATION (2025-12-02)
+=================================================
+
+Session Date: Session 46
+Agent Role: Feature Implementation - PlaceholderAPI Integration
+
+=================================================
+COMPLETED TASKS - SESSION 46
+=================================================
+
+✅ 1. CREATED PLACEHOLDERAPI EXPANSION CLASS
+   - Feature: Full PlaceholderAPI integration for IslandSelector
+   - File: src/main/java/world/bentobox/islandselector/integrations/PlaceholderAPIIntegration.java
+   - Lines: 230+ lines of code
+   - Extends: PlaceholderExpansion (PlaceholderAPI API)
+
+✅ 2. IMPLEMENTED 5 CUSTOM PLACEHOLDERS
+   
+   **%islandselector_location%**
+   - Returns: Player's grid coordinates (e.g., "Q17")
+   - Returns "None" if player has no island
+   - Uses GridManager.worldToGrid() for coordinate conversion
+   
+   **%islandselector_slot_active_name%**
+   - Returns: Active slot's custom name or "Slot X"
+   - Returns "No Slot" if player has no island
+   - Retrieves from SlotManager.getActiveSlot()
+   
+   **%islandselector_cooldown_switch%**
+   - Returns: Formatted cooldown time (e.g., "4m 30s") or "Ready"
+   - Calculates from SlotData.lastSwitchTime
+   - Formats: days/hours, hours/minutes, minutes/seconds, seconds
+   - Dynamic time formatting for readability
+   
+   **%islandselector_available%**
+   - Returns: Count of available (empty) grid locations
+   - Calculates: tracked locations - occupied locations
+   - Uses GridManager.getTrackedLocationCount() and getOccupiedLocationCount()
+   
+   **%islandselector_neighbors_online%**
+   - Returns: Count of online neighbors (0-8)
+   - Checks all 8 adjacent grid positions
+   - Only counts neighbors who are currently online
+   - Uses Bukkit.getPlayer() to verify online status
+
+✅ 3. REGISTERED PLACEHOLDERAPI EXPANSION IN MAIN ADDON
+   - Modified: src/main/java/world/bentobox/islandselector/IslandSelector.java
+   - Added import for PlaceholderAPIIntegration
+   - Added field: private PlaceholderAPIIntegration placeholderAPI
+   - Added method: registerPlaceholderAPI()
+   - Calls registerPlaceholderAPI() in onEnable()
+   - Graceful handling when PlaceholderAPI not installed
+
+✅ 4. AUTOMATIC REGISTRATION
+   - Checks if PlaceholderAPI plugin is enabled
+   - Registers expansion automatically on startup
+   - Logs success or error messages
+   - Plugin works normally without PlaceholderAPI
+
+✅ 5. VERSION COMMAND ALREADY SUPPORTS PAPI
+   - AdminVersionCommand already shows PlaceholderAPI status
+   - Displays version when installed
+   - Shows "Not installed" when not present
+   - No changes needed - already implemented!
+
+✅ 6. FIXED COMPILATION ERRORS
+   - Fixed import: Changed models.GridCoordinate to utils.GridCoordinate
+   - Fixed method: getSwitchManager() → getSlotSwitchManager()
+   - Fixed method: getOverWorld() → gridManager.getBSkyBlockWorld()
+   - Fixed cooldown calculation: Now uses SlotData.lastSwitchTime
+   - Fixed grid size methods: Uses getTrackedLocationCount()
+   - Fixed neighbor checking: Uses GridLocation objects properly
+
+✅ 7. BUILD AND TEST DOCUMENTATION
+   - Build: Successful compilation (192K JAR, up from 188K)
+   - Documentation: SESSION46_FOR_HUMAN_TESTER.md created
+   - Testing Guide: 8 test cases documented
+   - TESTING.md Updated: Session 46 added
+
+=================================================
+TECHNICAL DETAILS
+=================================================
+
+**Implementation Highlights:**
+
+1. **Smart Cooldown Calculation:**
+   - Reads lastSwitchTime from SlotData
+   - Compares with config switch-cooldown value
+   - Calculates remaining time dynamically
+   - Human-readable formatting (days, hours, minutes, seconds)
+
+2. **Real-Time Neighbor Detection:**
+   - Iterates through 8 adjacent grid positions
+   - Gets GridLocation for each neighbor
+   - Checks if occupied and gets owner UUID
+   - Verifies owner is online via Bukkit.getPlayer()
+
+3. **Efficient Grid Queries:**
+   - Uses cached GridManager data
+   - No database queries in placeholder resolution
+   - Minimal performance impact
+
+4. **Error Handling:**
+   - Null checks for players without islands
+   - Graceful fallback values ("None", "No Slot", "Ready", "0")
+   - Try-catch in registration for safety
+
+**Code Quality:**
+- Clean, well-documented code
+- Follows PlaceholderAPI best practices
+- Proper use of BentoBox managers
+- Efficient lookup algorithms
+
+=================================================
+TESTS READY FOR HUMAN VERIFICATION
+=================================================
+
+**Test #1-8:** PlaceholderAPI integration tests
+- Total: 8 new tests ready for manual verification
+- See SESSION46_FOR_HUMAN_TESTER.md for details
+
+Feature Coverage:
+- PlaceholderAPI registration on startup
+- Location placeholder (grid coordinates)
+- Slot name placeholder (active slot)
+- Cooldown placeholder (switch cooldown time)
+- Available count placeholder (empty locations)
+- Neighbor count placeholder (online neighbors)
+- Integration with other plugins
+- Works without PlaceholderAPI installed
+
+=================================================
+FILES CREATED/MODIFIED
+=================================================
+
+**Created:**
+- src/main/java/world/bentobox/islandselector/integrations/PlaceholderAPIIntegration.java (NEW)
+- src/main/java/world/bentobox/islandselector/integrations/ (NEW directory)
+- SESSION46_FOR_HUMAN_TESTER.md
+
+**Modified:**
+- src/main/java/world/bentobox/islandselector/IslandSelector.java
+- TESTING.md
+
+=================================================
+NEXT STEPS FOR FUTURE AGENTS
+=================================================
+
+PRIORITY 1: Wait for Human Tester Feedback
+  - Total: 90 tests pending (Sessions 38-46)
+  - Session 46: 8 PlaceholderAPI tests
+  - If all pass: Progress to 134/225 (59.6% - almost 60%!)
+
+PRIORITY 2: Next Features to Implement
+  - Additional admin commands (purge, audit, etc.)
+  - Permission system enhancements
+  - Economy integration improvements
+  - Performance optimizations
+
+PRIORITY 3: Advanced PlaceholderAPI Features (Optional)
+  - Add more placeholders (relocation cooldown, slot count, etc.)
+  - Add player-specific placeholders (parse <player>)
+  - Add statistics placeholders
+
+=================================================
+SESSION 46 COMPLETE
+=================================================
+
+Status: ✅ SUCCESS
+Changes: 1 file created (PlaceholderAPIIntegration.java), 2 files modified
+New Features: PlaceholderAPI integration with 5 placeholders
+Tests Ready: 8 tests
+JAR: output/IslandSelector-1.0.0-SNAPSHOT.jar (192K, +4K from Session 45)
+
+**Result:** Complete PlaceholderAPI integration adds powerful data display options
+**Significance:** Players can now show island info in chat, scoreboards, menus, etc.
+**Next:** Human tester verifies 90 tests total (Sessions 38-46)

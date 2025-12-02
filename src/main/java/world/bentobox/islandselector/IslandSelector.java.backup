@@ -6,7 +6,6 @@ import world.bentobox.bentobox.api.addons.GameModeAddon;
 import world.bentobox.bentobox.api.configuration.Config;
 import world.bentobox.bentobox.api.configuration.WorldSettings;
 import world.bentobox.islandselector.commands.IslandSelectorCommand;
-import world.bentobox.islandselector.integrations.PlaceholderAPIIntegration;
 import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.listeners.SearchListener;
 import world.bentobox.islandselector.managers.BackupManager;
@@ -34,7 +33,6 @@ public class IslandSelector extends Addon {
     private RelocationManager relocationManager;
     private IslandCreateListener islandCreateListener;
     private SearchListener searchListener;
-    private PlaceholderAPIIntegration placeholderAPI;
     private int islandSpacing = -1; // Cached from BSkyBlock
 
     @Override
@@ -78,9 +76,6 @@ public class IslandSelector extends Addon {
 
         // Register listeners
         registerListeners();
-
-        // Register PlaceholderAPI integration
-        registerPlaceholderAPI();
 
         log("IslandSelector enabled successfully!");
         log("Version: " + getDescription().getVersion());
@@ -214,24 +209,6 @@ public class IslandSelector extends Addon {
             log(pluginName + " found - integration enabled");
         } else {
             log(pluginName + " not found - " + disabledMessage);
-        }
-    }
-
-    /**
-     * Register PlaceholderAPI expansion if available
-     */
-    private void registerPlaceholderAPI() {
-        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
-            try {
-                placeholderAPI = new PlaceholderAPIIntegration(this);
-                if (placeholderAPI.register()) {
-                    log("PlaceholderAPI integration registered successfully!");
-                } else {
-                    logWarning("Failed to register PlaceholderAPI expansion");
-                }
-            } catch (Exception e) {
-                logError("Error registering PlaceholderAPI: " + e.getMessage());
-            }
         }
     }
 
