@@ -194,6 +194,13 @@ commands:
       version:
         description: "&7Show plugin version and dependencies"
 
+      expand:
+        description: "&7Expand the grid boundaries"
+        parameters: "&f<direction> <amount>"
+        success: "&aExpanded grid [direction] by [amount] - New size: [width]x[height]"
+        invalid-direction: "&cInvalid direction: [direction]. Use: north, south, east, or west"
+        invalid-amount: "&cInvalid amount: [amount]. Must be a positive number."
+
   # Help and other general commands
     format: "&e{command} &7- {description}"
 

@@ -221,6 +221,16 @@ public class IslandSelector extends Addon {
     }
 
     /**
+     * Save the current settings to config.yml
+     */
+    public void saveSettings() {
+        if (settings != null) {
+            new Config<>(this, Settings.class).saveConfigObject(settings);
+            log("Settings saved to config.yml");
+        }
+    }
+
+    /**
      * Get the grid manager
      */
     public GridManager getGridManager() {

@@ -1,15 +1,15 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 22 (Latest - Admin Reserve Validation)
+- **Build Date:** Session 23 (Latest - Grid Expansion Commands)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
 - **JAR Size:** 132K
-- **Status:** ✅ 38 tests ready for manual verification (Tests #28-77)
+- **Status:** ✅ 41 tests ready for manual verification (Tests #28-80)
 
 ## Latest Session
-📋 **See [TESTING_SESSION22.md](TESTING_SESSION22.md) for Session 22 testing guide**
+📋 **See [TESTING_SESSION23.md](TESTING_SESSION23.md) for Session 23 testing guide**
 
-Session 22 implemented Test #77: Enhanced validation for admin reserve command (cannot reserve occupied locations).
+Session 23 implemented Tests #78-80: Admin grid expansion commands (expand grid in all directions, persists to config).
 
 **Quick Test:**
 ```
