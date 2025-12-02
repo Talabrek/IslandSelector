@@ -24,7 +24,6 @@ import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.models.GridLocation;
 import world.bentobox.islandselector.utils.GridCoordinate;
-import world.bentobox.islandselector.gui.SlotSelectionGUI;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,9 +35,9 @@ import java.util.List;
 public class NeighborhoodGUI implements InventoryHolder, Listener {
 
     private static final int SIZE = 27;
-    private static final int BACK_SLOT = 18;
-    private static final int SLOTS_SLOT = 20;
-    private static final int CLOSE_SLOT = 26;
+    private static final int BACK_SLOT = 20;
+    private static final int SLOTS_SLOT = 22;
+    private static final int CLOSE_SLOT = 24;
 
     // 3x3 neighborhood positions (center of GUI)
     // Layout:  [NW][N][NE]
@@ -118,13 +117,9 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
         populateNeighborSlot(22, playerIsland.offset(0, 1), "S");
         populateNeighborSlot(23, playerIsland.offset(1, 1), "SE");
 
-        // Control buttons (bottom row)
-        // Row 3: [SW=21][S=22][SE=23][empty][empty][empty][Back=18][empty][empty]
-        // Adjust: [empty][empty][empty][empty][empty][Back=18][empty][empty][Slots=22][empty][empty][empty][Close=26]
-        // Simpler: Bottom row control buttons
-        inventory.setItem(BACK_SLOT, createButton(Material.FILLED_MAP, "&eBack to Grid", "&7Return to main grid view"));
-        inventory.setItem(SLOTS_SLOT, createButton(Material.CHEST, "&eSlot Selection", "&7Manage your island slots"));
-        inventory.setItem(CLOSE_SLOT, createButton(Material.BARRIER, "&cClose", "&7Close this menu"));
+        // Control buttons (adjusted positions)
+        inventory.setItem(0, createButton(Material.FILLED_MAP, "&eBack to Grid", "&7Return to grid view"));
+        inventory.setItem(8, createButton(Material.BARRIER, "&cClose", "&7Close this menu"));
 
         // Fill empty slots
         fillEmptySlots();
@@ -305,19 +300,13 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
         int slot = event.getRawSlot();
         Player clicker = (Player) event.getWhoClicked();
 
-        if (slot == BACK_SLOT) { // Back to grid
+        if (slot == 0) { // Back to grid
             clicker.closeInventory();
             new MainGridGUI(addon, clicker).open();
             return;
         }
 
-        if (slot == SLOTS_SLOT) { // Slot Selection
-            clicker.closeInventory();
-            new SlotSelectionGUI(addon, clicker).open();
-            return;
-        }
-
-        if (slot == CLOSE_SLOT) { // Close
+        if (slot == 8) { // Close
             clicker.closeInventory();
             return;
         }

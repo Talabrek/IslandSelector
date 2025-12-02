@@ -1,14 +1,31 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 43 (Latest - Player Information Commands)
+- **Build Date:** Session 44 (Latest - Neighborhood GUI Enhancements)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 186K
-- **Status:** ✅ 44 tests verified, 67 tests pending manual verification
+- **JAR Size:** 188K
+- **Status:** ✅ 44 tests verified, 78 tests pending manual verification
 
-## Latest Sessions (38-43)
+## Latest Sessions (38-44)
 
-### Session 43: Player Information Commands ⭐ NEW
+### Session 44: Neighborhood GUI Enhancements ⭐ NEW
+📋 **See [SESSION44_FOR_HUMAN_TESTER.md](SESSION44_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 11 neighborhood GUI tests (137-147)
+- Complete 3x3 neighborhood layout with proper button positioning
+- Slots button added (opens Slot Selection GUI)
+- Back button repositioned (returns to main grid)
+- Close button repositioned
+- Online/offline neighbor displays
+- Empty location displays
+- Grid edge handling
+- Neighbor warp functionality (right-click)
+
+**Testing Time:** 15-20 minutes
+**Players Required:** 2-3 accounts (for neighbor testing)
+**Special Requirements:** None
+
+### Session 43: Player Information Commands
 📋 **See [SESSION43_FOR_HUMAN_TESTER.md](SESSION43_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 8 player command tests
@@ -96,10 +113,10 @@
 **Testing Time:** 15-20 minutes
 **Players Required:** 3-4 fresh accounts (can only claim once per account)
 
-### Combined Sessions 38-43
-**Total Tests Pending:** 67 tests (7 + 4 + 18 + 26 + 4 + 8)
-**Combined Testing Time:** 105-145 minutes (comprehensive)
-**If All Pass:** Progress jumps from 44/225 to 111/225 tests (49% complete - almost halfway!)
+### Combined Sessions 38-44
+**Total Tests Pending:** 78 tests (7 + 4 + 18 + 26 + 4 + 8 + 11)
+**Combined Testing Time:** 120-165 minutes (comprehensive)
+**If All Pass:** Progress jumps from 44/225 to 122/225 tests (54% complete - over halfway!)
 
 ---
 
@@ -171,9 +188,10 @@ Admin commands:
 | Tests 56-73 | ⏳ PENDING | Slot selection (Session 40) |
 | Tests 74-99 | ⏳ PENDING | Island relocation (Session 41) |
 | Tests 133-136 | ⏳ PENDING | Neighbor warp (Session 42) |
-| Tests 100-132, 137+ | ❌ FAIL | Not yet tested |
+| Tests 137-147 | ⏳ PENDING | Neighborhood GUI (Session 44) ⭐ NEW |
+| Tests 100-132, 148+ | ❌ FAIL | Not yet tested |
 
-**Current Status:** 44/225 tests verified, 59 tests pending manual verification
+**Current Status:** 44/225 tests verified, 78 tests pending manual verification
 
 ---
 
