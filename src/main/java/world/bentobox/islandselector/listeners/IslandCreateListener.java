@@ -14,6 +14,7 @@ import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.gui.IslandClaimGUI;
 import world.bentobox.islandselector.managers.GridManager;
+import world.bentobox.islandselector.managers.SlotManager;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 import java.util.HashMap;
@@ -28,6 +29,7 @@ public class IslandCreateListener implements Listener {
 
     private final IslandSelector addon;
     private final GridManager gridManager;
+    private final SlotManager slotManager;
 
     // Track pending island claims (player UUID -> grid coordinate)
     private final Map<UUID, GridCoordinate> pendingClaims = new HashMap<>();
@@ -38,6 +40,7 @@ public class IslandCreateListener implements Listener {
     public IslandCreateListener(IslandSelector addon) {
         this.addon = addon;
         this.gridManager = addon.getGridManager();
+        this.slotManager = addon.getSlotManager();
     }
 
     /**
@@ -126,7 +129,11 @@ public class IslandCreateListener implements Listener {
 
             gridManager.occupyLocation(coord, playerUUID, ownerName, islandUUID);
 
+            // Initialize slot data for this player (slot 1 as active)
+            slotManager.initializePlayerSlots(playerUUID, islandUUID, coord.toString());
+
             addon.log("Registered island at grid " + coord + " for " + ownerName);
+            addon.log("Initialized slot 1 for player " + ownerName);
 
             if (player != null) {
                 player.sendMessage("§a§lIsland Created!");

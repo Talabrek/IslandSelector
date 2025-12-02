@@ -18,6 +18,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.Settings;
+import world.bentobox.islandselector.database.SlotData;
+import world.bentobox.islandselector.managers.SlotManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,7 +67,7 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
 
         // Get player's available slot count
         int maxSlots = getPlayerMaxSlots();
-        int activeSlot = 1; // TODO: Get from player data
+        SlotManager slotManager = addon.getSlotManager();
 
         // Populate slot displays
         for (int i = 0; i < 5; i++) {
@@ -73,14 +75,17 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
             int position = SLOT_POSITIONS[i];
 
             if (slotNumber <= maxSlots) {
-                if (slotNumber == activeSlot) {
+                // Get slot data from manager
+                SlotData slotData = slotManager.getSlot(player.getUniqueId(), slotNumber);
+
+                if (slotData != null && slotData.isActive()) {
                     // Active slot
-                    inventory.setItem(position, createActiveSlotItem(slotNumber));
-                } else if (slotNumber <= 2) {
-                    // Inactive slot with island (for demo, assume slots 1-2 have islands)
-                    inventory.setItem(position, createInactiveSlotItem(slotNumber));
+                    inventory.setItem(position, createActiveSlotItem(slotData));
+                } else if (slotData != null && slotData.hasIsland()) {
+                    // Inactive slot with island
+                    inventory.setItem(position, createInactiveSlotItem(slotData));
                 } else {
-                    // Empty slot
+                    // Empty slot (unlocked but no island)
                     inventory.setItem(position, createEmptySlotItem(slotNumber));
                 }
             } else {
@@ -106,10 +111,16 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         return settings.getDefaultSlots();
     }
 
-    private ItemStack createActiveSlotItem(int slotNumber) {
-        ItemStack item = new ItemStack(Material.GRASS_BLOCK);
+    private ItemStack createActiveSlotItem(SlotData slotData) {
+        // Use custom icon if set
+        Material iconMaterial = Material.matchMaterial(slotData.getIconMaterial());
+        if (iconMaterial == null) {
+            iconMaterial = Material.GRASS_BLOCK;
+        }
+
+        ItemStack item = new ItemStack(iconMaterial);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(colorize("&a&lIsland " + slotNumber));
+        meta.setDisplayName(colorize("&a&l" + slotData.getSlotName()));
 
         // Add glow
         Enchantment glow = org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft("unbreaking"));
@@ -119,8 +130,8 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 
         List<String> lore = new ArrayList<>();
-        lore.add(colorize("&7Level: &f0"));
-        lore.add(colorize("&7Members: &f1"));
+        lore.add(colorize("&7Level: &f0")); // TODO: Get from Level addon
+        lore.add(colorize("&7Members: &f1")); // TODO: Get from island data
         lore.add("");
         lore.add(colorize("&e★ ACTIVE"));
 
@@ -129,14 +140,20 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         return item;
     }
 
-    private ItemStack createInactiveSlotItem(int slotNumber) {
-        ItemStack item = new ItemStack(Material.GRASS_BLOCK);
+    private ItemStack createInactiveSlotItem(SlotData slotData) {
+        // Use custom icon if set
+        Material iconMaterial = Material.matchMaterial(slotData.getIconMaterial());
+        if (iconMaterial == null) {
+            iconMaterial = Material.GRASS_BLOCK;
+        }
+
+        ItemStack item = new ItemStack(iconMaterial);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(colorize("&fIsland " + slotNumber));
+        meta.setDisplayName(colorize("&f" + slotData.getSlotName()));
 
         List<String> lore = new ArrayList<>();
-        lore.add(colorize("&7Level: &f0"));
-        lore.add(colorize("&7Members: &f1"));
+        lore.add(colorize("&7Level: &f0")); // TODO: Get from Level addon
+        lore.add(colorize("&7Members: &f1")); // TODO: Get from island data
         lore.add("");
         lore.add(colorize("&eClick to switch to this slot"));
 
@@ -209,6 +226,7 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
 
     private void handleSlotClick(Player clicker, int slotNumber) {
         int maxSlots = getPlayerMaxSlots();
+        SlotManager slotManager = addon.getSlotManager();
 
         // Check if slot is locked
         if (slotNumber > maxSlots) {
@@ -217,9 +235,35 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
             return;
         }
 
-        // TODO: Implement slot switching and creation logic
-        // For now, just show a message
-        clicker.sendMessage(colorize("&7Slot switching and creation coming soon..."));
+        // Get slot data
+        SlotData targetSlot = slotManager.getSlot(clicker.getUniqueId(), slotNumber);
+        SlotData activeSlot = slotManager.getActiveSlot(clicker.getUniqueId());
+
+        // Check if clicking active slot
+        if (targetSlot != null && targetSlot.isActive()) {
+            clicker.sendMessage(colorize("&7This is already your active slot."));
+            return;
+        }
+
+        // Check if slot has an island (inactive slot - switch)
+        if (targetSlot != null && targetSlot.hasIsland()) {
+            // Open switch confirmation GUI
+            clicker.closeInventory();
+            new SlotSwitchConfirmationGUI(addon, clicker, activeSlot, targetSlot).open();
+            return;
+        }
+
+        // Empty slot - trigger island creation
+        if (activeSlot == null || !activeSlot.hasIsland()) {
+            // Player doesn't have any islands yet - can't create in empty slot
+            clicker.sendMessage(colorize("&cYou must create your first island before using additional slots."));
+            return;
+        }
+
+        // Start island creation flow for this slot
+        clicker.closeInventory();
+        clicker.sendMessage(colorize("&eIsland creation in empty slots coming soon..."));
+        // TODO: Trigger BSkyBlock island creation and associate with this slot
     }
 
     @EventHandler
