@@ -284,8 +284,26 @@ commands:
     format: "&e{command} &7- {description}"
 
   locate:
-    success: "&aYour island is located at &e{coords} &a(world coordinates: {x}, {z})"
+    description: "&7Show your island's grid coordinates"
+    header: "&a&l=== Your Island Location ==="
+    grid-location: "&7Grid Location: &e{coords}"
+    world-coords: "&7World Coordinates: &f{x}, {z}"
     no-island: "&cYou don't have an island yet!"
+    error: "&cError determining island location. Please contact an administrator."
+
+  find:
+    description: "&7Find a player's island on the grid"
+    parameters: "&f<player>"
+    success: "&aOpening grid centered on {player}'s island at {coords}"
+    player-not-found: "&cPlayer '{player}' not found."
+    no-island: "&cPlayer '{player}' doesn't have an island."
+    error: "&cError finding island location. Please contact an administrator."
+
+  help:
+    description: "&7Show list of available commands"
+    header: "&a&l=== IslandSelector Commands ==="
+    format: "&e{command} &7- {description}"
+    footer: "&7Use &e/islandselector <command>&7 to execute a command"
 
   search:
     enter-name: "&eEnter player name to search:"

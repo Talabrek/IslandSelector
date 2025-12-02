@@ -28,6 +28,9 @@ public class IslandSelectorCommand extends CompositeCommand {
         new SetNameCommand(this);
         new SetIconCommand(this);
         new DeleteCommand(this);
+        new LocateCommand(this);
+        new FindCommand(this);
+        new HelpCommand(this);
         new AdminCommand(this);
     }
 

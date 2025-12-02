@@ -52,6 +52,18 @@ permissions:
     description: Can warp to other islands from grid GUI
     default: true
 
+  islandselector.locate:
+    description: Can use /islandselector locate to see island coordinates
+    default: true
+
+  islandselector.find:
+    description: Can use /islandselector find to locate player islands
+    default: true
+
+  islandselector.help:
+    description: Can use /islandselector help to see command list
+    default: true
+
   # Bypass permissions
   islandselector.bypass.cooldown.switch:
     description: Bypass slot switching cooldown

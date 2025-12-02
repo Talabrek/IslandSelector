@@ -1,14 +1,29 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 42 (Latest - Neighbor Warp Implementation)
+- **Build Date:** Session 43 (Latest - Player Information Commands)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 181K
-- **Status:** ✅ 44 tests verified, 59 tests pending manual verification
+- **JAR Size:** 186K
+- **Status:** ✅ 44 tests verified, 67 tests pending manual verification
 
-## Latest Sessions (38-42)
+## Latest Sessions (38-43)
 
-### Session 42: Neighbor Warp/Visit System ⭐ NEW
+### Session 43: Player Information Commands ⭐ NEW
+📋 **See [SESSION43_FOR_HUMAN_TESTER.md](SESSION43_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 8 player command tests
+- `/islandselector locate` - Shows own island coordinates in chat
+- `/islandselector find <player>` - Opens grid to find player island
+- `/islandselector help` - Shows command list with descriptions
+- Tab completion for find command
+- Permission-based command filtering
+- Error handling for invalid inputs
+
+**Testing Time:** 10-15 minutes
+**Players Required:** 2 accounts
+**Special Requirements:** None
+
+### Session 42: Neighbor Warp/Visit System
 📋 **See [SESSION42_FOR_HUMAN_TESTER.md](SESSION42_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 4 neighbor warp tests
@@ -81,10 +96,10 @@
 **Testing Time:** 15-20 minutes
 **Players Required:** 3-4 fresh accounts (can only claim once per account)
 
-### Combined Sessions 38-42
-**Total Tests Pending:** 59 tests (7 + 4 + 18 + 26 + 4)
-**Combined Testing Time:** 95-130 minutes (comprehensive)
-**If All Pass:** Progress jumps from 44/225 to 103/225 tests (46% complete!)
+### Combined Sessions 38-43
+**Total Tests Pending:** 67 tests (7 + 4 + 18 + 26 + 4 + 8)
+**Combined Testing Time:** 105-145 minutes (comprehensive)
+**If All Pass:** Progress jumps from 44/225 to 111/225 tests (49% complete - almost halfway!)
 
 ---
 
