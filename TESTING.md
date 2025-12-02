@@ -1,14 +1,44 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 47 (Latest - Custom Event API)
+- **Build Date:** Session 49 (Latest - Admin Force Relocate)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 200K
-- **Status:** ✅ 44 tests verified, 98 tests pending manual verification
+- **JAR Size:** 212K
+- **Status:** ✅ 44 tests verified, 108+ tests pending manual verification
 
-## Latest Sessions (38-47)
+## Latest Sessions (38-49)
 
-### Session 47: Custom Event API ⭐ NEW
+### Session 49: Admin Force Relocate Command ⭐ NEW
+📋 **See [SESSION49_FOR_HUMAN_TESTER.md](SESSION49_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 1 admin command test
+- `/islandselector admin relocate <player> <coordinate>` - Force relocate player's island
+- Bypasses confirmation GUI, costs, and cooldowns
+- Admin can relocate players to any available location
+- Safety checks prevent invalid relocations
+- Tab completion for player names and coordinates
+
+**Testing Time:** 10-15 minutes
+**Players Required:** 2 accounts (1 admin, 1 test player)
+**Special Requirements:** Admin permissions
+**Complexity:** Moderate
+
+### Session 48: Admin Purge Commands
+📋 **See [SESSION48_FOR_HUMAN_TESTER.md](SESSION48_FOR_HUMAN_TESTER.md) for quick test guide**
+
+**Features Ready:** 10 admin purge tests
+- `/islandselector admin purge <player>` - Purge specific player
+- `/islandselector admin purge inactive <days>` - Purge inactive players
+- `/islandselector admin purge banned` - Purge banned players
+- Dry-run mode with `--dry-run` flag
+- Two-step confirmation for safety
+- Audit logging
+
+**Testing Time:** 20-30 minutes
+**Players Required:** 2-3 accounts
+**Complexity:** Advanced
+
+### Session 47: Custom Event API
 📋 **See [SESSION47_FOR_HUMAN_TESTER.md](SESSION47_FOR_HUMAN_TESTER.md) for quick test guide**
 
 **Features Ready:** 8 custom event API tests
