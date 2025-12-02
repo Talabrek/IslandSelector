@@ -2297,3 +2297,230 @@ IMPORTANT: This feature requires FastAsyncWorldEdit (FAWE) to be installed
 on the test server. Without FAWE, the slot switching will fail.
 
 =================================================
+=================================================
+SESSION 16 - FEATURE IMPLEMENTATION (2025-12-02)
+=================================================
+
+Session Date: Session 16
+Agent Role: Feature Implementation - Visitor Teleportation
+Priority: PRIORITY 2 from Session 15 notes
+
+=================================================
+COMPLETED TASKS - SESSION 16
+=================================================
+
+✅ 1. VISITOR DETECTION DURING SLOT SWITCH
+   - Implementation: Added `teleportVisitorsAway()` method to SlotSwitchManager
+   - Logic: Iterates through all online players, filters out owner and team members
+   - Detection: Uses `island.onIsland(location)` to check if player is visiting
+   - File: SlotSwitchManager.java
+
+✅ 2. VISITOR TELEPORTATION WITH DELAY
+   - Implementation: Added `handleVisitorTeleport()` method
+   - Warning: Sends configurable warning message to visitor
+   - Delay: Configurable delay before teleportation (default: 40 ticks / 2 seconds)
+   - Messages: Clear notification to visitor about what's happening
+   - File: SlotSwitchManager.java
+
+✅ 3. SMART DESTINATION SELECTION
+   - Implementation: Added `getVisitorTeleportDestination()` method
+   - Priority 1: Visitor's own island (if they have one)
+   - Priority 2: World spawn (if visitor has no island)
+   - Safety: Validates spawn points before teleporting
+   - File: SlotSwitchManager.java
+
+✅ 4. CONFIGURATION INTEGRATION
+   - Settings: Uses existing config settings (visitors.teleport-delay, visitors.warning-message)
+   - Reloadable: Works with `/islandselector admin reload` command
+   - Customizable: Server admins can adjust delay and messages
+   - File: Settings.java (already had the fields, just used them)
+
+✅ 5. TEAM MEMBER PROTECTION
+   - Safety: Team members are explicitly filtered out
+   - Behavior: Only non-team members are treated as visitors
+   - Preservation: Team members teleport WITH the island (existing behavior)
+   - No changes needed: Existing logic already correct
+
+✅ 6. BUILD AND DOCUMENTATION
+   - Build: SUCCESS - 120K JAR (was 118K)
+   - Documentation: Created TESTING_SESSION16.md with 7 detailed test cases
+   - Updated: Appended Session 16 info to TESTING.md
+   - Status: Ready for manual testing
+
+=================================================
+TESTS IMPLEMENTED - SESSION 16
+=================================================
+
+Test #71: Slot switch teleports visitors away from island
+  ✓ Detects visitors (non-team members) on island
+  ✓ Sends warning message
+  ✓ Teleports after configurable delay
+  ✓ Sends confirmation message
+  Status: IMPLEMENTED, awaiting human tester verification
+
+Test #72: Visitors are teleported to their own island if they have one
+  ✓ Checks if visitor has own island
+  ✓ Teleports to visitor's island spawn point
+  Status: IMPLEMENTED, awaiting human tester verification
+
+Test #73: Visitors without island are teleported to spawn
+  ✓ Handles visitors with no island
+  ✓ Teleports to world spawn as fallback
+  Status: IMPLEMENTED, awaiting human tester verification
+
+Test #74: Visitor teleportation includes configured delay
+  ✓ Reads delay from config (visitors.teleport-delay)
+  ✓ Uses Bukkit scheduler for delayed task
+  ✓ Default: 40 ticks (2 seconds)
+  Status: IMPLEMENTED, awaiting human tester verification
+
+=================================================
+TECHNICAL DETAILS
+=================================================
+
+**Code Changes:**
+- File Modified: SlotSwitchManager.java
+- Lines Changed: ~80 lines added
+- New Methods: 3 (teleportVisitorsAway, handleVisitorTeleport, getVisitorTeleportDestination)
+- Dependencies: Uses existing Bukkit scheduler, BentoBox Island API
+
+**Method Summary:**
+
+1. `teleportVisitorsAway(Island island, Player owner)`
+   - Iterates all online players
+   - Filters out owner and team members
+   - Checks if player is on island
+   - Calls handleVisitorTeleport for each visitor
+
+2. `handleVisitorTeleport(Player visitor, Island island)`
+   - Gets config settings (delay, warning message)
+   - Sends warning message to visitor
+   - Schedules delayed teleportation task
+   - Determines destination and teleports visitor
+   - Sends confirmation message
+
+3. `getVisitorTeleportDestination(Player visitor)`
+   - Tries to get visitor's own island
+   - Returns island spawn point if found
+   - Falls back to world spawn if no island
+   - Returns Location object
+
+**Integration Points:**
+- Called from `teleportPlayersToSlot()` after team members are teleported
+- Uses existing config settings (visitors.*)
+- Integrates with BentoBox Islands API
+- Uses Bukkit scheduler for async-safe operations
+
+**Configuration:**
+```yaml
+visitors:
+  teleport-delay: 40  # ticks (20 = 1 second)
+  warning-message: "&eThe island owner is switching islands. You will be teleported in 2 seconds..."
+```
+
+=================================================
+KNOWN ISSUES
+=================================================
+
+None identified during implementation. Awaiting human tester feedback on:
+- Edge cases (visitor logs out during delay, etc.)
+- Performance with many visitors
+- Teleportation destination validity
+- Message formatting and clarity
+
+=================================================
+BUILD STATUS
+=================================================
+
+Build: ✅ SUCCESS
+JAR Location: output/IslandSelector-1.0.0-SNAPSHOT.jar
+Size: 120K (+2K from Session 15)
+Compilation: 26 source files, 0 errors
+New Files: 0
+Modified Files: 1 (SlotSwitchManager.java)
+Dependencies: All detected correctly
+Warnings: Deprecation warnings (expected, using older Bukkit API)
+
+=================================================
+NEXT STEPS FOR FUTURE AGENTS
+=================================================
+
+PRIORITY 1 - Manual Testing (IMMEDIATE):
+  ⚠️ **CRITICAL:** Test visitor teleportation (Tests #71-72)
+  □ Verify visitors are detected correctly
+  □ Verify warning message is shown
+  □ Verify teleportation works (to island and to spawn)
+  □ Verify delay is respected
+  □ Verify team members are NOT teleported away
+  □ Test configuration options (delay, message)
+  □ Regression test: Slot switching still works (Tests #64-70)
+
+PRIORITY 2 - Island Creation in Empty Slots (Test #62 Completion):
+  □ Trigger BSkyBlock island creation for empty slot
+  □ Ensure new island uses same grid coordinate
+  □ Save existing slot before creating new one
+  □ Handle blueprint selection
+  □ Update database appropriately
+
+PRIORITY 3 - Search Functionality (Tests #28-31):
+  □ Add search button to grid GUI (compass item)
+  □ Implement player search (find by name)
+  □ Support partial name matching
+  □ Center viewport on found player's island
+  □ Show error for player not found
+
+PRIORITY 4 - Slot Management Commands:
+  □ /islandselector setname <slot> <name>
+  □ /islandselector seticon <slot> (held item)
+  □ /islandselector switch <slot> (command-based switching)
+  □ /islandselector delete <slot> (with confirmation)
+
+PRIORITY 5 - Backup System:
+  □ Implement automatic backup before switch
+  □ Respect max-per-slot config setting
+  □ Prune old backups automatically
+  □ Provide restore command for admins
+
+=================================================
+KEY LEARNINGS - SESSION 16
+=================================================
+
+1. **Island Visitor Detection** - BentoBox's `island.onIsland(location)` method is reliable for detecting players on an island, regardless of team membership.
+
+2. **Team vs Visitor Logic** - Always check `island.getMemberSet().contains(uuid)` to differentiate team members from visitors.
+
+3. **Delayed Teleportation** - Use Bukkit scheduler's `runTaskLater()` for delayed operations. This gives players time to read messages and prevents jarring instant teleports.
+
+4. **Graceful Fallbacks** - Always have a fallback destination (world spawn) when teleporting players, in case their island doesn't exist or spawn point is invalid.
+
+5. **Message Timing** - Show warning message immediately, then teleport after delay. Players need time to understand what's happening.
+
+6. **Configuration Flexibility** - Allow server admins to customize delays and messages. Different servers have different preferences (roleplay servers might want longer delays, fast-paced servers might want instant).
+
+7. **Visitor Safety** - Always teleport visitors AWAY from the island during slot switch. If visitors remain, they'll be standing in mid-air (or void) when the island is swapped.
+
+=================================================
+SESSION 16 COMPLETE
+=================================================
+
+Work completed: Implemented visitor detection and teleportation during slot switch
+Type: Autonomous agent session (feature implementation)
+Build status: ✅ SUCCESS
+Testing status: ⏳ READY FOR MANUAL TESTING
+
+Next: Human tester MUST verify:
+  1. ⚠️ CRITICAL: Visitor teleportation works correctly (Tests #71-72)
+  2. Warning messages are shown
+  3. Teleportation destinations are correct
+  4. Team members are not affected
+  5. Configuration options work
+  6. Regression testing of slot switching (Tests #64-70)
+
+Tests Implemented: #71-72 (and related #73-74)
+Tests Passing: Still 44 (awaiting human tester verification)
+Tests Pending Manual Testing: Tests #64-72 (slot switching + visitor handling)
+Tests Remaining: 174
+
+Progress: 44 passing + 9 pending testing = 53/225 tests (23.5% complete)
+
+=================================================
