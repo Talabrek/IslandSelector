@@ -151,6 +151,15 @@ commands:
       name-too-long: "&cSlot name is too long! Maximum 32 characters."
       name-empty: "&cSlot name cannot be empty!"
 
+    seticon:
+      description: "&7Set a custom icon for an island slot"
+      parameters: "&f<slot>"
+      success: "&aSet icon for slot [slot] to [icon]"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-not-found: "&cYou don't have an island in slot [slot] yet!"
+      no-item: "&cYou must be holding an item to set as the icon!"
+
     admin:
       description: "&7Admin commands for IslandSelector"
 
