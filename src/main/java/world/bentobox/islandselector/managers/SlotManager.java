@@ -241,6 +241,18 @@ public class SlotManager {
     }
 
     /**
+     * Reset switch cooldown for a player (admin command)
+     */
+    public void resetSwitchCooldown(UUID playerUUID) {
+        SlotData activeSlot = getActiveSlot(playerUUID);
+        if (activeSlot != null) {
+            // Set last switch time to 0, which makes cooldown expired
+            activeSlot.setLastSwitchTime(0);
+            saveSlot(activeSlot);
+        }
+    }
+
+    /**
      * Reload all slots from database
      */
     public void reload() {

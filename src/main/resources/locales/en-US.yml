@@ -222,6 +222,15 @@ commands:
         islands-in-area: "&cCannot shrink: [count] island(s) exist in the area that would be removed!"
         too-small: "&cCannot shrink: The grid would become too small or inverted!"
 
+      resetcooldown:
+        description: "&7Reset slot switch or relocation cooldown for a player"
+        parameters: "&f<player> <switch|relocate|all>"
+        success-switch: "&aReset switch cooldown for [player]"
+        success-relocate: "&aReset relocation cooldown for [player]"
+        success-all: "&aReset all cooldowns for [player]"
+        invalid-type: "&cInvalid cooldown type. Use: switch, relocate, or all"
+        player-not-found: "&cPlayer not found"
+
   # Help and other general commands
     format: "&e{command} &7- {description}"
 
