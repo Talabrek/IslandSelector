@@ -1,12 +1,21 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 26 (Latest - Admin Info Player Lookup)
+- **Build Date:** Session 28 (Latest - Slot Naming Command)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **JAR Size:** 136K
-- **Status:** ✅ 44 tests ready for manual verification (Tests #28-87)
+- **JAR Size:** 144K
+- **Status:** ✅ 45 tests ready for manual verification
 
 ## Latest Session
+📋 **See [TESTING_SESSION28.md](TESTING_SESSION28.md) for Session 28 testing guide**
+
+Session 28 implemented the `/islandselector setname` command, allowing players to set custom names for their island slots (e.g., "Main Base", "Farm Island").
+
+## Previous Sessions
+📋 **See [TESTING_SESSION27.md](TESTING_SESSION27.md) for Session 27 testing guide**
+
+Session 27 implemented admin reset cooldown command for clearing player slot switch cooldowns.
+
 📋 **See [TESTING_SESSION26.md](TESTING_SESSION26.md) for Session 26 testing guide**
 
 Session 26 enhanced the admin info command to support player lookups. Admins can now query detailed player island and slot information using `/islandselector admin info <player>`.
