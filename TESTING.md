@@ -1,12 +1,17 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 24 (Latest - Grid Shrink Commands)
+- **Build Date:** Session 25 (Latest - Search Feature Documentation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
 - **JAR Size:** 136K
-- **Status:** ✅ 43 tests ready for manual verification (Tests #28-82)
+- **Status:** ✅ 47 tests ready for manual verification (Tests #28-86)
 
 ## Latest Session
+📋 **See [TESTING_SESSION25.md](TESTING_SESSION25.md) for Session 25 testing guide**
+
+Session 25 discovered that Player Search functionality (Tests #83-86) was already fully implemented in a previous session. Created comprehensive testing documentation for manual verification.
+
+## Previous Session
 📋 **See [TESTING_SESSION24.md](TESTING_SESSION24.md) for Session 24 testing guide**
 
 Session 24 implemented Tests #81-82: Admin grid shrink commands (shrink grid with island protection validation).
