@@ -1,9 +1,93 @@
 # IslandSelector - Manual Testing Instructions
 
 ## Build Information
-- **Build Date:** Session 10 (Latest - Search Functionality)
+- **Build Date:** Session 39 (Latest - Player Search Documentation)
 - **JAR Location:** `output/IslandSelector-1.0.0-SNAPSHOT.jar`
-- **Status:** Search Feature Implemented - Ready for Testing
+- **JAR Size:** 180K
+- **Status:** ✅ 44 tests verified, 11 tests pending manual verification
+
+## Latest Sessions (38-39)
+
+### Session 39: Player Search Functionality ⭐ NEW
+📋 **See [SESSION39_FOR_HUMAN_TESTER.md](SESSION39_FOR_HUMAN_TESTER.md) for quick test guide**
+📋 **See [TESTING_SESSION39.md](TESTING_SESSION39.md) for detailed testing**
+
+**Features Ready:** 4 search-related tests
+- Search button displays (COMPASS item)
+- Search finds player by name
+- Partial name matching ("Not" finds "Notch")
+- Player not found error handling
+
+**Testing Time:** 10-15 minutes
+**Players Required:** 2-3 accounts
+
+### Session 38: Island Claiming & Premium Locations
+📋 **See [SESSION38_FOR_HUMAN_TESTER.md](SESSION38_FOR_HUMAN_TESTER.md) for quick test guide**
+📋 **See [TESTING_SESSION38.md](TESTING_SESSION38.md) for detailed testing**
+
+**Features Ready:** 7 island claiming tests
+- New player intercepts /island command (CRITICAL TEST!)
+- Click-to-select, double-click-to-confirm flow
+- Confirmation GUI with Confirm/Cancel buttons
+- Island created at selected grid coordinates
+- Premium location tooltips (gold block with price)
+- Grid coordinate mapping verification
+
+**Testing Time:** 15-20 minutes
+**Players Required:** 3-4 fresh accounts (can only claim once per account)
+
+### Combined Sessions 38 + 39
+**Total Tests Pending:** 11 tests (7 + 4)
+**Combined Testing Time:** 20-30 minutes
+**If All Pass:** Progress jumps from 44/225 to 51/225 tests
+
+## Previous Sessions
+📋 **See [TESTING_SESSION37.md](TESTING_SESSION37.md) for Session 37 testing guide**
+
+Session 37 documented existing search functionality previously implemented.
+
+📋 **See [TESTING_SESSION31.md](TESTING_SESSION31.md) for Session 31 testing guide**
+
+Session 31 implemented the Slot Settings GUI, which opens when players right-click on island slots. Provides quick access to rename, change icon, and delete features with visual buttons and command instructions.
+
+📋 **See [TESTING_SESSION30.md](TESTING_SESSION30.md) for Session 30 testing guide**
+
+Session 30 implemented the `/islandselector delete` command with confirmation GUI for safely deleting island slots.
+
+📋 **See [TESTING_SESSION29.md](TESTING_SESSION29.md) for Session 29 testing guide**
+
+Session 29 implemented the `/islandselector seticon` command, allowing players to set custom icons for their island slots using held items.
+
+📋 **See [TESTING_SESSION28.md](TESTING_SESSION28.md) for Session 28 testing guide**
+
+Session 28 implemented the `/islandselector setname` command, allowing players to set custom names for their island slots (e.g., "Main Base", "Farm Island").
+
+## Previous Sessions
+📋 **See [TESTING_SESSION27.md](TESTING_SESSION27.md) for Session 27 testing guide**
+
+Session 27 implemented admin reset cooldown command for clearing player slot switch cooldowns.
+
+📋 **See [TESTING_SESSION26.md](TESTING_SESSION26.md) for Session 26 testing guide**
+
+Session 26 enhanced the admin info command to support player lookups. Admins can now query detailed player island and slot information using `/islandselector admin info <player>`.
+
+## Previous Sessions
+📋 **See [TESTING_SESSION25.md](TESTING_SESSION25.md) for Session 25 testing guide**
+
+Session 25 discovered that Player Search functionality (Tests #83-86) was already fully implemented. Created comprehensive testing documentation for manual verification.
+
+## Previous Session
+📋 **See [TESTING_SESSION24.md](TESTING_SESSION24.md) for Session 24 testing guide**
+
+Session 24 implemented Tests #81-82: Admin grid shrink commands (shrink grid with island protection validation).
+
+**Quick Test:**
+```
+/islandselector admin version
+```
+
+## Previous Sessions
+📋 **See [TESTING_SESSION18.md](TESTING_SESSION18.md) for Tests #28-74 comprehensive guide**
 
 ## Test Results Summary
 
@@ -155,201 +239,3 @@ All previous features should still work, but need verification after these fixes
 
 #### Test #18: Scroll up works
 **Status:** PASS
-- Viewport moves north
-
-#### Test #19: Scroll down works
-**Status:** PASS
-- Viewport moves south
-
-#### Test #20: Shift-click scrolls 5
-**Status:** PASS
-- Fast scrolling works
-
-#### Test #21: Filter buttons work
-**Status:** PASS
-- All, Available, Online filters
-- Active filter has glow
-
-#### Test #22: Find My Island works
-**Status:** PASS
-- Centers on player's island
-- Confirmation message shown
-
-#### Test #23: Admin reserve persists
-**Status:** PASS
-- Command works
-- Survives restart
-
-#### Test #24: Admin setprice persists
-**Status:** PASS
-- Command works
-- Survives restart
-
-#### Test #25: Admin info shows details
-**Status:** PASS
-- Shows status, owner, coordinates
-- Locale strings display correctly
-
----
-
-### Island Claiming Tests (26-35) - ALL PASSING
-
-#### Test #26: Island creation intercepted
-**Status:** PASS
-- Run /island as new player (no island)
-- Grid selection GUI opens instead of default creation
-
-#### Test #27: Grid selection GUI displays correctly
-**Status:** PASS
-- 54-slot layout with navigation arrows
-- Available locations show as green glass
-- Occupied locations show as player heads
-
-#### Test #28: Location selection works
-**Status:** PASS
-- Click on available location
-- Selection message appears
-- Location is highlighted with glow
-
-#### Test #29: Double-click confirms selection
-**Status:** PASS
-- Click same location twice
-- Confirmation GUI opens
-
-#### Test #30: Confirmation GUI displays correctly
-**Status:** PASS
-- 27-slot layout
-- Location info shows grid and world coords
-- Confirm (green) and Cancel (red) buttons
-
-#### Test #31: Cancel button works
-**Status:** PASS
-- Click Cancel in confirmation GUI
-- "Cancelled" message shown
-- No island created
-
-#### Test #32: Blueprint selection GUI appears
-**Status:** PASS
-- After confirming location, blueprint selection opens
-- Shows available BSkyBlock blueprints
-- Displays blueprint icons and descriptions
-
-#### Test #33: Blueprint selection creates island
-**Status:** PASS
-- Select a blueprint
-- Island created at selected location with full schematic
-- Player teleported to new island
-
-#### Test #34: GUI centers on player's island
-**Status:** PASS
-- Player with island opens /islandselector
-- Viewport is centered on their island location
-
-#### Test #35: Tooltips show world coordinates
-**Status:** PASS
-- Hover over any location
-- Shows "Location: X: 1600, Z: -1600" format
-
----
-
-## Commands Available
-
-| Command | Permission | Description |
-|---------|------------|-------------|
-| `/islandselector` | `islandselector.use` | Opens the main grid GUI |
-| `/islandselector slots` | `islandselector.slots` | Opens the slot selection GUI |
-| `/islandselector admin` | `islandselector.admin` | Shows admin help |
-| `/islandselector admin reload` | `islandselector.admin.reload` | Reloads configuration |
-| `/islandselector admin reserve <coord>` | `islandselector.admin.reserve` | Reserves a location |
-| `/islandselector admin setprice <coord> <price>` | `islandselector.admin.reserve` | Sets price for location |
-| `/islandselector admin info <coord>` | `islandselector.admin.info` | Shows location info |
-
----
-
-## Island Creation Flow
-
-1. **New player runs `/island`**
-   - BSkyBlock's default creation is intercepted
-   - IslandClaimGUI opens showing available locations
-
-2. **Player selects location**
-   - Click on green (available) location
-   - Location is highlighted
-   - Click again to confirm
-
-3. **Confirmation GUI**
-   - Shows selected location with world coordinates
-   - Click Confirm to proceed or Cancel to go back
-
-4. **Blueprint Selection**
-   - Shows all available BSkyBlock blueprints
-   - Player clicks to select island type
-
-5. **Island Creation**
-   - Island data created at selected coordinates
-   - Blueprint pasted at location
-   - Player teleported to new island
-   - Grid location marked as occupied
-
----
-
-## Configuration Notes
-
-### Island Spacing
-- Automatically detected from BSkyBlock's `distance-between-islands` setting
-- Actual spacing = distance * 2 (BSkyBlock uses offset from center)
-- No longer needs to be configured manually
-
-### GUI Items (Configurable)
-```yaml
-gui:
-  items:
-    available: GREEN_STAINED_GLASS_PANE
-    offline: RED_STAINED_GLASS_PANE
-    reserved-blocked: GRAY_STAINED_GLASS_PANE
-    reserved-purchasable: GOLD_BLOCK
-    locked-area: BLACK_STAINED_GLASS_PANE
-    filler: BLACK_STAINED_GLASS_PANE
-```
-
----
-
-## Known Limitations
-
-1. **Player Heads for Offline Players** - May show Steve/default head if server hasn't cached player's skin (Minecraft limitation)
-2. **Island Relocation** - Not yet implemented, shows "coming soon" message
-3. **Slot Switching** - GUI shows slots but switching logic is pending
-4. **Visit/Warp Feature** - Not yet implemented, shows "coming soon" message
-5. **Level Display** - Level addon integration pending
-
----
-
-## Next Features to Implement
-
-### Priority 1 - Island Relocation
-- FAWE schematic save/load
-- Copy island to new location
-- Clear old location
-- Update all references
-
-### Priority 2 - Slot System
-- Connect claiming to slot system
-- Implement slot switching with FAWE
-- Handle visitors during switch
-
-### Priority 3 - Additional Features
-- Visit/warp to islands
-- Level addon integration
-- PlaceholderAPI integration
-
----
-
-## What to Report
-
-When testing, please report:
-1. Any console errors or warnings
-2. Blueprint paste issues
-3. GUI display issues
-4. Navigation problems
-5. Permission issues
-6. Island creation failures
