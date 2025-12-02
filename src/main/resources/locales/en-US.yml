@@ -141,6 +141,16 @@ commands:
     slots:
       description: "&7Manage your island slots"
 
+    setname:
+      description: "&7Set a custom name for an island slot"
+      parameters: "&f<slot> <name...>"
+      success: "&aSet name for slot [slot] to '[name]'"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-not-found: "&cYou don't have an island in slot [slot] yet!"
+      name-too-long: "&cSlot name is too long! Maximum 32 characters."
+      name-empty: "&cSlot name cannot be empty!"
+
     admin:
       description: "&7Admin commands for IslandSelector"
 

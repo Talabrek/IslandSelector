@@ -1,0 +1,101 @@
+====================================================================
+SESSION 27 - QUICK START FOR HUMAN TESTER
+====================================================================
+
+## What Was Implemented
+
+✅ **Test #93: Admin Reset Cooldown Command**
+
+New admin command to reset player slot switch cooldowns:
+```
+/islandselector admin resetcooldown <player> <switch|relocate|all>
+```
+
+## Quick Test
+
+1. **Copy the JAR:**
+   - `target/IslandSelector-1.0.0-SNAPSHOT.jar`
+   - To: `plugins/BentoBox/addons/`
+   - Restart server
+
+2. **Create a cooldown scenario:**
+   ```
+   - Join as test player
+   - Create islands in slot 1 and slot 2
+   - Switch from slot 1 to slot 2 (triggers cooldown)
+   - Try to switch back immediately (should fail with cooldown error)
+   ```
+
+3. **Test the reset command:**
+   ```
+   /islandselector admin resetcooldown TestPlayer switch
+   ```
+   Expected: Green success message
+
+4. **Verify cooldown is gone:**
+   ```
+   - As test player, switch slots again
+   - Should succeed immediately (no cooldown)
+   ```
+
+5. **Test tab completion:**
+   ```
+   /islandselector admin resetcooldown <TAB>  (shows player names)
+   /islandselector admin resetcooldown TestPlayer <TAB>  (shows: switch, relocate, all)
+   ```
+
+## What to Verify
+
+✅ Command resets cooldown successfully
+✅ Player can switch immediately after reset
+✅ Works for online players
+✅ Works for offline players
+✅ Tab completion works
+✅ Error handling (invalid type, wrong syntax)
+✅ Permission check works
+✅ No errors in console
+
+## Permission
+
+```yaml
+islandselector.admin.resetcooldown
+```
+
+Or use the parent permission:
+```yaml
+islandselector.admin
+```
+
+## Full Testing Guide
+
+See `TESTING_SESSION27.md` for comprehensive test steps.
+
+## Command Variants
+
+```bash
+# Reset switch cooldown only
+/islandselector admin resetcooldown PlayerName switch
+
+# Reset relocation cooldown (structure in place for future)
+/islandselector admin resetcooldown PlayerName relocate
+
+# Reset all cooldowns
+/islandselector admin resetcooldown PlayerName all
+```
+
+## Use Cases
+
+This command is useful for:
+- Support tickets: "I'm stuck on cooldown!"
+- Testing slot switching functionality
+- VIP perks (let donors switch without cooldown)
+- Special events where cooldowns should be waived
+
+## Notes
+
+- Currently only "switch" does something (relocation not implemented yet)
+- "relocate" and "all" options are there for future when relocation is added
+- Command works for both online and offline players
+- Safe to use - just resets a timestamp, doesn't modify island data
+
+====================================================================

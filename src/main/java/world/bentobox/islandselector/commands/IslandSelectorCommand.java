@@ -25,6 +25,7 @@ public class IslandSelectorCommand extends CompositeCommand {
 
         // Add subcommands - they use getAddon() to get addon reference
         new SlotsCommand(this);
+        new SetNameCommand(this);
         new AdminCommand(this);
     }
 
