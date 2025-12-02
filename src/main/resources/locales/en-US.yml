@@ -141,6 +141,16 @@ commands:
     slots:
       description: "&7Manage your island slots"
 
+    switch:
+      description: "&7Switch directly to a specific slot"
+      parameters: "&f<slot>"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-locked: "&cSlot [slot] is locked! You need permission to access this slot."
+      no-island: "&cYou must have an island before you can switch slots!"
+      already-active: "&7Slot [slot] is already your active slot."
+      empty-slot: "&cSlot [slot] is empty! Create an island in this slot first."
+
     setname:
       description: "&7Set a custom name for an island slot"
       parameters: "&f<slot> <name...>"
