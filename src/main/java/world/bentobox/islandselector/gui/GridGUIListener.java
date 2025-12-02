@@ -80,8 +80,9 @@ public class GridGUIListener implements Listener {
             return;
         }
         if (slot == gui.getSearchSlot()) {
-            // TODO: Implement search functionality
-            player.sendMessage("\u00A7eSearch feature coming soon!");
+            // Open search - close GUI and start search session
+            player.closeInventory();
+            gui.getAddon().getSearchListener().startSearch(player, gui);
             return;
         }
         if (slot == gui.getFindMyIslandSlot()) {

@@ -1,5 +1,6 @@
 package world.bentobox.islandselector.managers;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -500,5 +501,14 @@ public class GridManager {
         return (int) gridLocations.values().stream()
             .filter(GridLocation::isReserved)
             .count();
+    }
+
+    /**
+     * Get all tracked grid locations
+     * Used for searching and iteration
+     * @return Collection of all grid locations
+     */
+    public Collection<GridLocation> getAllLocations() {
+        return gridLocations.values();
     }
 }

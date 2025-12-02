@@ -7,6 +7,7 @@ import world.bentobox.bentobox.api.configuration.Config;
 import world.bentobox.bentobox.api.configuration.WorldSettings;
 import world.bentobox.islandselector.commands.IslandSelectorCommand;
 import world.bentobox.islandselector.listeners.IslandCreateListener;
+import world.bentobox.islandselector.listeners.SearchListener;
 import world.bentobox.islandselector.managers.GridManager;
 
 import java.util.Optional;
@@ -23,6 +24,7 @@ public class IslandSelector extends Addon {
     private Settings settings;
     private GridManager gridManager;
     private IslandCreateListener islandCreateListener;
+    private SearchListener searchListener;
     private int islandSpacing = -1; // Cached from BSkyBlock
 
     @Override
@@ -121,6 +123,10 @@ public class IslandSelector extends Addon {
         islandCreateListener = new IslandCreateListener(this);
         registerListener(islandCreateListener);
         log("Registered island creation interceptor");
+
+        // Register search listener
+        searchListener = new SearchListener(this);
+        Bukkit.getPluginManager().registerEvents(searchListener, getPlugin());
     }
 
     @Override
@@ -228,6 +234,13 @@ public class IslandSelector extends Addon {
      */
     public IslandCreateListener getIslandCreateListener() {
         return islandCreateListener;
+    }
+
+    /**
+     * Get the search listener
+     */
+    public SearchListener getSearchListener() {
+        return searchListener;
     }
 
     /**

@@ -698,6 +698,25 @@ public class MainGridGUI implements InventoryHolder {
     }
 
     /**
+     * Center the viewport on a specific grid coordinate
+     * Used by search and other features that need to navigate to a location
+     */
+    public void centerViewportOn(GridCoordinate coord) {
+        // Center the viewport on the target coordinate
+        viewportX = coord.getX() - GRID_COLS / 2;
+        viewportZ = coord.getZ() - GRID_ROWS / 2;
+
+        // Clamp to grid boundaries
+        viewportX = Math.max(settings.getGridMinX(), viewportX);
+        viewportX = Math.min(settings.getGridMaxX() - GRID_COLS + 1, viewportX);
+        viewportZ = Math.max(settings.getGridMinZ(), viewportZ);
+        viewportZ = Math.min(settings.getGridMaxZ() - GRID_ROWS + 1, viewportZ);
+
+        // Refresh the display
+        refresh();
+    }
+
+    /**
      * Get the grid coordinate for an inventory slot
      */
     public GridCoordinate getCoordinateForSlot(int slot) {
