@@ -6,14 +6,24 @@ import world.bentobox.bentobox.api.addons.GameModeAddon;
 import world.bentobox.bentobox.api.configuration.Config;
 import world.bentobox.bentobox.api.configuration.WorldSettings;
 import world.bentobox.islandselector.commands.IslandSelectorCommand;
+import world.bentobox.islandselector.integrations.NovaIntegration;
 import world.bentobox.islandselector.integrations.PlaceholderAPIIntegration;
+import world.bentobox.islandselector.integrations.WorldEditIntegration;
 import world.bentobox.islandselector.listeners.IslandCreateListener;
+import world.bentobox.islandselector.listeners.PlayerConnectionListener;
 import world.bentobox.islandselector.listeners.SearchListener;
+import world.bentobox.islandselector.managers.AutoBackupManager;
 import world.bentobox.islandselector.managers.BackupManager;
+import world.bentobox.islandselector.managers.BlueprintChallengesManager;
+import world.bentobox.islandselector.managers.ChallengesIntegration;
 import world.bentobox.islandselector.managers.GridManager;
+import world.bentobox.islandselector.managers.IslandRemovalManager;
+import world.bentobox.islandselector.managers.LevelIntegration;
 import world.bentobox.islandselector.managers.RelocationManager;
 import world.bentobox.islandselector.managers.SlotManager;
 import world.bentobox.islandselector.managers.SlotSwitchManager;
+import world.bentobox.islandselector.utils.EntityStorage;
+import world.bentobox.islandselector.utils.SchematicUtils;
 
 import java.util.Optional;
 
@@ -31,11 +41,22 @@ public class IslandSelector extends Addon {
     private SlotManager slotManager;
     private SlotSwitchManager slotSwitchManager;
     private BackupManager backupManager;
+    private AutoBackupManager autoBackupManager;
     private RelocationManager relocationManager;
+    private IslandRemovalManager islandRemovalManager;
+    private ChallengesIntegration challengesIntegration;
+    private LevelIntegration levelIntegration;
+    private BlueprintChallengesManager blueprintChallengesManager;
+    private WorldEditIntegration worldEditIntegration;
+    private NovaIntegration novaIntegration;
+    private SchematicUtils schematicUtils;
+    private EntityStorage entityStorage;
     private IslandCreateListener islandCreateListener;
     private SearchListener searchListener;
     private PlaceholderAPIIntegration placeholderAPI;
+    private world.bentobox.islandselector.utils.CustomCommandExecutor customCommandExecutor;
     private int islandSpacing = -1; // Cached from BSkyBlock
+    private GameModeAddon bskyblockAddon; // Reference to BSkyBlock addon
 
     @Override
     public void onLoad() {
@@ -66,12 +87,26 @@ public class IslandSelector extends Addon {
         // Detect island spacing from BSkyBlock
         detectIslandSpacing();
 
+        // Initialize WorldEdit/FAWE integration (before other managers that depend on it)
+        worldEditIntegration = new WorldEditIntegration(this);
+
+        // Initialize Nova integration for custom block support
+        novaIntegration = new NovaIntegration(this);
+
         // Initialize managers
         gridManager = new GridManager(this);
         slotManager = new SlotManager(this);
         slotSwitchManager = new SlotSwitchManager(this);
         backupManager = new BackupManager(this);
+        autoBackupManager = new AutoBackupManager(this);
         relocationManager = new RelocationManager(this);
+        islandRemovalManager = new IslandRemovalManager(this);
+        customCommandExecutor = new world.bentobox.islandselector.utils.CustomCommandExecutor(this);
+        challengesIntegration = new ChallengesIntegration(this);
+        levelIntegration = new LevelIntegration(this);
+        blueprintChallengesManager = new BlueprintChallengesManager(this);
+        schematicUtils = new SchematicUtils(this);
+        entityStorage = new EntityStorage(this);
 
         // Register commands
         registerCommands();
@@ -82,11 +117,23 @@ public class IslandSelector extends Addon {
         // Register PlaceholderAPI integration
         registerPlaceholderAPI();
 
+        // Start auto-backup scheduler
+        autoBackupManager.start();
+
+        // Sync slot data with existing islands (handles pre-existing islands)
+        slotManager.syncWithExistingIslands();
+
         log("IslandSelector enabled successfully!");
         log("Version: " + getDescription().getVersion());
         log("Grid Size: " + settings.getGridWidth() + "x" + settings.getGridHeight());
         log("Island Spacing: " + islandSpacing + " blocks (from BSkyBlock)");
         log("Max Slots: " + settings.getMaxSlots());
+        log("FAWE Integration: " + worldEditIntegration.getImplementationName());
+        if (!worldEditIntegration.isAvailable()) {
+            logWarning("Schematic features (slot switching, backups, relocation) are DISABLED");
+            logWarning("Install FastAsyncWorldEdit to enable these features");
+        }
+        log("Nova Integration: " + (novaIntegration.isAvailable() ? "Enabled" : "Not available"));
     }
 
     /**
@@ -99,7 +146,8 @@ public class IslandSelector extends Addon {
             .findFirst();
 
         if (bskyblock.isPresent()) {
-            WorldSettings worldSettings = bskyblock.get().getWorldSettings();
+            bskyblockAddon = bskyblock.get();
+            WorldSettings worldSettings = bskyblockAddon.getWorldSettings();
             if (worldSettings != null) {
                 islandSpacing = worldSettings.getIslandDistance();
                 log("Detected island spacing from BSkyBlock: " + islandSpacing + " blocks");
@@ -144,10 +192,20 @@ public class IslandSelector extends Addon {
         // Register search listener
         searchListener = new SearchListener(this);
         Bukkit.getPluginManager().registerEvents(searchListener, getPlugin());
+
+        // Register player connection listener for blueprint permissions
+        PlayerConnectionListener connectionListener = new PlayerConnectionListener(this);
+        Bukkit.getPluginManager().registerEvents(connectionListener, getPlugin());
+        log("Registered player connection listener for blueprint permissions");
     }
 
     @Override
     public void onDisable() {
+        // Stop auto-backup scheduler
+        if (autoBackupManager != null) {
+            autoBackupManager.stop();
+        }
+
         // Save all grid data before shutting down
         if (gridManager != null) {
             log("Saving grid data...");
@@ -181,14 +239,16 @@ public class IslandSelector extends Addon {
             return false;
         }
 
-        // Check for FastAsyncWorldEdit (this IS a Bukkit plugin)
-        if (!Bukkit.getPluginManager().isPluginEnabled("FastAsyncWorldEdit")) {
-            logError("FastAsyncWorldEdit (FAWE) is not installed or enabled!");
-            logError("IslandSelector requires FAWE for schematic operations.");
-            return false;
-        }
-
         log("All required dependencies found.");
+
+        // Check for FAWE (required for island operations)
+        if (Bukkit.getPluginManager().isPluginEnabled("FastAsyncWorldEdit")) {
+            log("FastAsyncWorldEdit found - island operations enabled");
+        } else {
+            logWarning("FastAsyncWorldEdit NOT found!");
+            logWarning("Slot switching, backups, and relocation features are DISABLED.");
+            logWarning("Install FAWE to enable these features: https://www.spigotmc.org/resources/fastasyncworldedit.13932/");
+        }
 
         // Check optional Bukkit plugin dependencies
         checkOptionalDependency("Vault", "Economy integration disabled");
@@ -281,11 +341,26 @@ public class IslandSelector extends Addon {
     }
 
     /**
+     * Get the custom command executor
+     */
+    public world.bentobox.islandselector.utils.CustomCommandExecutor getCustomCommandExecutor() {
+        return customCommandExecutor;
+    }
+
+    /**
      * Get the island spacing (distance between islands)
      * This is detected from BSkyBlock's configuration
      */
     public int getIslandSpacing() {
         return islandSpacing;
+    }
+
+    /**
+     * Get the BSkyBlock addon
+     * Used for creating islands via NewIsland.builder()
+     */
+    public GameModeAddon getBSkyBlockAddon() {
+        return bskyblockAddon;
     }
 
     /**
@@ -310,6 +385,13 @@ public class IslandSelector extends Addon {
     }
 
     /**
+     * Get the auto-backup manager
+     */
+    public AutoBackupManager getAutoBackupManager() {
+        return autoBackupManager;
+    }
+
+    /**
      * Get the relocation manager
      */
     public RelocationManager getRelocationManager() {
@@ -317,9 +399,72 @@ public class IslandSelector extends Addon {
     }
 
     /**
+     * Get the island removal manager
+     */
+    public IslandRemovalManager getIslandRemovalManager() {
+        return islandRemovalManager;
+    }
+
+    /**
+     * Get the Challenges integration manager
+     */
+    public ChallengesIntegration getChallengesIntegration() {
+        return challengesIntegration;
+    }
+
+    /**
+     * Get the Blueprint Challenges manager for permission-based challenge filtering
+     */
+    public BlueprintChallengesManager getBlueprintChallengesManager() {
+        return blueprintChallengesManager;
+    }
+
+    /**
+     * Get the Level addon integration manager
+     */
+    public LevelIntegration getLevelIntegration() {
+        return levelIntegration;
+    }
+
+    /**
      * Get the Bukkit server
      */
     public org.bukkit.Server getServer() {
         return Bukkit.getServer();
+    }
+
+    /**
+     * Get the schematic utilities for safe WorldEdit/FAWE operations
+     */
+    public SchematicUtils getSchematicUtils() {
+        return schematicUtils;
+    }
+
+    /**
+     * Get the WorldEdit/FAWE integration layer
+     */
+    public WorldEditIntegration getWorldEditIntegration() {
+        return worldEditIntegration;
+    }
+
+    /**
+     * Get the Nova integration for custom block support
+     */
+    public NovaIntegration getNovaIntegration() {
+        return novaIntegration;
+    }
+
+    /**
+     * Check if schematic operations are available (FAWE installed)
+     */
+    public boolean isSchematicOperationsAvailable() {
+        return worldEditIntegration != null && worldEditIntegration.isAvailable();
+    }
+
+    /**
+     * Get the entity storage for saving/loading entities separately from FAWE
+     */
+    public EntityStorage getEntityStorage() {
+        return entityStorage;
     }
 }

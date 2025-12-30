@@ -4,8 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.bukkit.entity.Player;
+
 import world.bentobox.bentobox.api.commands.CompositeCommand;
 import world.bentobox.bentobox.api.user.User;
+import world.bentobox.islandselector.IslandSelector;
+import world.bentobox.islandselector.gui.AdminGridGUI;
 
 /**
  * Admin command for IslandSelector
@@ -36,6 +40,8 @@ public class AdminCommand extends CompositeCommand {
         new AdminBackupCommand(this);
         new AdminRestoreCommand(this);
         new AdminRelocateCommand(this);
+        new AdminRemoveIslandCommand(this);
+        new AdminGuiRelocateCommand(this);
 
         // Purge command with confirmation subcommand
         AdminPurgeCommand purgeCommand = new AdminPurgeCommand(this);
@@ -44,6 +50,17 @@ public class AdminCommand extends CompositeCommand {
 
     @Override
     public boolean execute(User user, String label, List<String> args) {
+        // If no args, open the admin GUI
+        if (args.isEmpty()) {
+            Player player = user.getPlayer();
+            if (player != null) {
+                IslandSelector addon = (IslandSelector) getAddon();
+                new AdminGridGUI(addon, player).open();
+                return true;
+            }
+        }
+
+        // Otherwise show help
         showHelp(this, user);
         return true;
     }

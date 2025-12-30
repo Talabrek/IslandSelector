@@ -10,6 +10,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.InventoryHolder;
 
+import world.bentobox.bentobox.util.teleport.SafeSpotTeleport;
 import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
@@ -67,18 +68,6 @@ public class GridGUIListener implements Listener {
             return;
         }
         // Handle control buttons
-        if (slot == gui.getFilterAllSlot()) {
-            gui.setFilter(MainGridGUI.FilterType.ALL);
-            return;
-        }
-        if (slot == gui.getFilterAvailableSlot()) {
-            gui.setFilter(MainGridGUI.FilterType.AVAILABLE);
-            return;
-        }
-        if (slot == gui.getFilterOnlineSlot()) {
-            gui.setFilter(MainGridGUI.FilterType.ONLINE);
-            return;
-        }
         if (slot == gui.getSearchSlot()) {
             // Open search - close GUI and start search session
             player.closeInventory();
@@ -95,8 +84,11 @@ public class GridGUIListener implements Listener {
             return;
         }
         if (slot == gui.getSlotsSlot()) {
-            player.closeInventory();
-            new SlotSelectionGUI(gui.getAddon(), player).open();
+            // Only allow if FAWE is available
+            if (gui.getAddon().isSchematicOperationsAvailable()) {
+                player.closeInventory();
+                new SlotSelectionGUI(gui.getAddon(), player).open();
+            }
             return;
         }
         if (slot == gui.getCloseSlot()) {
@@ -163,7 +155,11 @@ public class GridGUIListener implements Listener {
             // Open confirmation GUI
             new ConfirmationGUI(gui.getAddon(), player, coord, createListener, ConfirmationGUI.ActionType.CLAIM).open();
         } else {
-            // Player has an island - initiate relocation
+            // Player has an island - relocation requires FAWE
+            if (!gui.getAddon().isSchematicOperationsAvailable()) {
+                // FAWE not installed - relocation not available
+                return;
+            }
             player.closeInventory();
             double relocCost = gui.getAddon().getSettings().getRelocationCost();
             new ConfirmationGUI(gui.getAddon(), player, coord, createListener,
@@ -216,17 +212,23 @@ public class GridGUIListener implements Listener {
         // Check if visiting is allowed (island has visitors enabled)
         // In BSkyBlock, the warp sign determines if island is visitable
         // We'll use the island spawn location if no warp
-        if (island.getSpawnPoint(org.bukkit.World.Environment.NORMAL) != null) {
+        org.bukkit.Location targetLoc = island.getSpawnPoint(org.bukkit.World.Environment.NORMAL);
+        if (targetLoc == null) {
+            targetLoc = island.getProtectionCenter();
+        }
+        if (targetLoc == null) {
+            targetLoc = island.getCenter();
+        }
+
+        if (targetLoc != null) {
             player.closeInventory();
             player.sendMessage("\u00A7aTeleporting to " + ownerName + "'s island...");
-            // Teleport to island spawn
-            org.bukkit.Location spawnLoc = island.getSpawnPoint(org.bukkit.World.Environment.NORMAL);
-            player.teleport(spawnLoc);
-        } else if (island.getProtectionCenter() != null) {
-            // No spawn set, use center
-            player.closeInventory();
-            player.sendMessage("\u00A7aTeleporting to " + ownerName + "'s island...");
-            player.teleport(island.getProtectionCenter());
+            // Use BentoBox SafeSpotTeleport for safe async teleportation
+            new SafeSpotTeleport.Builder(gui.getAddon().getPlugin())
+                .entity(player)
+                .location(targetLoc)
+                .ifFail(() -> player.sendMessage("\u00A7cCould not find a safe spot on the island!"))
+                .buildFuture();
         } else {
             player.sendMessage("\u00A7cCould not find a safe location on this island.");
         }
@@ -272,8 +274,15 @@ public class GridGUIListener implements Listener {
             new ConfirmationGUI(gui.getAddon(), player, coord, createListener,
                 ConfirmationGUI.ActionType.PURCHASE, price).open();
         } else {
-            // Player already has island - can't purchase another location for new island
-            player.sendMessage("\u00A7cYou already have an island. Use relocation to move.");
+            // Player has an island - premium relocation requires FAWE
+            if (!gui.getAddon().isSchematicOperationsAvailable()) {
+                // FAWE not installed - relocation not available
+                return;
+            }
+            player.closeInventory();
+            IslandCreateListener createListener = gui.getAddon().getIslandCreateListener();
+            new ConfirmationGUI(gui.getAddon(), player, coord, createListener,
+                ConfirmationGUI.ActionType.PREMIUM_RELOCATE, price).open();
         }
     }
 

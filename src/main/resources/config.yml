@@ -5,21 +5,16 @@
 # GRID SETTINGS
 # ==========================================
 grid:
-  # Starting dimensions of the grid (columns x rows)
-  # Columns: A through T (20 columns)
-  # Rows: 1 through 20
-  width: 20
-  height: 20
-
-  # Maximum dimensions the grid can be expanded to
-  max-width: 100
-  max-height: 100
-
-  # World coordinates where grid position 0,0 is centered
-  # This should typically match your BSkyBlock island starting position
-  origin:
-    x: 0
-    z: 0
+  # Grid boundaries (supports negative coordinates)
+  # The grid is centered at 0,0 by default
+  # min-x: Western boundary (negative = west)
+  # max-x: Eastern boundary (positive = east)
+  # min-z: Northern boundary (negative = north)
+  # max-z: Southern boundary (positive = south)
+  min-x: -10
+  max-x: 10
+  min-z: -10
+  max-z: 10
 
   # Note: Island spacing is automatically detected from BSkyBlock's configuration
   # (distance-between-islands setting in BSkyBlock's config.yml)
@@ -179,6 +174,48 @@ integration:
   # BSkyBlock Level addon integration
   level-addon:
     enabled: true
+
+# ==========================================
+# CUSTOM COMMANDS
+# ==========================================
+# Commands to run after relocation or slot switch completes
+# These run as the absolute last step after all other operations
+#
+# Available placeholders:
+#   {player} - Player name
+#   {uuid} - Player UUID
+#   {slot} - Current slot number (slot-switch only)
+#   {from_slot} - Previous slot number (slot-switch only)
+#   {from_coord} - Previous grid coordinate (relocation only)
+#   {to_coord} - New grid coordinate (relocation only)
+#   {world_x} - World X coordinate of island center
+#   {world_z} - World Z coordinate of island center
+#
+# Execution scope options:
+#   CONSOLE - Run from console (full permissions)
+#   PLAYER - Run as the player (player's normal permissions)
+#   PLAYER_OP - Run as the player with temporary OP permissions
+#
+custom-commands:
+  # Commands to run after island relocation
+  relocation:
+    # Enable relocation commands
+    enabled: false
+    # List of commands to run (without leading slash)
+    # Example: ["say {player} relocated their island to {to_coord}", "eco give {player} 100"]
+    commands: []
+    # Execution scope: CONSOLE, PLAYER, or PLAYER_OP
+    scope: CONSOLE
+
+  # Commands to run after slot switch
+  slot-switch:
+    # Enable slot switch commands
+    enabled: false
+    # List of commands to run (without leading slash)
+    # Example: ["say {player} switched to slot {slot}", "effect give {player} minecraft:regeneration 10 1"]
+    commands: []
+    # Execution scope: CONSOLE, PLAYER, or PLAYER_OP
+    scope: CONSOLE
 
 # ==========================================
 # DEBUG

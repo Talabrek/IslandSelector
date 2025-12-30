@@ -4,6 +4,8 @@ import com.google.gson.annotations.Expose;
 import world.bentobox.bentobox.database.objects.DataObject;
 import world.bentobox.bentobox.database.objects.Table;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -73,6 +75,21 @@ public class SlotData implements DataObject {
      */
     @Expose
     private long lastSwitchTime = 0;
+
+    /**
+     * Blueprint bundle name used when creating this slot's island.
+     * Used for blueprint-specific challenges integration.
+     */
+    @Expose
+    private String blueprintBundle;
+
+    /**
+     * Serialized island homes for this slot.
+     * Maps home name to serialized location string "world;x;y;z;yaw;pitch"
+     * Preserved when switching slots so each slot has its own homes.
+     */
+    @Expose
+    private Map<String, String> serializedHomes;
 
     /**
      * Default constructor for database serialization
@@ -201,6 +218,35 @@ public class SlotData implements DataObject {
 
     public void setLastSwitchTime(long lastSwitchTime) {
         this.lastSwitchTime = lastSwitchTime;
+    }
+
+    public String getBlueprintBundle() {
+        return blueprintBundle;
+    }
+
+    public void setBlueprintBundle(String blueprintBundle) {
+        this.blueprintBundle = blueprintBundle;
+    }
+
+    /**
+     * Get the serialized island homes for this slot
+     */
+    public Map<String, String> getSerializedHomes() {
+        return serializedHomes != null ? serializedHomes : new HashMap<>();
+    }
+
+    /**
+     * Set the serialized island homes for this slot
+     */
+    public void setSerializedHomes(Map<String, String> serializedHomes) {
+        this.serializedHomes = serializedHomes;
+    }
+
+    /**
+     * Check if this slot has saved homes
+     */
+    public boolean hasSerializedHomes() {
+        return serializedHomes != null && !serializedHomes.isEmpty();
     }
 
     /**

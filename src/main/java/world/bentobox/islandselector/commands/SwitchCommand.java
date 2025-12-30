@@ -34,6 +34,12 @@ public class SwitchCommand extends CompositeCommand {
 
     @Override
     public boolean execute(User user, String label, List<String> args) {
+        // Check if FAWE is available
+        if (!addon.isSchematicOperationsAvailable()) {
+            user.sendMessage("&cThis feature requires FastAsyncWorldEdit (FAWE) to be installed.");
+            return false;
+        }
+
         // Require exactly 1 argument: slot number
         if (args.size() != 1) {
             showHelp(this, user);

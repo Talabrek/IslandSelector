@@ -39,9 +39,10 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
     private static final int CANCEL_SLOT = 15;
 
     public enum ActionType {
-        CLAIM,      // Claiming a new island
-        PURCHASE,   // Purchasing a premium location
-        RELOCATE    // Relocating an existing island
+        CLAIM,              // Claiming a new island
+        PURCHASE,           // Purchasing a premium location (no existing island)
+        RELOCATE,           // Relocating an existing island (to normal location)
+        PREMIUM_RELOCATE    // Relocating an existing island to a premium location
     }
 
     private final IslandSelector addon;
@@ -93,6 +94,8 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 return "Confirm Purchase";
             case RELOCATE:
                 return "Confirm Relocation";
+            case PREMIUM_RELOCATE:
+                return "Confirm Premium Relocation";
             default:
                 return "Confirm Action";
         }
@@ -176,6 +179,23 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 lore.add(colorize("&7All visitors will be teleported away."));
                 break;
 
+            case PREMIUM_RELOCATE:
+                mat = Material.GOLD_BLOCK;
+                name = "&6&lPremium Relocation";
+                lore.add("");
+                lore.add(colorize("&7New Location: &f" + coord.toString()));
+                lore.add(colorize("&7World Coordinates:"));
+                lore.add(colorize("&7  X: &f" + worldX));
+                lore.add(colorize("&7  Z: &f" + worldZ));
+                lore.add("");
+                String formattedPremiumPrice = String.format("%,d", (int) price);
+                lore.add(colorize("&7Premium Cost: &a$" + formattedPremiumPrice));
+                lore.add("");
+                lore.add(colorize("&eThis is a premium location!"));
+                lore.add(colorize("&c&lWarning: &cYour island will be moved!"));
+                lore.add(colorize("&7All visitors will be teleported away."));
+                break;
+
             default:
                 mat = Material.PAPER;
                 name = "&fAction";
@@ -203,13 +223,17 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 break;
             case PURCHASE:
                 lore.add(colorize("&7Click to purchase for"));
-                lore.add(colorize("&a$" + String.format("%.2f", price)));
+                lore.add(colorize("&a$" + String.format("%,d", (int) price)));
                 break;
             case RELOCATE:
                 lore.add(colorize("&7Click to relocate your island"));
                 if (price > 0) {
-                    lore.add(colorize("&7Cost: &a$" + String.format("%.2f", price)));
+                    lore.add(colorize("&7Cost: &a$" + String.format("%,d", (int) price)));
                 }
+                break;
+            case PREMIUM_RELOCATE:
+                lore.add(colorize("&7Click to relocate to premium"));
+                lore.add(colorize("&7Cost: &a$" + String.format("%,d", (int) price)));
                 break;
         }
 
@@ -328,13 +352,49 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 player.sendMessage(colorize("&aStarting island relocation..."));
                 addon.getRelocationManager().relocateIsland(player, fromCoord, coord);
                 break;
+
+            case PREMIUM_RELOCATE:
+                // Verify location is still purchasable
+                var gridLocation = addon.getGridManager().getGridLocation(coord);
+                if (gridLocation == null || !gridLocation.isPurchasable()) {
+                    player.sendMessage(colorize("&cThis premium location is no longer available!"));
+                    return;
+                }
+
+                // Check cooldown
+                if (!addon.getRelocationManager().canRelocate(player.getUniqueId())) {
+                    long premiumRemaining = addon.getRelocationManager().getRemainingCooldown(player.getUniqueId());
+                    String premiumTimeStr = addon.getRelocationManager().formatCooldownTime(premiumRemaining);
+                    player.sendMessage(colorize("&cYou must wait &e" + premiumTimeStr + " &cbefore relocating again!"));
+                    return;
+                }
+
+                // Check and charge the premium price
+                if (!checkAndChargeMoney()) {
+                    return;
+                }
+
+                // Get player's current island location
+                GridCoordinate premiumFromCoord = addon.getGridManager().getPlayerIslandCoordinate(player.getUniqueId());
+                if (premiumFromCoord == null) {
+                    player.sendMessage(colorize("&cYou don't have an island to relocate!"));
+                    return;
+                }
+
+                // Remove the premium/reserved status from the location so relocation can proceed
+                addon.getGridManager().unreserveLocation(coord);
+
+                // Start the relocation
+                player.sendMessage(colorize("&aStarting premium island relocation..."));
+                addon.getRelocationManager().relocateIsland(player, premiumFromCoord, coord);
+                break;
         }
     }
 
     private boolean checkAndChargeMoney() {
         // Check for bypass permission based on action type
         String bypassPerm = null;
-        if (actionType == ActionType.PURCHASE) {
+        if (actionType == ActionType.PURCHASE || actionType == ActionType.PREMIUM_RELOCATE) {
             bypassPerm = "islandselector.bypass.cost.purchase";
         } else if (actionType == ActionType.RELOCATE) {
             bypassPerm = "islandselector.bypass.cost.relocate";

@@ -20,6 +20,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import world.bentobox.bentobox.database.objects.Island;
+import world.bentobox.bentobox.util.teleport.SafeSpotTeleport;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.models.GridLocation;
@@ -376,14 +377,16 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
             return;
         }
 
-        // Make sure the location is safe (has a block below and air above)
-        warpLocation = warpLocation.clone();
-        warpLocation.setY(island.getProtectionCenter().getY()); // Use protection center Y level
-
-        // Close GUI and teleport
+        // Close GUI and use safe teleport
         player.closeInventory();
-        player.teleport(warpLocation);
         player.sendMessage(colorize("&aWarping to neighbor's island..."));
+
+        // Use BentoBox SafeSpotTeleport for safe async teleportation
+        new SafeSpotTeleport.Builder(addon.getPlugin())
+            .entity(player)
+            .island(island)
+            .ifFail(() -> player.sendMessage(colorize("&cCould not find a safe spot on this island!")))
+            .buildFuture();
     }
 
     private GridCoordinate getCoordinateForSlot(int slot) {

@@ -2,6 +2,7 @@ package world.bentobox.islandselector.gui;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -13,16 +14,22 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.profile.PlayerProfile;
 import org.bukkit.profile.PlayerTextures;
 
+import world.bentobox.bentobox.BentoBox;
+import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.Settings;
+import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.models.GridLocation;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Main Grid GUI for island selection
@@ -52,11 +59,7 @@ public class MainGridGUI implements InventoryHolder {
     private static final int[] ARROW_RIGHT_SLOTS = {17, 26, 35, 44};
 
     // Top control bar (slots 2-6)
-    private static final int TOP_FILTER_ALL_SLOT = 2;
-    private static final int TOP_FILTER_AVAILABLE_SLOT = 3;
-    private static final int TOP_FILTER_ONLINE_SLOT = 4;
-    private static final int TOP_INFO_SLOT = 5;
-    private static final int TOP_FILLER_SLOT = 6;
+    private static final int TOP_INFO_SLOT = 4;  // Centered info display
 
     // Bottom control bar (slots 47-51)
     private static final int BOT_SEARCH_SLOT = 47;
@@ -80,13 +83,6 @@ public class MainGridGUI implements InventoryHolder {
     // Viewport position (top-left corner of visible grid in grid coordinates)
     private int viewportX;
     private int viewportZ;
-
-    // Current filter
-    private FilterType filter = FilterType.ALL;
-
-    public enum FilterType {
-        ALL, AVAILABLE, ONLINE
-    }
 
     public MainGridGUI(IslandSelector addon, Player player) {
         this.addon = addon;
@@ -122,6 +118,18 @@ public class MainGridGUI implements InventoryHolder {
         player.openInventory(inventory);
 
         // Register click handler
+        Bukkit.getPluginManager().registerEvents(new GridGUIListener(this), addon.getPlugin());
+    }
+
+    /**
+     * Reopen the GUI after it was closed (e.g., for search input).
+     * This re-registers the click handler that was unregistered on close.
+     */
+    public void reopen() {
+        populateInventory();
+        player.openInventory(inventory);
+
+        // Re-register click handler (was unregistered when inventory closed)
         Bukkit.getPluginManager().registerEvents(new GridGUIListener(this), addon.getPlugin());
     }
 
@@ -233,10 +241,10 @@ public class MainGridGUI implements InventoryHolder {
     }
 
     /**
-     * Create a disabled arrow (gray glass)
+     * Create a disabled arrow (barrier block)
      */
     private ItemStack createDisabledArrow(String tooltip) {
-        ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(colorize(tooltip));
         item.setItemMeta(meta);
@@ -296,16 +304,6 @@ public class MainGridGUI implements InventoryHolder {
         // Get location after status check (may have been created)
         GridLocation location = gridManager.getGridLocation(coord);
 
-        // Apply filter
-        if (filter != FilterType.ALL) {
-            if (filter == FilterType.AVAILABLE && status != GridLocation.Status.AVAILABLE) {
-                return createFilteredOutItem(coord);
-            }
-            if (filter == FilterType.ONLINE && !gridManager.isOwnerOnline(coord)) {
-                return createFilteredOutItem(coord);
-            }
-        }
-
         switch (status) {
             case AVAILABLE:
                 return createAvailableItem(coord);
@@ -361,7 +359,8 @@ public class MainGridGUI implements InventoryHolder {
         GridCoordinate playerIsland = gridManager.getPlayerIslandCoordinate(player.getUniqueId());
         if (playerIsland == null) {
             lore.add(colorize("&eClick to claim this location"));
-        } else {
+        } else if (addon.isSchematicOperationsAvailable()) {
+            // Only show relocate option if FAWE is installed
             lore.add(colorize("&eClick to relocate here"));
         }
 
@@ -371,21 +370,32 @@ public class MainGridGUI implements InventoryHolder {
     }
 
     /**
-     * Create item for occupied location
+     * Create item for occupied location with detailed island info
      */
     private ItemStack createOccupiedItem(GridCoordinate coord, GridLocation location) {
         boolean isOwnerOnline = gridManager.isOwnerOnline(coord);
         boolean isOwnIsland = location != null && location.getOwnerUUID() != null &&
             location.getOwnerUUID().equals(player.getUniqueId());
 
-        // Always use player head for occupied islands (both online and offline)
-        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        SkullMeta meta = (SkullMeta) item.getItemMeta();
+        UUID ownerUUID = location != null ? location.getOwnerUUID() : null;
+        String ownerName = location != null && location.getOwnerName() != null ? location.getOwnerName() : "Unknown";
 
-        // Set the owner for the skull texture using OfflinePlayer
-        if (location != null && location.getOwnerUUID() != null) {
-            org.bukkit.OfflinePlayer owner = Bukkit.getOfflinePlayer(location.getOwnerUUID());
-            meta.setOwningPlayer(owner);
+        ItemStack item;
+        ItemMeta meta;
+
+        // Use player head for online players, red stained glass for offline
+        if (isOwnerOnline) {
+            item = new ItemStack(Material.PLAYER_HEAD);
+            SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
+            if (ownerUUID != null) {
+                OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerUUID);
+                skullMeta.setOwningPlayer(owner);
+            }
+            meta = skullMeta;
+        } else {
+            // Offline player - use red stained glass
+            item = new ItemStack(Material.RED_STAINED_GLASS_PANE);
+            meta = item.getItemMeta();
         }
 
         if (isOwnIsland) {
@@ -397,30 +407,188 @@ public class MainGridGUI implements InventoryHolder {
             }
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } else {
-            String ownerName = location != null && location.getOwnerName() != null ? location.getOwnerName() : "Unknown";
             meta.setDisplayName(colorize("&f" + coord.toString() + " - " + ownerName));
         }
 
         List<String> lore = new ArrayList<>();
+
+        // World coordinates
         lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
+        lore.add("");
 
         if (isOwnIsland) {
             lore.add(colorize("&6Your Island"));
         } else {
-            String ownerName = location != null && location.getOwnerName() != null ? location.getOwnerName() : "Unknown";
             lore.add(colorize("&7Owner: &f" + ownerName));
             if (isOwnerOnline) {
                 lore.add(colorize("&a● Online"));
             } else {
                 lore.add(colorize("&c○ Offline"));
+                // Show how long they've been offline
+                if (ownerUUID != null) {
+                    String offlineDuration = getOfflineDuration(ownerUUID);
+                    if (offlineDuration != null) {
+                        lore.add(colorize("&7Last seen: &f" + offlineDuration + " ago"));
+                    }
+                }
             }
+        }
+
+        // Get active slot info
+        if (ownerUUID != null) {
+            SlotData activeSlot = addon.getSlotManager().getActiveSlot(ownerUUID);
+            if (activeSlot != null) {
+                lore.add("");
+                lore.add(colorize("&7Active Slot: &e" + activeSlot.getSlotName()));
+
+                // Show blueprint if set
+                if (activeSlot.getBlueprintBundle() != null && !activeSlot.getBlueprintBundle().isEmpty()) {
+                    lore.add(colorize("&7Blueprint: &f" + formatBlueprintName(activeSlot.getBlueprintBundle())));
+                }
+            }
+        }
+
+        // Island creation date and other BentoBox data
+        Island island = getIslandForLocation(location);
+        if (island != null) {
             lore.add("");
-            lore.add(colorize("&7Right-click to visit"));
+
+            // Creation date
+            long createdTime = island.getCreatedDate();
+            if (createdTime > 0) {
+                SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy");
+                String createdDate = sdf.format(new Date(createdTime));
+                lore.add(colorize("&7Created: &f" + createdDate));
+            }
+
+            // Team members count
+            int teamSize = island.getMemberSet().size();
+            if (teamSize > 1) {
+                lore.add(colorize("&7Team Members: &f" + teamSize));
+            }
+
+            // Protection range
+            int protectionRange = island.getProtectionRange();
+            lore.add(colorize("&7Protection: &f" + protectionRange + " blocks"));
+        }
+
+        // Island level from Level addon
+        if (ownerUUID != null && addon.getLevelIntegration().isEnabled()) {
+            String levelStr = addon.getLevelIntegration().getFormattedIslandLevel(ownerUUID);
+            if (!levelStr.equals("N/A")) {
+                lore.add(colorize("&7Island Level: &b" + levelStr));
+            }
+        }
+
+        // Challenges completed from Challenges addon
+        if (ownerUUID != null && addon.getChallengesIntegration().isEnabled()) {
+            int completed = addon.getChallengesIntegration().getCompletedChallengeCount(ownerUUID);
+            int total = addon.getChallengesIntegration().getTotalChallengeCount();
+            if (completed >= 0 && total > 0) {
+                lore.add(colorize("&7Challenges: &d" + completed + "/" + total));
+            } else if (completed >= 0) {
+                lore.add(colorize("&7Challenges: &d" + completed + " completed"));
+            }
+        }
+
+        // Action hint
+        if (!isOwnIsland) {
+            lore.add("");
+            lore.add(colorize("&e▶ Right-click to visit"));
         }
 
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    /**
+     * Get a BentoBox Island object for a GridLocation
+     */
+    private Island getIslandForLocation(GridLocation location) {
+        if (location == null || location.getIslandId() == null) {
+            return null;
+        }
+
+        try {
+            // Try to get island by ID
+            return BentoBox.getInstance().getIslands().getIslandById(location.getIslandId()).orElse(null);
+        } catch (Exception e) {
+            // Fallback - try getting by owner UUID
+            if (location.getOwnerUUID() != null && addon.getGridManager().getBSkyBlockWorld() != null) {
+                return BentoBox.getInstance().getIslands()
+                    .getIsland(addon.getGridManager().getBSkyBlockWorld(), location.getOwnerUUID());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Format the time since a player was last online
+     */
+    private String getOfflineDuration(UUID playerUUID) {
+        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerUUID);
+        long lastPlayed = offlinePlayer.getLastPlayed();
+
+        if (lastPlayed == 0) {
+            return null; // Never played or data unavailable
+        }
+
+        long now = System.currentTimeMillis();
+        long diff = now - lastPlayed;
+
+        if (diff < 0) {
+            return null;
+        }
+
+        long days = TimeUnit.MILLISECONDS.toDays(diff);
+        if (days > 365) {
+            long years = days / 365;
+            return years + (years == 1 ? " year" : " years");
+        } else if (days > 30) {
+            long months = days / 30;
+            return months + (months == 1 ? " month" : " months");
+        } else if (days > 0) {
+            return days + (days == 1 ? " day" : " days");
+        }
+
+        long hours = TimeUnit.MILLISECONDS.toHours(diff);
+        if (hours > 0) {
+            return hours + (hours == 1 ? " hour" : " hours");
+        }
+
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(diff);
+        if (minutes > 0) {
+            return minutes + (minutes == 1 ? " minute" : " minutes");
+        }
+
+        return "moments";
+    }
+
+    /**
+     * Format a blueprint bundle name to be more readable
+     * e.g., "my_cool_island" -> "My Cool Island"
+     */
+    private String formatBlueprintName(String bundleName) {
+        if (bundleName == null || bundleName.isEmpty()) {
+            return bundleName;
+        }
+
+        // Replace underscores with spaces and capitalize each word
+        String[] words = bundleName.replace("_", " ").replace("-", " ").split(" ");
+        StringBuilder result = new StringBuilder();
+        for (String word : words) {
+            if (!word.isEmpty()) {
+                if (result.length() > 0) {
+                    result.append(" ");
+                }
+                result.append(Character.toUpperCase(word.charAt(0)));
+                if (word.length() > 1) {
+                    result.append(word.substring(1).toLowerCase());
+                }
+            }
+        }
+        return result.toString();
     }
 
     /**
@@ -484,52 +652,12 @@ public class MainGridGUI implements InventoryHolder {
         return item;
     }
 
-    /**
-     * Create item for filtered out location
-     */
-    private ItemStack createFilteredOutItem(GridCoordinate coord) {
-        ItemStack item = new ItemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(colorize("&7" + coord.toString()));
-
-        List<String> lore = new ArrayList<>();
-        lore.add(colorize("&7(Filtered out)"));
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
 
     /**
-     * Populate control buttons (top bar: slots 2-6, bottom bar: slots 47-51)
+     * Populate control buttons (top bar and bottom bar)
      */
     private void populateControlButtons() {
-        // Top bar controls (slots 2-6)
-        // Filter: All
-        ItemStack filterAll = createButton(Material.PAPER, "&fFilter: All",
-            filter == FilterType.ALL ? "&aCurrently selected" : "&7Show all locations");
-        if (filter == FilterType.ALL) {
-            addGlow(filterAll);
-        }
-        inventory.setItem(TOP_FILTER_ALL_SLOT, filterAll);
-
-        // Filter: Available
-        ItemStack filterAvailable = createButton(Material.GREEN_DYE, "&aFilter: Available",
-            filter == FilterType.AVAILABLE ? "&aCurrently selected" : "&7Show available only");
-        if (filter == FilterType.AVAILABLE) {
-            addGlow(filterAvailable);
-        }
-        inventory.setItem(TOP_FILTER_AVAILABLE_SLOT, filterAvailable);
-
-        // Filter: Online
-        ItemStack filterOnline = createButton(Material.LIME_DYE, "&bFilter: Online",
-            filter == FilterType.ONLINE ? "&aCurrently selected" : "&7Show online owners only");
-        if (filter == FilterType.ONLINE) {
-            addGlow(filterOnline);
-        }
-        inventory.setItem(TOP_FILTER_ONLINE_SLOT, filterOnline);
-
-        // Grid Info - shows current viewport
+        // Top bar - Grid Info (centered at slot 4)
         GridCoordinate topLeft = new GridCoordinate(viewportX, viewportZ);
         GridCoordinate bottomRight = new GridCoordinate(
             viewportX + GRID_COLS - 1,
@@ -559,10 +687,13 @@ public class MainGridGUI implements InventoryHolder {
             "&7View your neighbors");
         inventory.setItem(BOT_NEIGHBORHOOD_SLOT, neighborhood);
 
-        // Slot Selection
-        ItemStack slots = createButton(Material.CHEST, "&6Island Slots",
-            "&7Manage your slots");
-        inventory.setItem(BOT_SLOTS_SLOT, slots);
+        // Slot Selection - only show if FAWE is available
+        if (addon.isSchematicOperationsAvailable()) {
+            ItemStack slots = createButton(Material.CHEST, "&6Island Slots",
+                "&7Manage your slots");
+            inventory.setItem(BOT_SLOTS_SLOT, slots);
+        }
+        // If FAWE not available, slot 50 will be filled with filler later
 
         // Close
         ItemStack close = createButton(Material.BARRIER, "&cClose",
@@ -655,14 +786,6 @@ public class MainGridGUI implements InventoryHolder {
         int amount = shift ? settings.getScrollAmountShift() : settings.getScrollAmount();
         int maxX = settings.getGridMaxX() - GRID_COLS + 1;
         viewportX = Math.min(maxX, viewportX + amount);
-        refresh();
-    }
-
-    /**
-     * Set filter and refresh
-     */
-    public void setFilter(FilterType newFilter) {
-        this.filter = newFilter;
         refresh();
     }
 
@@ -806,18 +929,6 @@ public class MainGridGUI implements InventoryHolder {
         return addon;
     }
 
-    public int getFilterAllSlot() {
-        return TOP_FILTER_ALL_SLOT;
-    }
-
-    public int getFilterAvailableSlot() {
-        return TOP_FILTER_AVAILABLE_SLOT;
-    }
-
-    public int getFilterOnlineSlot() {
-        return TOP_FILTER_ONLINE_SLOT;
-    }
-
     public int getSearchSlot() {
         return BOT_SEARCH_SLOT;
     }
@@ -836,10 +947,6 @@ public class MainGridGUI implements InventoryHolder {
 
     public int getCloseSlot() {
         return BOT_CLOSE_SLOT;
-    }
-
-    public FilterType getFilter() {
-        return filter;
     }
 
     @Override

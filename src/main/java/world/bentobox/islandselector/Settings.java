@@ -5,6 +5,9 @@ import world.bentobox.bentobox.api.configuration.ConfigEntry;
 import world.bentobox.bentobox.api.configuration.ConfigObject;
 import world.bentobox.bentobox.api.configuration.StoreAt;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Settings class for IslandSelector
  * Maps to config.yml structure
@@ -82,6 +85,14 @@ public class Settings implements ConfigObject {
     @ConfigEntry(path = "backups.on-shutdown")
     private boolean backupOnShutdown = false;
 
+    @ConfigComment("Enable periodic auto-backup for online players")
+    @ConfigEntry(path = "backups.auto-backup-enabled")
+    private boolean autoBackupEnabled = true;
+
+    @ConfigComment("Auto-backup interval in minutes (default: 60 = 1 hour)")
+    @ConfigEntry(path = "backups.auto-backup-interval")
+    private int autoBackupInterval = 60;
+
     // GUI Settings
     @ConfigComment("GUI scroll amount")
     @ConfigEntry(path = "gui.scroll-amount")
@@ -150,6 +161,32 @@ public class Settings implements ConfigObject {
     @ConfigComment("Enable Level addon integration")
     @ConfigEntry(path = "integration.level-addon.enabled")
     private boolean levelAddonEnabled = true;
+
+    // Custom Command Settings - Relocation
+    @ConfigComment("Enable custom commands after relocation")
+    @ConfigEntry(path = "custom-commands.relocation.enabled")
+    private boolean relocationCommandsEnabled = false;
+
+    @ConfigComment("Commands to run after relocation")
+    @ConfigEntry(path = "custom-commands.relocation.commands")
+    private List<String> relocationCommands = new ArrayList<>();
+
+    @ConfigComment("Execution scope for relocation commands: CONSOLE, PLAYER, or PLAYER_OP")
+    @ConfigEntry(path = "custom-commands.relocation.scope")
+    private String relocationCommandScope = "CONSOLE";
+
+    // Custom Command Settings - Slot Switch
+    @ConfigComment("Enable custom commands after slot switch")
+    @ConfigEntry(path = "custom-commands.slot-switch.enabled")
+    private boolean slotSwitchCommandsEnabled = false;
+
+    @ConfigComment("Commands to run after slot switch")
+    @ConfigEntry(path = "custom-commands.slot-switch.commands")
+    private List<String> slotSwitchCommands = new ArrayList<>();
+
+    @ConfigComment("Execution scope for slot switch commands: CONSOLE, PLAYER, or PLAYER_OP")
+    @ConfigEntry(path = "custom-commands.slot-switch.scope")
+    private String slotSwitchCommandScope = "CONSOLE";
 
     // Debug Settings
     @ConfigComment("Enable debug logging")
@@ -309,6 +346,22 @@ public class Settings implements ConfigObject {
         this.backupOnShutdown = backupOnShutdown;
     }
 
+    public boolean isAutoBackupEnabled() {
+        return autoBackupEnabled;
+    }
+
+    public void setAutoBackupEnabled(boolean autoBackupEnabled) {
+        this.autoBackupEnabled = autoBackupEnabled;
+    }
+
+    public int getAutoBackupInterval() {
+        return autoBackupInterval;
+    }
+
+    public void setAutoBackupInterval(int autoBackupInterval) {
+        this.autoBackupInterval = autoBackupInterval;
+    }
+
     public int getScrollAmount() {
         return scrollAmount;
     }
@@ -461,5 +514,55 @@ public class Settings implements ConfigObject {
 
     public void setItemFiller(String itemFiller) {
         this.itemFiller = itemFiller;
+    }
+
+    // Custom Command Getters and Setters
+
+    public boolean isRelocationCommandsEnabled() {
+        return relocationCommandsEnabled;
+    }
+
+    public void setRelocationCommandsEnabled(boolean relocationCommandsEnabled) {
+        this.relocationCommandsEnabled = relocationCommandsEnabled;
+    }
+
+    public List<String> getRelocationCommands() {
+        return relocationCommands;
+    }
+
+    public void setRelocationCommands(List<String> relocationCommands) {
+        this.relocationCommands = relocationCommands;
+    }
+
+    public String getRelocationCommandScope() {
+        return relocationCommandScope;
+    }
+
+    public void setRelocationCommandScope(String relocationCommandScope) {
+        this.relocationCommandScope = relocationCommandScope;
+    }
+
+    public boolean isSlotSwitchCommandsEnabled() {
+        return slotSwitchCommandsEnabled;
+    }
+
+    public void setSlotSwitchCommandsEnabled(boolean slotSwitchCommandsEnabled) {
+        this.slotSwitchCommandsEnabled = slotSwitchCommandsEnabled;
+    }
+
+    public List<String> getSlotSwitchCommands() {
+        return slotSwitchCommands;
+    }
+
+    public void setSlotSwitchCommands(List<String> slotSwitchCommands) {
+        this.slotSwitchCommands = slotSwitchCommands;
+    }
+
+    public String getSlotSwitchCommandScope() {
+        return slotSwitchCommandScope;
+    }
+
+    public void setSlotSwitchCommandScope(String slotSwitchCommandScope) {
+        this.slotSwitchCommandScope = slotSwitchCommandScope;
     }
 }

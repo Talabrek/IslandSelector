@@ -26,8 +26,15 @@ public class SlotsCommand extends CompositeCommand {
 
     @Override
     public boolean execute(User user, String label, List<String> args) {
-        // Open the slot selection GUI
         IslandSelector addon = (IslandSelector) getAddon();
+
+        // Check if FAWE is available
+        if (!addon.isSchematicOperationsAvailable()) {
+            user.sendMessage("&cThis feature requires FastAsyncWorldEdit (FAWE) to be installed.");
+            return false;
+        }
+
+        // Open the slot selection GUI
         new SlotSelectionGUI(addon, user.getPlayer()).open();
         return true;
     }

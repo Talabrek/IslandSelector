@@ -35,6 +35,13 @@ public class AdminBackupCommand extends CompositeCommand {
 
     @Override
     public boolean execute(User user, String label, List<String> args) {
+        // Check if FAWE is available
+        IslandSelector addon = (IslandSelector) getAddon();
+        if (!addon.isSchematicOperationsAvailable()) {
+            user.sendMessage("&cThis feature requires FastAsyncWorldEdit (FAWE) to be installed.");
+            return false;
+        }
+
         if (args.size() < 2) {
             showHelp(this, user);
             return false;

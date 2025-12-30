@@ -1,19 +1,5 @@
 package world.bentobox.islandselector.managers;
 
-import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.extent.clipboard.BlockArrayClipboard;
-import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardWriter;
-import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
-import com.sk89q.worldedit.function.operation.Operation;
-import com.sk89q.worldedit.function.operation.Operations;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.regions.CuboidRegion;
-import com.sk89q.worldedit.session.ClipboardHolder;
-
 import org.bukkit.Location;
 import org.bukkit.World;
 import world.bentobox.bentobox.database.objects.Island;
@@ -21,9 +7,6 @@ import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
@@ -61,11 +44,7 @@ public class BackupManager {
             return false;
         }
 
-        if (slotData.getIslandUUID() == null) {
-            addon.logError("Slot " + slotNumber + " has no island for player " + playerUUID);
-            return false;
-        }
-
+        // We no longer require slotData.getIslandUUID() - we get island directly by player UUID
         return saveSlotToBackup(slotData, playerUUID, slotNumber);
     }
 
@@ -74,10 +53,16 @@ public class BackupManager {
      */
     private boolean saveSlotToBackup(SlotData slotData, UUID playerUUID, int slotNumber) {
         try {
-            // Get island from BentoBox
-            Island island = addon.getIslands().getIslandById(slotData.getIslandUUID()).orElse(null);
+            // Get island directly by player UUID (not by slot's stored island UUID)
+            World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+            if (bskyblockWorld == null) {
+                addon.logError("BSkyBlock world not available for backup");
+                return false;
+            }
+
+            Island island = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
             if (island == null) {
-                addon.logError("Island not found for slot: " + slotData.getUniqueId());
+                addon.logError("Island not found for player: " + playerUUID + " in slot: " + slotData.getUniqueId());
                 return false;
             }
 
@@ -93,49 +78,17 @@ public class BackupManager {
             int protectionRange = island.getProtectionRange();
             int range = Math.max(islandSpacing / 2, protectionRange);
 
-            // Create WorldEdit region
-            com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(world);
-            BlockVector3 min = BlockVector3.at(
-                center.getX() - range,
-                world.getMinHeight(),
-                center.getZ() - range
-            );
-            BlockVector3 max = BlockVector3.at(
-                center.getX() + range,
-                world.getMaxHeight() - 1,
-                center.getZ() + range
-            );
-
-            CuboidRegion region = new CuboidRegion(weWorld, min, max);
-
-            // Create clipboard
-            BlockArrayClipboard clipboard = new BlockArrayClipboard(region);
-            clipboard.setOrigin(BlockVector3.at(center.getX(), center.getY(), center.getZ()));
-
-            // Copy blocks to clipboard
-            try (EditSession editSession = WorldEdit.getInstance().newEditSession(weWorld)) {
-                ForwardExtentCopy copy = new ForwardExtentCopy(
-                    editSession, region, clipboard, region.getMinimumPoint()
-                );
-                copy.setCopyingEntities(true);
-                copy.setCopyingBiomes(false);
-                Operations.complete(copy);
-            }
-
-            // Save to backup file
+            // Get backup file path
             File backupFile = getBackupFile(playerUUID, slotNumber);
-            File playerBackupDir = backupFile.getParentFile();
 
-            if (!playerBackupDir.exists()) {
-                playerBackupDir.mkdirs();
+            // Use SchematicUtils for safe entity handling
+            boolean success = addon.getSchematicUtils().copyAndSave(center, range, false, backupFile);
+
+            if (success) {
+                addon.log("Backup created for player " + playerUUID + " slot " + slotNumber + ": " + backupFile.getName());
+            } else {
+                return false;
             }
-
-            try (FileOutputStream fos = new FileOutputStream(backupFile);
-                 ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(fos)) {
-                writer.write(clipboard);
-            }
-
-            addon.log("Backup created for player " + playerUUID + " slot " + slotNumber + ": " + backupFile.getName());
 
             // Clean up old backups if configured
             cleanOldBackups(playerUUID, slotNumber);
@@ -162,6 +115,97 @@ public class BackupManager {
 
         String filename = "slot-" + slotNumber + "-" + timestamp + ".schem";
         return new File(playerDir, filename);
+    }
+
+    /**
+     * Get the auto-backup file path for a specific slot.
+     * This is a single rolling backup that gets overwritten each interval.
+     * Format: backups/{player-uuid}/slot-{number}-auto.schem
+     */
+    private File getAutoBackupFile(UUID playerUUID, int slotNumber) {
+        File playerDir = new File(backupDir, playerUUID.toString());
+        String filename = "slot-" + slotNumber + "-auto.schem";
+        return new File(playerDir, filename);
+    }
+
+    /**
+     * Create an auto-backup of a specific slot for a player.
+     * This creates a single rolling backup file that gets overwritten each time.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number to backup (1-based)
+     * @return true if backup was successful, false otherwise
+     */
+    public boolean createAutoBackup(UUID playerUUID, int slotNumber) {
+        SlotData slotData = addon.getSlotManager().getSlot(playerUUID, slotNumber);
+
+        if (slotData == null || !slotData.hasIsland()) {
+            return false;
+        }
+
+        return saveSlotToAutoBackup(slotData, playerUUID, slotNumber);
+    }
+
+    /**
+     * Save a slot as an auto-backup schematic file (single rolling backup)
+     */
+    private boolean saveSlotToAutoBackup(SlotData slotData, UUID playerUUID, int slotNumber) {
+        try {
+            // Get island directly by player UUID (not by slot's stored island UUID)
+            World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+            if (bskyblockWorld == null) {
+                addon.logError("BSkyBlock world not available for auto-backup");
+                return false;
+            }
+
+            Island island = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
+            if (island == null) {
+                // Player might be homeless - this is fine, just skip
+                return false;
+            }
+
+            // Get island bounds
+            Location center = island.getCenter();
+            World world = center.getWorld();
+            if (world == null) {
+                return false;
+            }
+
+            int islandSpacing = addon.getIslandSpacing();
+            int protectionRange = island.getProtectionRange();
+            int range = Math.max(islandSpacing / 2, protectionRange);
+
+            // Get auto-backup file path
+            File backupFile = getAutoBackupFile(playerUUID, slotNumber);
+
+            // Use SchematicUtils for safe entity handling
+            boolean success = addon.getSchematicUtils().copyAndSave(center, range, false, backupFile);
+
+            if (success) {
+                addon.log("Auto-backup created for player " + playerUUID + " slot " + slotNumber);
+            }
+            return success;
+
+        } catch (Exception e) {
+            addon.logError("Failed to create auto-backup for player " + playerUUID + " slot " + slotNumber + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get the auto-backup file for a player's slot, if it exists
+     * @return The auto-backup file, or null if it doesn't exist
+     */
+    public File getAutoBackup(UUID playerUUID, int slotNumber) {
+        File file = getAutoBackupFile(playerUUID, slotNumber);
+        return file.exists() ? file : null;
+    }
+
+    /**
+     * Check if an auto-backup exists for a player's slot
+     */
+    public boolean hasAutoBackup(UUID playerUUID, int slotNumber) {
+        return getAutoBackupFile(playerUUID, slotNumber).exists();
     }
 
     /**
@@ -275,56 +319,43 @@ public class BackupManager {
             return false;
         }
 
-        if (slotData.getIslandUUID() == null) {
-            addon.logError("Slot " + slotNumber + " has no island for player " + playerUUID);
-            return false;
-        }
-
-        return loadBackupToWorld(backupFile, slotData);
+        // We no longer require slotData.getIslandUUID() - we get island directly by player UUID
+        return loadBackupToWorld(backupFile, playerUUID, slotData);
     }
 
     /**
      * Load a backup schematic file to the world at the slot's island location
+     * @param backupFile The backup file to restore from
+     * @param playerUUID The player's UUID to find their island
+     * @param slotData The slot data (for logging)
      */
-    private boolean loadBackupToWorld(File backupFile, SlotData slotData) {
+    private boolean loadBackupToWorld(File backupFile, UUID playerUUID, SlotData slotData) {
         try {
-            // Get island location
-            Island island = addon.getIslands().getIslandById(slotData.getIslandUUID()).orElse(null);
+            // Get island location directly by player UUID (not by slot's stored island UUID)
+            World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+            if (bskyblockWorld == null) {
+                addon.logError("BSkyBlock world not available for restoring backup");
+                return false;
+            }
+
+            Island island = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
             if (island == null) {
-                addon.logError("Island not found for slot: " + slotData.getUniqueId());
+                addon.logError("Island not found for player: " + playerUUID + " when restoring slot: " + slotData.getUniqueId());
                 return false;
             }
 
             Location center = island.getCenter();
-            World world = center.getWorld();
-            if (world == null) {
+            if (center.getWorld() == null) {
                 addon.logError("Island world is null for slot: " + slotData.getUniqueId());
                 return false;
             }
 
-            // Load clipboard from backup file
-            Clipboard clipboard;
-            try {
-                clipboard = BuiltInClipboardFormat.SPONGE_SCHEMATIC.load(backupFile);
-            } catch (IOException e) {
-                addon.logError("Failed to load backup file: " + e.getMessage());
-                return false;
+            // Use SchematicUtils to load and paste
+            boolean success = addon.getSchematicUtils().loadAndPaste(backupFile, center);
+            if (success) {
+                addon.log("Restored backup " + backupFile.getName() + " for slot: " + slotData.getUniqueId());
             }
-
-            // Paste to world
-            com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(world);
-            try (EditSession editSession = WorldEdit.getInstance().newEditSession(weWorld)) {
-                Operation operation = new ClipboardHolder(clipboard)
-                    .createPaste(editSession)
-                    .to(BlockVector3.at(center.getX(), center.getY(), center.getZ()))
-                    .ignoreAirBlocks(false)
-                    .build();
-
-                Operations.complete(operation);
-            }
-
-            addon.log("Restored backup " + backupFile.getName() + " for slot: " + slotData.getUniqueId());
-            return true;
+            return success;
 
         } catch (Exception e) {
             addon.logError("Failed to restore backup " + backupFile.getName() + ": " + e.getMessage());

@@ -2,18 +2,26 @@ package world.bentobox.islandselector.listeners;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
-import world.bentobox.bentobox.api.events.island.IslandCreateEvent;
+import world.bentobox.bentobox.BentoBox;
+import world.bentobox.bentobox.api.events.island.IslandEvent;
 import world.bentobox.bentobox.api.events.island.IslandCreatedEvent;
 import world.bentobox.bentobox.api.events.island.IslandDeleteEvent;
+import world.bentobox.bentobox.api.events.island.IslandPreCreateEvent;
+import world.bentobox.bentobox.api.user.User;
 import world.bentobox.bentobox.database.objects.Island;
+import world.bentobox.bentobox.managers.BlueprintsManager;
+import world.bentobox.bentobox.managers.island.NewIsland;
 import world.bentobox.islandselector.IslandSelector;
+import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.events.GridLocationClaimEvent;
 import world.bentobox.islandselector.gui.IslandClaimGUI;
+import world.bentobox.islandselector.managers.GridLocationStrategy;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.managers.SlotManager;
 import world.bentobox.islandselector.utils.GridCoordinate;
@@ -38,6 +46,12 @@ public class IslandCreateListener implements Listener {
     // Track players who should skip the GUI (already selected a location)
     private final Map<UUID, String> confirmedBlueprints = new HashMap<>();
 
+    // Track players who are resetting their island (should keep same location)
+    private final Map<UUID, GridCoordinate> pendingResets = new HashMap<>();
+
+    // Track old island IDs that need to be deleted after reset completes
+    private final Map<UUID, String> pendingOldIslandDeletions = new HashMap<>();
+
     public IslandCreateListener(IslandSelector addon) {
         this.addon = addon;
         this.gridManager = addon.getGridManager();
@@ -45,18 +59,27 @@ public class IslandCreateListener implements Listener {
     }
 
     /**
-     * Intercept island creation BEFORE it happens.
+     * Intercept island creation BEFORE it happens (pre-create phase).
      * If player hasn't chosen a location yet, cancel and show grid GUI.
      * If player has chosen a location, let BSkyBlock create it - we'll register it after.
+     * If player is "homeless" (has saved slot data but no island), show restoration GUI.
+     * If player is resetting (already has island at a grid location), let it proceed at same location.
+     *
+     * NOTE: We use IslandPreCreateEvent because it fires BEFORE the island is created.
+     * IslandCreateEvent fires DURING creation when it's too late to cancel cleanly.
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void onIslandCreate(IslandCreateEvent event) {
+    public void onIslandPreCreate(IslandPreCreateEvent event) {
+        addon.log("=== IslandPreCreateEvent triggered ===");
+
         Player player = Bukkit.getPlayer(event.getPlayerUUID());
         if (player == null) {
+            addon.log("Player is null for UUID: " + event.getPlayerUUID());
             return;
         }
 
         UUID playerUUID = player.getUniqueId();
+        addon.log("Processing IslandPreCreateEvent for player: " + player.getName());
 
         // Check if this player has a confirmed claim
         if (pendingClaims.containsKey(playerUUID)) {
@@ -66,9 +89,95 @@ public class IslandCreateListener implements Listener {
             return;
         }
 
+        // Check if player is actively restoring (from IslandRestoreGUI)
+        // This prevents the homeless check from blocking the restoration process
+        if (slotManager.hasPendingSlotRestoration(playerUUID)) {
+            addon.log("Allowing island creation for " + player.getName() + " - active restoration in progress");
+            return;
+        }
+
+        // Check if player is resetting (already has a pending reset tracked)
+        if (pendingResets.containsKey(playerUUID)) {
+            addon.log("Allowing island reset for " + player.getName() + " - reset in progress at same location");
+            return;
+        }
+
+        // Check if player already has an island at a grid location (this is a reset, not a new creation)
+        // This handles /island restart - player should keep the same location
+        String existingGridCoord = slotManager.getPlayerGridCoordinate(playerUUID);
+        if (existingGridCoord != null) {
+            // Player has an existing grid location - this is likely a reset
+            GridCoordinate coord = GridCoordinate.parse(existingGridCoord);
+            if (coord != null) {
+                // Check if they actually have a BentoBox island
+                Island existingIsland = BentoBox.getInstance().getIslands()
+                    .getIsland(gridManager.getBSkyBlockWorld(), playerUUID);
+
+                if (existingIsland != null) {
+                    // Player is resetting their island - cancel BentoBox's default reset
+                    // and handle it ourselves to keep the same location
+                    event.setCancelled(true);
+                    addon.log("Player " + player.getName() + " is resetting island at " + existingGridCoord + " - handling reset manually");
+
+                    // Store pending reset and confirm claim at same location
+                    pendingResets.put(playerUUID, coord);
+                    pendingClaims.put(playerUUID, coord);
+
+                    // Perform the reset ourselves at the same location
+                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                        performResetAtLocation(player, coord, existingIsland);
+                    });
+                    return;
+                } else {
+                    // BentoBox already deleted the island (happens during /island restart flow)
+                    // but player still has slot data - this IS a reset, create at same location
+                    event.setCancelled(true);
+                    addon.log("Player " + player.getName() + " is resetting island at " + existingGridCoord + " - island already deleted by BentoBox, creating at same location");
+
+                    // Get the old island UUID from slot data so we can clean up the database file
+                    SlotData activeSlot = slotManager.getActiveSlot(playerUUID);
+                    String oldIslandUUID = activeSlot != null ? activeSlot.getIslandUUID() : null;
+                    addon.log("Old island ID from slot data: " + oldIslandUUID);
+
+                    // Store pending reset and confirm claim at same location
+                    pendingResets.put(playerUUID, coord);
+                    pendingClaims.put(playerUUID, coord);
+
+                    // Store old island ID for deletion AFTER the new island is created
+                    // (BentoBox may re-save the file if we delete too early)
+                    if (oldIslandUUID != null && !oldIslandUUID.isEmpty()) {
+                        pendingOldIslandDeletions.put(playerUUID, oldIslandUUID);
+                    }
+
+                    // Create the island at the same location using our location strategy
+                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                        createResetIslandAtLocation(player, coord);
+                    });
+                    return;
+                }
+            }
+        }
+
+        // Debug homeless check
+        addon.log("Checking homeless status for " + player.getName() + "...");
+        boolean isHomeless = addon.getIslandRemovalManager().isHomeless(playerUUID);
+        addon.log("isHomeless result: " + isHomeless);
+
+        // Check if player is "homeless" - has saved slot data but no island
+        if (isHomeless) {
+            event.setCancelled(true);
+            addon.log("Player " + player.getName() + " is homeless - showing restoration GUI");
+
+            // Open the slot restoration GUI instead of new island creation
+            Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                new world.bentobox.islandselector.gui.SlotRestorationGUI(addon, player, this).open();
+            });
+            return;
+        }
+
         // Player hasn't chosen a location yet - cancel creation and show GUI
         event.setCancelled(true);
-        addon.log("Cancelled default island creation for " + player.getName() + " - showing grid selection");
+        addon.log("Cancelled island pre-creation for " + player.getName() + " - showing grid selection");
 
         // Open the island claim GUI
         Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
@@ -77,7 +186,8 @@ public class IslandCreateListener implements Listener {
     }
 
     /**
-     * Handle island creation completion - move island to selected grid location and register
+     * Handle island creation completion - register the island in our grid.
+     * The island is already at the correct location thanks to GridLocationStrategy.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onIslandCreated(IslandCreatedEvent event) {
@@ -86,7 +196,10 @@ public class IslandCreateListener implements Listener {
 
         // Check if this was a grid-based claim
         GridCoordinate coord = pendingClaims.remove(playerUUID);
-        confirmedBlueprints.remove(playerUUID);
+        String blueprintBundle = confirmedBlueprints.remove(playerUUID);
+
+        // Check if this was a reset (not a new creation)
+        boolean isReset = pendingResets.remove(playerUUID) != null;
 
         if (coord != null) {
             Island island = event.getIsland();
@@ -96,50 +209,89 @@ public class IslandCreateListener implements Listener {
             int worldX = calculateWorldX(coord);
             int worldZ = calculateWorldZ(coord);
 
-            // Get the island's current center
-            Location currentCenter = island.getCenter();
-            if (currentCenter == null) {
-                addon.logError("Cannot relocate island - current center is null");
-                return;
-            }
+            // Get the full BentoBox island ID (e.g., "BSkyBlock6d68f389-0cb4-4422-9619-66e82dba77f4")
+            String bentoBoxIslandId = island.getUniqueId();
 
-            // Create new center location at the grid coordinates
-            Location newCenter = new Location(
-                currentCenter.getWorld(),
-                worldX,
-                currentCenter.getY(), // Keep same Y level
-                worldZ,
-                currentCenter.getYaw(),
-                currentCenter.getPitch()
-            );
-
-            // Move the island to the new location
-            addon.log("Relocating island from " + currentCenter.getBlockX() + "," + currentCenter.getBlockZ() +
-                     " to " + worldX + "," + worldZ + " (grid " + coord + ")");
-
-            island.setCenter(newCenter);
-            island.setSpawnPoint(org.bukkit.World.Environment.NORMAL, newCenter);
-
-            // Register this island in the grid
+            // Try to extract UUID for grid manager (which expects UUID), but keep full ID for slot data
             UUID islandUUID = null;
             try {
-                islandUUID = UUID.fromString(island.getUniqueId());
+                islandUUID = UUID.fromString(bentoBoxIslandId);
             } catch (IllegalArgumentException e) {
-                // Island ID is not a UUID, leave as null
+                // Island ID has a prefix (like "BSkyBlock"), try to extract the UUID part
+                if (bentoBoxIslandId != null && bentoBoxIslandId.contains("-")) {
+                    // Find the UUID part (starts after any non-UUID prefix)
+                    int uuidStart = bentoBoxIslandId.indexOf('-') - 8; // UUID format: 8-4-4-4-12
+                    if (uuidStart > 0) {
+                        String uuidPart = bentoBoxIslandId.substring(uuidStart);
+                        try {
+                            islandUUID = UUID.fromString(uuidPart);
+                        } catch (IllegalArgumentException e2) {
+                            // Still not a valid UUID, leave as null
+                        }
+                    }
+                }
             }
 
             gridManager.occupyLocation(coord, playerUUID, ownerName, islandUUID);
 
-            // Initialize slot data for this player (slot 1 as active)
-            slotManager.initializePlayerSlots(playerUUID, islandUUID, coord.toString());
+            if (isReset) {
+                // For resets, just update the existing slot's island UUID
+                // Store the FULL BentoBox island ID so we can delete the file on next reset
+                SlotData activeSlot = slotManager.getActiveSlot(playerUUID);
+                if (activeSlot != null) {
+                    activeSlot.setIslandUUID(bentoBoxIslandId);
+                    slotManager.saveSlot(activeSlot);
+                    addon.log("Updated active slot with new island ID: " + bentoBoxIslandId);
+                }
+            } else {
+                // Initialize slot 1 for this player's first island
+                // Store the FULL BentoBox island ID so we can delete the file on next reset
+                slotManager.initializePlayerSlots(playerUUID, bentoBoxIslandId, coord.toString());
 
-            addon.log("Registered island at grid " + coord + " for " + ownerName);
-            addon.log("Initialized slot 1 for player " + ownerName);
+                // Store the blueprint bundle in the slot data for blueprint-specific challenges
+                if (blueprintBundle != null && !blueprintBundle.isEmpty()) {
+                    slotManager.setBlueprintBundle(playerUUID, 1, blueprintBundle);
+                    addon.log("Set blueprint bundle '" + blueprintBundle + "' for slot 1");
+
+                    // Apply blueprint permissions for challenges if player is online
+                    if (player != null) {
+                        addon.getBlueprintChallengesManager().updateBlueprintPermissions(player, blueprintBundle);
+                    }
+                }
+
+                addon.log("Initialized slot 1 for player " + ownerName);
+            }
+
+            addon.log("Registered island at grid " + coord + " for " + ownerName + (isReset ? " (reset)" : " (new)"));
+
+            // Verify the island was created at the correct location
+            Location center = island.getCenter();
+            if (center != null) {
+                addon.log("Island center: " + center.getBlockX() + ", " + center.getBlockZ() +
+                         " (expected: " + worldX + ", " + worldZ + ")");
+            }
+
+            // If this was a reset, delete the old island file after a delay
+            // (delay ensures BentoBox has finished any async save operations)
+            if (isReset) {
+                String oldIslandId = pendingOldIslandDeletions.remove(playerUUID);
+                if (oldIslandId != null && !oldIslandId.equals(bentoBoxIslandId)) {
+                    addon.log("Scheduling deletion of old island file: " + oldIslandId);
+                    Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+                        deleteIslandDatabaseFile(oldIslandId);
+                    }, 60L); // Wait 3 seconds for BentoBox to finish any async saves
+                }
+            }
 
             if (player != null) {
-                player.sendMessage("§a§lIsland Created!");
-                player.sendMessage("§7Your island has been created at location §f" + coord.toString());
-                player.sendMessage("§7World coordinates: §fX: " + worldX + ", Z: " + worldZ);
+                if (isReset) {
+                    player.sendMessage("§a§lIsland Reset Complete!");
+                    player.sendMessage("§7Your island has been reset at location §f" + coord.toString());
+                } else {
+                    player.sendMessage("§a§lIsland Created!");
+                    player.sendMessage("§7Your island has been created at location §f" + coord.toString());
+                    player.sendMessage("§7World coordinates: §fX: " + worldX + ", Z: " + worldZ);
+                }
             }
         }
     }
@@ -165,7 +317,162 @@ public class IslandCreateListener implements Listener {
     }
 
     /**
-     * Handle island deletion - clear from grid
+     * Perform island reset at the same grid location.
+     * This deletes the old island and creates a new one at the same spot.
+     */
+    private void performResetAtLocation(Player player, GridCoordinate coord, Island oldIsland) {
+        UUID playerUUID = player.getUniqueId();
+        World world = gridManager.getBSkyBlockWorld();
+        User user = User.getInstance(player);
+
+        addon.log("Performing manual reset for " + player.getName() + " at " + coord);
+
+        // Delete the old island
+        try {
+            BentoBox.getInstance().getIslands().deleteIsland(oldIsland, true, playerUUID);
+            addon.log("Deleted old island for " + player.getName());
+        } catch (Exception e) {
+            addon.logError("Failed to delete old island: " + e.getMessage());
+            player.sendMessage("§cFailed to reset island. Please try again.");
+            pendingClaims.remove(playerUUID);
+            pendingResets.remove(playerUUID);
+            return;
+        }
+
+        // Wait a moment for deletion to complete, then create new island
+        Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+            // Create island at the same grid location using our custom location strategy
+            GridLocationStrategy locationStrategy = new GridLocationStrategy(addon, coord, world);
+
+            try {
+                NewIsland.builder()
+                    .player(user)
+                    .addon(addon.getBSkyBlockAddon())
+                    .reason(IslandEvent.Reason.RESET)
+                    .locationStrategy(locationStrategy)
+                    .build();
+
+                addon.log("Initiated island reset at grid " + coord + " for " + player.getName());
+
+            } catch (Exception e) {
+                addon.logError("Failed to create reset island: " + e.getMessage());
+                player.sendMessage("§cFailed to create new island. Please contact an admin.");
+                pendingClaims.remove(playerUUID);
+                pendingResets.remove(playerUUID);
+            }
+        }, 20L); // Wait 1 second for deletion to complete
+    }
+
+    /**
+     * Create a reset island at the specified grid location.
+     * Used when BentoBox has already deleted the old island before firing IslandPreCreateEvent.
+     * @param player The player resetting their island
+     * @param coord The grid coordinate to create the island at
+     */
+    private void createResetIslandAtLocation(Player player, GridCoordinate coord) {
+        UUID playerUUID = player.getUniqueId();
+        World world = gridManager.getBSkyBlockWorld();
+        User user = User.getInstance(player);
+
+        addon.log("Creating reset island for " + player.getName() + " at " + coord + " (old island already deleted)");
+
+        // Calculate world coordinates for this grid position
+        int spacing = addon.getIslandSpacing() * 2;
+        int worldX = coord.getX() * spacing;
+        int worldZ = coord.getZ() * spacing;
+        Location targetLocation = new Location(world, worldX, 64, worldZ);
+
+        // Check if there's still an island at this location in BentoBox's cache
+        // and forcibly remove it from the cache/grid before creating the new island
+        Island existingAtLocation = BentoBox.getInstance().getIslands().getIslandAt(targetLocation).orElse(null);
+        if (existingAtLocation != null) {
+            String islandId = existingAtLocation.getUniqueId();
+            addon.log("Found existing island at location: " + islandId + " - removing from cache");
+            try {
+                // Directly remove from cache/grid - this clears the grid slot
+                BentoBox.getInstance().getIslands().getIslandCache().deleteIslandFromCache(existingAtLocation);
+                addon.log("Removed island from cache");
+                // Note: We don't delete the file here - it will be deleted after the new island is created
+                // to prevent BentoBox from re-saving it
+            } catch (Exception e) {
+                addon.logWarning("Failed to remove island from cache: " + e.getMessage());
+            }
+        }
+
+        // Create island at the same grid location using our custom location strategy
+        GridLocationStrategy locationStrategy = new GridLocationStrategy(addon, coord, world);
+
+        try {
+            // Use CREATE reason instead of RESET - RESET has special handling that may conflict
+            // with our custom grid management
+            Island newIsland = NewIsland.builder()
+                .player(user)
+                .addon(addon.getBSkyBlockAddon())
+                .reason(IslandEvent.Reason.CREATE)
+                .locationStrategy(locationStrategy)
+                .build();
+
+            if (newIsland != null) {
+                addon.log("Initiated island reset at grid " + coord + " for " + player.getName());
+            } else {
+                addon.logError("NewIsland.builder().build() returned null for " + player.getName());
+                player.sendMessage("§cFailed to create new island. The grid location may still be blocked.");
+                pendingClaims.remove(playerUUID);
+                pendingResets.remove(playerUUID);
+            }
+
+        } catch (Exception e) {
+            addon.logError("Failed to create reset island: " + e.getMessage());
+            player.sendMessage("§cFailed to create new island. Please contact an admin.");
+            pendingClaims.remove(playerUUID);
+            pendingResets.remove(playerUUID);
+        }
+    }
+
+    /**
+     * Delete an island's database file by its ID.
+     * Handles both full BentoBox island IDs (like "BSkyBlock6d68f389-...") and plain UUIDs.
+     */
+    private void deleteIslandDatabaseFile(String islandId) {
+        if (islandId == null || islandId.isEmpty()) {
+            addon.log("deleteIslandDatabaseFile called with null/empty ID");
+            return;
+        }
+
+        addon.log("Attempting to delete island database file for ID: " + islandId);
+
+        // Try the ID as-is first (for full BentoBox IDs like "BSkyBlockXXX")
+        java.io.File islandFile = new java.io.File(
+            addon.getPlugin().getDataFolder().getParentFile(),
+            "BentoBox/database/Island/" + islandId + ".json"
+        );
+
+        addon.log("Looking for file: " + islandFile.getAbsolutePath());
+
+        if (islandFile.exists()) {
+            boolean deleted = islandFile.delete();
+            addon.log("Deleted island database file " + islandId + ".json: " + deleted);
+        } else {
+            addon.log("File not found at primary path");
+            // Try with BSkyBlock prefix if the ID looks like a UUID
+            if (!islandId.startsWith("BSkyBlock")) {
+                java.io.File prefixedFile = new java.io.File(
+                    addon.getPlugin().getDataFolder().getParentFile(),
+                    "BentoBox/database/Island/BSkyBlock" + islandId + ".json"
+                );
+                addon.log("Trying prefixed path: " + prefixedFile.getAbsolutePath());
+                if (prefixedFile.exists()) {
+                    boolean deleted = prefixedFile.delete();
+                    addon.log("Deleted island database file BSkyBlock" + islandId + ".json: " + deleted);
+                } else {
+                    addon.log("Prefixed file also not found");
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle island deletion - clear from grid and slot data
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onIslandDelete(IslandDeleteEvent event) {
@@ -179,8 +486,35 @@ public class IslandCreateListener implements Listener {
         GridCoordinate coord = gridManager.worldToGrid(center.getBlockX(), center.getBlockZ());
 
         if (coord != null && gridManager.isWithinBounds(coord)) {
+            // Don't clear the location if this is part of a reset - the player is keeping this location
+            boolean isReset = pendingResets.values().stream().anyMatch(c -> c.equals(coord));
+            if (isReset) {
+                addon.log("Skipping grid location clear for " + coord + " - reset in progress");
+                return;
+            }
+
             gridManager.clearLocation(coord);
             addon.log("Cleared grid location " + coord + " due to island deletion");
+        }
+
+        // Also clear slot data for the island owner so they can create a fresh island
+        UUID ownerUUID = island.getOwner();
+        if (ownerUUID != null) {
+            SlotData activeSlot = slotManager.getActiveSlot(ownerUUID);
+            if (activeSlot != null && activeSlot.hasIsland()) {
+                // Check if this slot's island UUID matches the deleted island
+                String slotIslandUUID = activeSlot.getIslandUUID();
+                String deletedIslandUUID = island.getUniqueId();
+
+                if (deletedIslandUUID.equals(slotIslandUUID) || slotIslandUUID == null) {
+                    // Clear the slot data so player can create a new island
+                    activeSlot.setHasIsland(false);
+                    activeSlot.setIslandUUID((String) null);
+                    activeSlot.setGridCoordinate(null);
+                    slotManager.saveSlot(activeSlot);
+                    addon.log("Cleared slot data for " + ownerUUID + " due to island deletion");
+                }
+            }
         }
     }
 
@@ -209,16 +543,15 @@ public class IslandCreateListener implements Listener {
             return;
         }
 
-        // Store the pending claim
+        // Store the pending claim - needed for IslandCreatedEvent handler
         pendingClaims.put(playerUUID, coord);
         confirmedBlueprints.put(playerUUID, blueprintBundleKey);
 
         addon.log("Player " + player.getName() + " confirmed claim at " + coord +
                  " with blueprint " + blueprintBundleKey);
 
-        // Trigger island creation via BSkyBlock
-        // The blueprint selection is handled by BSkyBlock's BlueprintsManager
-        player.performCommand("island create " + blueprintBundleKey);
+        // Create island at the selected grid location using NewIsland.builder()
+        createIslandAtLocation(player, coord, blueprintBundleKey);
     }
 
     /**
@@ -246,13 +579,57 @@ public class IslandCreateListener implements Listener {
             return;
         }
 
-        // Store the pending claim
+        // Store the pending claim - needed for IslandCreatedEvent handler
         pendingClaims.put(playerUUID, coord);
 
         addon.log("Player " + player.getName() + " confirmed claim at " + coord);
 
-        // Trigger island creation via BSkyBlock
-        player.performCommand("island create");
+        // Create island at the selected grid location using NewIsland.builder()
+        createIslandAtLocation(player, coord, null);
+    }
+
+    /**
+     * Create an island at the specified grid location using BentoBox's NewIsland API.
+     * This ensures the island is created at the correct position from the start.
+     */
+    private void createIslandAtLocation(Player player, GridCoordinate coord, String blueprintBundleKey) {
+        World world = gridManager.getBSkyBlockWorld();
+        if (world == null) {
+            player.sendMessage("§cError: BSkyBlock world not available.");
+            pendingClaims.remove(player.getUniqueId());
+            confirmedBlueprints.remove(player.getUniqueId());
+            return;
+        }
+
+        User user = User.getInstance(player);
+
+        // Create our custom location strategy that returns the grid coordinate
+        GridLocationStrategy locationStrategy = new GridLocationStrategy(addon, coord, world);
+
+        try {
+            // Build the island creation request with our custom location strategy
+            NewIsland.Builder builder = NewIsland.builder()
+                    .player(user)
+                    .addon(addon.getBSkyBlockAddon())
+                    .reason(IslandEvent.Reason.CREATE)
+                    .locationStrategy(locationStrategy);
+
+            // Add blueprint if specified
+            if (blueprintBundleKey != null && !blueprintBundleKey.isEmpty()) {
+                builder.name(blueprintBundleKey);
+            }
+
+            // Execute the island creation
+            builder.build();
+
+            addon.log("Initiated island creation at grid " + coord + " for " + player.getName());
+
+        } catch (Exception e) {
+            addon.logError("Failed to create island: " + e.getMessage());
+            player.sendMessage("§cFailed to create island. Please try again.");
+            pendingClaims.remove(player.getUniqueId());
+            confirmedBlueprints.remove(player.getUniqueId());
+        }
     }
 
     /**

@@ -1,7 +1,9 @@
 package world.bentobox.islandselector.gui;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,6 +19,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.Settings;
 import world.bentobox.islandselector.database.SlotData;
@@ -24,6 +27,7 @@ import world.bentobox.islandselector.managers.SlotManager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Slot Selection GUI for managing island slots
@@ -69,6 +73,40 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         // Get player's available slot count
         int maxSlots = getPlayerMaxSlots();
         SlotManager slotManager = addon.getSlotManager();
+
+        // Check if player has a BentoBox island but no slot data (sync on-demand)
+        SlotData activeSlot = slotManager.getActiveSlot(player.getUniqueId());
+        if (activeSlot == null) {
+            World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+            Island existingIsland = bskyblockWorld != null ?
+                addon.getIslands().getIsland(bskyblockWorld, player.getUniqueId()) : null;
+
+            if (existingIsland != null) {
+                // Player has island but no slot data - create slot 1 now
+                addon.log("Player " + player.getName() + " has island but no slot data - auto-creating slot 1");
+
+                UUID islandUUID = null;
+                try {
+                    islandUUID = UUID.fromString(existingIsland.getUniqueId());
+                } catch (IllegalArgumentException e) {
+                    // Not a valid UUID
+                }
+
+                // Get grid coordinate from island center
+                Location center = existingIsland.getCenter();
+                String gridCoord = null;
+                if (center != null) {
+                    var coord = addon.getGridManager().worldToGrid(center.getBlockX(), center.getBlockZ());
+                    gridCoord = coord != null ? coord.toString() : "0,0";
+                }
+
+                // Create and activate slot 1
+                SlotData slot1 = slotManager.createOrGetSlot(player.getUniqueId(), 1);
+                slot1.createIsland(islandUUID, gridCoord);
+                slot1.setActive(true);
+                slotManager.saveSlot(slot1);
+            }
+        }
 
         // Populate slot displays
         for (int i = 0; i < 5; i++) {
@@ -272,23 +310,77 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
 
         // Check if slot has an island (inactive slot - switch)
         if (targetSlot != null && targetSlot.hasIsland()) {
+            // Make sure we have an active slot to switch from
+            if (activeSlot == null) {
+                clicker.sendMessage(colorize("&cError: No active slot found. Try relogging or contact an admin."));
+                addon.logError("Player " + clicker.getName() + " has targetSlot but no activeSlot - data inconsistency");
+                return;
+            }
             // Open switch confirmation GUI
             clicker.closeInventory();
             new SlotSwitchConfirmationGUI(addon, clicker, activeSlot, targetSlot).open();
             return;
         }
 
-        // Empty slot - trigger island creation
-        if (activeSlot == null || !activeSlot.hasIsland()) {
-            // Player doesn't have any islands yet - can't create in empty slot
-            clicker.sendMessage(colorize("&cYou must create your first island before using additional slots."));
+        // Empty slot - player must have an existing island first
+        // First check if they have a BentoBox island but no slot data (sync issue)
+        if (activeSlot == null) {
+            World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+            Island existingIsland = bskyblockWorld != null ?
+                addon.getIslands().getIsland(bskyblockWorld, clicker.getUniqueId()) : null;
+
+            if (existingIsland != null) {
+                // Player has island but no slot data - create slot 1 now
+                addon.log("Player " + clicker.getName() + " has island but no slot data - creating slot 1");
+
+                UUID islandUUID = null;
+                try {
+                    islandUUID = UUID.fromString(existingIsland.getUniqueId());
+                } catch (IllegalArgumentException e) {
+                    // Not a valid UUID
+                }
+
+                // Get grid coordinate from island center
+                Location center = existingIsland.getCenter();
+                String gridCoord = null;
+                if (center != null) {
+                    var coord = addon.getGridManager().worldToGrid(center.getBlockX(), center.getBlockZ());
+                    gridCoord = coord != null ? coord.toString() : "0,0";
+                }
+
+                // Create and activate slot 1
+                SlotData slot1 = slotManager.createOrGetSlot(clicker.getUniqueId(), 1);
+                slot1.createIsland(islandUUID, gridCoord);
+                slot1.setActive(true);
+                slotManager.saveSlot(slot1);
+
+                // Refresh the GUI
+                clicker.sendMessage(colorize("&aYour island has been synced! Please try again."));
+                populateInventory();
+                return;
+            }
+
+            clicker.sendMessage(colorize("&cYou must have an island before using additional slots."));
+            clicker.sendMessage(colorize("&7Use &e/island&7 to create your first island."));
             return;
         }
 
-        // Start island creation flow for this slot
+        if (!activeSlot.hasIsland()) {
+            clicker.sendMessage(colorize("&cYou must have an island before using additional slots."));
+            clicker.sendMessage(colorize("&7Use &e/island&7 to create your first island."));
+            return;
+        }
+
+        // Open blueprint selection for creating a new island in this empty slot
+        // The new island will be at the SAME location as the current island
         clicker.closeInventory();
-        clicker.sendMessage(colorize("&eIsland creation in empty slots coming soon..."));
-        // TODO: Trigger BSkyBlock island creation and associate with this slot
+        clicker.sendMessage(colorize("&eSelect an island type for slot " + slotNumber + "..."));
+
+        // Store the target slot number
+        addon.getSlotManager().setPendingSlotCreation(clicker.getUniqueId(), slotNumber);
+
+        // Open the slot blueprint selection GUI (creates at same location)
+        new SlotBlueprintSelectionGUI(addon, clicker, slotNumber, activeSlot).open();
     }
 
     @EventHandler

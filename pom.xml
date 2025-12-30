@@ -22,12 +22,18 @@
         <!-- Dependency versions -->
         <bentobox.version>2.4.0</bentobox.version>
         <bskyblock.version>1.17.0</bskyblock.version>
-        <spigot.version>1.20.4-R0.1-SNAPSHOT</spigot.version>
+        <paper.version>1.20.4-R0.1-SNAPSHOT</paper.version>
         <fawe.version>2.9.2</fawe.version>
     </properties>
 
     <repositories>
-        <!-- Spigot Repository -->
+        <!-- Paper Repository (includes Spigot API) -->
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+
+        <!-- Spigot Repository (fallback) -->
         <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
@@ -51,6 +57,12 @@
             <url>https://jitpack.io</url>
         </repository>
 
+        <!-- Nova Repository -->
+        <repository>
+            <id>xenondevs</id>
+            <url>https://repo.xenondevs.xyz/releases</url>
+        </repository>
+
         <!-- PlaceholderAPI Repository -->
         <repository>
             <id>placeholderapi</id>
@@ -59,11 +71,11 @@
     </repositories>
 
     <dependencies>
-        <!-- Spigot API -->
+        <!-- Paper API (includes Spigot API + async chunk loading) -->
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>${spigot.version}</version>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>${paper.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -109,6 +121,14 @@
             <groupId>com.github.MilkBowl</groupId>
             <artifactId>VaultAPI</artifactId>
             <version>1.7</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Nova API (Optional - for custom block support) -->
+        <dependency>
+            <groupId>xyz.xenondevs.nova</groupId>
+            <artifactId>nova-api</artifactId>
+            <version>0.21.0</version>
             <scope>provided</scope>
         </dependency>
 

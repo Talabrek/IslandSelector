@@ -2,8 +2,10 @@ package world.bentobox.islandselector.managers;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -218,16 +220,24 @@ public class GridManager {
 
             // Create or update grid location
             GridLocation location = getOrCreateGridLocation(coord);
-            location.occupy(ownerUUID, ownerName, island.getUniqueId() != null ?
-                UUID.fromString(island.getUniqueId()) : null);
+
+            // Try to parse island unique ID as UUID (may not always be valid UUID format)
+            UUID islandUUID = null;
+            String islandIdStr = island.getUniqueId();
+            if (islandIdStr != null && !islandIdStr.isEmpty()) {
+                try {
+                    islandUUID = UUID.fromString(islandIdStr);
+                } catch (IllegalArgumentException e) {
+                    // Island ID is not a valid UUID format - this is OK
+                }
+            }
+
+            location.occupy(ownerUUID, ownerName, islandUUID);
+            location.setIslandId(islandIdStr); // Store original ID string
 
             // Update lookup maps
-            if (island.getUniqueId() != null) {
-                try {
-                    islandToCoord.put(UUID.fromString(island.getUniqueId()), coord);
-                } catch (IllegalArgumentException e) {
-                    // Invalid UUID format, skip
-                }
+            if (islandUUID != null) {
+                islandToCoord.put(islandUUID, coord);
             }
             playerToCoord.put(ownerUUID, coord);
 
@@ -256,12 +266,13 @@ public class GridManager {
 
     /**
      * Check if a coordinate is within the current grid boundaries
+     * Grid uses min/max X and Z values (supports negative coordinates)
      */
     public boolean isWithinBounds(GridCoordinate coord) {
-        return coord.getColumn() >= 0 &&
-               coord.getColumn() < addon.getSettings().getGridWidth() &&
-               coord.getRow() >= 0 &&
-               coord.getRow() < addon.getSettings().getGridHeight();
+        return coord.getX() >= addon.getSettings().getGridMinX() &&
+               coord.getX() <= addon.getSettings().getGridMaxX() &&
+               coord.getZ() >= addon.getSettings().getGridMinZ() &&
+               coord.getZ() <= addon.getSettings().getGridMaxZ();
     }
 
     /**
@@ -324,6 +335,23 @@ public class GridManager {
         }
         GridLocation location = getGridLocation(coord);
         return location == null || location.isAvailable();
+    }
+
+    /**
+     * Get all player UUIDs who have occupied grid locations
+     */
+    public Set<UUID> getAllOccupiedPlayerUUIDs() {
+        return new HashSet<>(playerToCoord.keySet());
+    }
+
+    /**
+     * Get the grid coordinate string for a player's island
+     * @param playerUUID The player's UUID
+     * @return Grid coordinate string like "0,0" or null if not found
+     */
+    public String getPlayerGridCoordinate(UUID playerUUID) {
+        GridCoordinate coord = playerToCoord.get(playerUUID);
+        return coord != null ? coord.toString() : null;
     }
 
     /**

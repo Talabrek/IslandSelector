@@ -101,3 +101,33 @@ output/
 
 # Test server directory
 test-server/
+
+# Development session files
+SESSION*_NOTES.txt
+SESSION*_SUMMARY.txt
+SESSION*_FOR_HUMAN_TESTER.txt
+SESSION*_FOR_HUMAN_TESTER.md
+TESTING_SESSION*.md
+
+# Development backup files
+*_backup*.java
+*_backup*.txt
+*_backup*.md
+*.backup
+GridManager_backup.java
+MainGridGUI_backup.java
+NeighborhoodGUI_backup_session44.java
+claude-progress-backup*.txt
+
+# Development scripts and utilities
+*.py
+*.sh
+append_session*.txt
+check_session*.py
+nul
+
+# Claude/agent artifacts
+.claude_settings.json
+feature_list.json
+app_spec.txt
+claude-progress.txt
