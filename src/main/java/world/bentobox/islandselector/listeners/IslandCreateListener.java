@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import world.bentobox.bentobox.BentoBox;
 import world.bentobox.bentobox.api.events.island.IslandEvent;
@@ -44,13 +45,8 @@ public class IslandCreateListener implements Listener {
     private final GridManager gridManager;
     private final SlotManager slotManager;
 
-    // TODO BUG: Memory leak potential - these maps are never cleaned up on error paths
-    // or if a player disconnects during the island creation process.
-    // If confirmClaim() fails or the player quits before island creation completes,
-    // their UUID remains in these maps indefinitely.
-    // Fix: Add a cleanup mechanism (e.g., scheduled task or player disconnect listener)
-    // to remove stale entries from these maps.
     // Track pending island claims (player UUID -> grid coordinate)
+    // Note: Cleaned up by onPlayerQuit() when player disconnects
     private final Map<UUID, GridCoordinate> pendingClaims = new HashMap<>();
 
     // Track players who should skip the GUI (already selected a location)
@@ -741,5 +737,26 @@ public class IslandCreateListener implements Listener {
      */
     public boolean hasAdminRemoval(UUID playerUUID) {
         return pendingAdminRemovals.contains(playerUUID);
+    }
+
+    /**
+     * Clean up all pending data for a player.
+     * Called on disconnect to prevent memory leaks.
+     */
+    public void cleanupPlayer(UUID playerUUID) {
+        pendingClaims.remove(playerUUID);
+        confirmedBlueprints.remove(playerUUID);
+        pendingResets.remove(playerUUID);
+        pendingOldIslandDeletions.remove(playerUUID);
+        pendingAdminRemovals.remove(playerUUID);
+    }
+
+    /**
+     * Handle player disconnect - clean up any pending claim data.
+     */
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerUUID = event.getPlayer().getUniqueId();
+        cleanupPlayer(playerUUID);
     }
 }

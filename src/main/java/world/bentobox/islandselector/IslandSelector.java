@@ -9,6 +9,7 @@ import world.bentobox.islandselector.commands.IslandSelectorCommand;
 import world.bentobox.islandselector.integrations.NovaIntegration;
 import world.bentobox.islandselector.integrations.PlaceholderAPIIntegration;
 import world.bentobox.islandselector.integrations.WorldEditIntegration;
+import world.bentobox.islandselector.gui.SharedGridGUIListener;
 import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.listeners.PlayerConnectionListener;
 import world.bentobox.islandselector.listeners.SearchListener;
@@ -217,6 +218,11 @@ public class IslandSelector extends Addon {
         PlayerConnectionListener connectionListener = new PlayerConnectionListener(this);
         Bukkit.getPluginManager().registerEvents(connectionListener, getPlugin());
         log("Registered player connection listener for blueprint permissions");
+
+        // Register shared GUI listener for MainGridGUI (prevents listener leak)
+        SharedGridGUIListener sharedGridListener = new SharedGridGUIListener(this);
+        Bukkit.getPluginManager().registerEvents(sharedGridListener, getPlugin());
+        log("Registered shared grid GUI listener");
     }
 
     @Override

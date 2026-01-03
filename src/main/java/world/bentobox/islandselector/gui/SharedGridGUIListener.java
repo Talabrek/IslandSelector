@@ -3,7 +3,6 @@ package world.bentobox.islandselector.gui;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -11,32 +10,31 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.InventoryHolder;
 
 import world.bentobox.bentobox.util.teleport.SafeSpotTeleport;
+import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 /**
- * Listener for handling clicks in the Grid GUI
+ * Shared listener for all MainGridGUI instances.
+ * Registered once in IslandSelector.onEnable() to avoid memory leaks.
+ * Routes events to the appropriate GUI instance via InventoryHolder pattern.
  */
-public class GridGUIListener implements Listener {
+public class SharedGridGUIListener implements Listener {
 
-    private final MainGridGUI gui;
+    private final IslandSelector addon;
 
-    public GridGUIListener(MainGridGUI gui) {
-        this.gui = gui;
+    public SharedGridGUIListener(IslandSelector addon) {
+        this.addon = addon;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
-        // Check if this is our GUI
         InventoryHolder holder = event.getInventory().getHolder();
         if (!(holder instanceof MainGridGUI)) {
             return;
         }
 
-        MainGridGUI clickedGUI = (MainGridGUI) holder;
-        if (!clickedGUI.equals(gui)) {
-            return;
-        }
+        MainGridGUI gui = (MainGridGUI) holder;
 
         // Cancel the event to prevent item movement
         event.setCancelled(true);
@@ -67,9 +65,9 @@ public class GridGUIListener implements Listener {
             gui.scrollRight(shift);
             return;
         }
+
         // Handle control buttons
         if (slot == gui.getSearchSlot()) {
-            // Open search - close GUI and start search session
             player.closeInventory();
             gui.getAddon().getSearchListener().startSearch(player, gui);
             return;
@@ -84,7 +82,6 @@ public class GridGUIListener implements Listener {
             return;
         }
         if (slot == gui.getSlotsSlot()) {
-            // Only allow if FAWE is available
             if (gui.getAddon().isSchematicOperationsAvailable()) {
                 player.closeInventory();
                 new SlotSelectionGUI(gui.getAddon(), player).open();
@@ -99,36 +96,32 @@ public class GridGUIListener implements Listener {
         // Handle grid slot clicks
         GridCoordinate coord = gui.getCoordinateForSlot(slot);
         if (coord != null) {
-            handleGridClick(player, coord, event.isRightClick());
+            handleGridClick(gui, player, coord, event.isRightClick());
         }
     }
 
     /**
      * Handle click on a grid location
      */
-    private void handleGridClick(Player player, GridCoordinate coord, boolean rightClick) {
-        // Get the location status
+    private void handleGridClick(MainGridGUI gui, Player player, GridCoordinate coord, boolean rightClick) {
         var gridManager = gui.getAddon().getGridManager();
         var status = gridManager.getLocationStatus(coord);
 
         switch (status) {
             case AVAILABLE:
-                // Handle claiming or relocation
-                handleAvailableClick(player, coord);
+                handleAvailableClick(gui, player, coord);
                 break;
             case OCCUPIED:
-                // Handle visiting (right-click) or viewing info
                 if (rightClick) {
-                    handleVisitClick(player, coord);
+                    handleVisitClick(gui, player, coord);
                 } else {
-                    handleViewIslandInfo(player, coord);
+                    handleViewIslandInfo(gui, player, coord);
                 }
                 break;
             case RESERVED:
-                // Handle purchase if purchasable
                 var location = gridManager.getGridLocation(coord);
                 if (location != null && location.isPurchasable()) {
-                    handlePurchaseClick(player, coord, location.getPurchasePrice());
+                    handlePurchaseClick(gui, player, coord, location.getPurchasePrice());
                 } else {
                     player.sendMessage("\u00A7cThis location is reserved and not available.");
                 }
@@ -142,22 +135,17 @@ public class GridGUIListener implements Listener {
     /**
      * Handle click on available location
      */
-    private void handleAvailableClick(Player player, GridCoordinate coord) {
+    private void handleAvailableClick(MainGridGUI gui, Player player, GridCoordinate coord) {
         var gridManager = gui.getAddon().getGridManager();
         var playerIsland = gridManager.getPlayerIslandCoordinate(player.getUniqueId());
         IslandCreateListener createListener = gui.getAddon().getIslandCreateListener();
 
         if (playerIsland == null) {
-            // Player doesn't have an island - initiate claiming
             player.closeInventory();
-            // Register this as a pending claim
             createListener.onLocationSelected(player, coord);
-            // Open confirmation GUI
             new ConfirmationGUI(gui.getAddon(), player, coord, createListener, ConfirmationGUI.ActionType.CLAIM).open();
         } else {
-            // Player has an island - relocation requires FAWE
             if (!gui.getAddon().isSchematicOperationsAvailable()) {
-                // FAWE not installed - relocation not available
                 return;
             }
             player.closeInventory();
@@ -170,10 +158,8 @@ public class GridGUIListener implements Listener {
     /**
      * Handle right-click to visit an island
      */
-    private void handleVisitClick(Player player, GridCoordinate coord) {
+    private void handleVisitClick(MainGridGUI gui, Player player, GridCoordinate coord) {
         var gridManager = gui.getAddon().getGridManager();
-        var addon = gui.getAddon();
-        // Ensure status is checked first (may register island from BSkyBlock)
         gridManager.getLocationStatus(coord);
         var location = gridManager.getGridLocation(coord);
 
@@ -182,17 +168,14 @@ public class GridGUIListener implements Listener {
             return;
         }
 
-        // Check if it's the player's own island
         if (location.getOwnerUUID().equals(player.getUniqueId())) {
             player.closeInventory();
             player.sendMessage("\u00A7eTeleporting to your island...");
-            // Use BSkyBlock to teleport to own island
             world.bentobox.bentobox.BentoBox.getInstance().getIslandsManager()
                 .homeTeleportAsync(gridManager.getBSkyBlockWorld(), player);
             return;
         }
 
-        // Get the BSkyBlock island for this location
         var islandsManager = world.bentobox.bentobox.BentoBox.getInstance().getIslandsManager();
         var island = islandsManager.getIsland(gridManager.getBSkyBlockWorld(), location.getOwnerUUID());
         if (island == null) {
@@ -200,18 +183,13 @@ public class GridGUIListener implements Listener {
             return;
         }
 
-        // Check if player is banned from this island
         if (island.isBanned(player.getUniqueId())) {
             player.sendMessage("\u00A7cYou are banned from this island!");
             return;
         }
 
-        // Get owner name for message
         String ownerName = location.getOwnerName() != null ? location.getOwnerName() : "Unknown";
 
-        // Check if visiting is allowed (island has visitors enabled)
-        // In BSkyBlock, the warp sign determines if island is visitable
-        // We'll use the island spawn location if no warp
         org.bukkit.Location targetLoc = island.getSpawnPoint(org.bukkit.World.Environment.NORMAL);
         if (targetLoc == null) {
             targetLoc = island.getProtectionCenter();
@@ -223,7 +201,6 @@ public class GridGUIListener implements Listener {
         if (targetLoc != null) {
             player.closeInventory();
             player.sendMessage("\u00A7aTeleporting to " + ownerName + "'s island...");
-            // Use BentoBox SafeSpotTeleport for safe async teleportation
             new SafeSpotTeleport.Builder(gui.getAddon().getPlugin())
                 .entity(player)
                 .location(targetLoc)
@@ -237,9 +214,8 @@ public class GridGUIListener implements Listener {
     /**
      * Handle left-click to view island info
      */
-    private void handleViewIslandInfo(Player player, GridCoordinate coord) {
+    private void handleViewIslandInfo(MainGridGUI gui, Player player, GridCoordinate coord) {
         var gridManager = gui.getAddon().getGridManager();
-        // Ensure status is checked first (may register island from BSkyBlock)
         gridManager.getLocationStatus(coord);
         var location = gridManager.getGridLocation(coord);
 
@@ -262,21 +238,18 @@ public class GridGUIListener implements Listener {
     /**
      * Handle click on purchasable reserved location
      */
-    private void handlePurchaseClick(Player player, GridCoordinate coord, double price) {
+    private void handlePurchaseClick(MainGridGUI gui, Player player, GridCoordinate coord, double price) {
         var gridManager = gui.getAddon().getGridManager();
         var playerIsland = gridManager.getPlayerIslandCoordinate(player.getUniqueId());
 
         if (playerIsland == null) {
-            // Player doesn't have an island - initiate premium claim
             player.closeInventory();
             IslandCreateListener createListener = gui.getAddon().getIslandCreateListener();
             createListener.onLocationSelected(player, coord);
             new ConfirmationGUI(gui.getAddon(), player, coord, createListener,
                 ConfirmationGUI.ActionType.PURCHASE, price).open();
         } else {
-            // Player has an island - premium relocation requires FAWE
             if (!gui.getAddon().isSchematicOperationsAvailable()) {
-                // FAWE not installed - relocation not available
                 return;
             }
             player.closeInventory();
@@ -288,7 +261,6 @@ public class GridGUIListener implements Listener {
 
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
-        // Prevent dragging in our GUI
         InventoryHolder holder = event.getInventory().getHolder();
         if (holder instanceof MainGridGUI) {
             event.setCancelled(true);
@@ -297,10 +269,10 @@ public class GridGUIListener implements Listener {
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        // Unregister listener when GUI closes
         InventoryHolder holder = event.getInventory().getHolder();
-        if (holder instanceof MainGridGUI && holder.equals(gui)) {
-            HandlerList.unregisterAll(this);
+        if (holder instanceof MainGridGUI) {
+            MainGridGUI gui = (MainGridGUI) holder;
+            gui.handleClose();
         }
     }
 }

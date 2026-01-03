@@ -16,6 +16,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Manager for handling slot switching operations.
@@ -139,36 +142,40 @@ public class SlotSwitchManager {
                 // This MUST happen on main thread and complete before loading new schematic
                 sendProgress(player, "&eClearing current island from world...");
 
-                // TODO BUG: Race condition - Using wait/notify with Bukkit scheduler is fragile.
-                // If the scheduled task runs before we enter the wait(), we miss the notify().
-                // Also, InterruptedException is not properly handled.
-                // Fix: Use CompletableFuture or a callback-based approach instead.
-                // Use a synchronization mechanism to wait for clearing
-                final boolean[] clearSuccess = {false};
-                final Object clearLock = new Object();
+                // Use CompletableFuture for proper async coordination
+                CompletableFuture<Boolean> clearFuture = new CompletableFuture<>();
 
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    synchronized (clearLock) {
-                        clearSuccess[0] = clearIslandBlocksAndEntities(playerUUID, fromSlot);
-                        clearLock.notify();
+                    try {
+                        boolean success = clearIslandBlocksAndEntities(playerUUID, fromSlot);
+                        clearFuture.complete(success);
+                    } catch (Exception e) {
+                        clearFuture.completeExceptionally(e);
                     }
                 });
 
-                // Wait for clearing to complete (with timeout)
-                synchronized (clearLock) {
-                    clearLock.wait(10000); // 10 second timeout
-                }
-
-                if (!clearSuccess[0]) {
+                // Wait for clearing to complete with proper timeout handling
+                boolean clearSuccess;
+                try {
+                    clearSuccess = clearFuture.get(30, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    addon.logError("Timeout waiting for island clearing");
+                    sendError(player, "&cTimeout clearing island! Please contact an admin.");
+                    return;
+                } catch (Exception e) {
+                    addon.logError("Error during island clearing: " + e.getMessage());
                     sendError(player, "&cFailed to clear current island! Please contact an admin.");
                     return;
                 }
 
-                // TODO BUG: Thread.sleep() is a fragile way to wait for FAWE operations.
-                // FAWE operations are async and may take longer than 2 seconds on large islands.
-                // Fix: Use FAWE's EditSession callbacks or CompletableFuture to properly wait for completion.
-                // Additional wait for FAWE to finish block operations
-                Thread.sleep(2000);
+                if (!clearSuccess) {
+                    sendError(player, "&cFailed to clear current island! Please contact an admin.");
+                    return;
+                }
+
+                // Allow FAWE operations to complete (SchematicUtils operations are synchronous
+                // within the async thread, but a brief delay ensures block updates propagate)
+                Thread.sleep(500);
 
                 // Step 4: Load target slot schematic
                 sendProgress(player, "&eLoading target island...");
@@ -178,9 +185,9 @@ public class SlotSwitchManager {
                     return;
                 }
 
-                // TODO BUG: Same Thread.sleep() issue as above - FAWE paste is async
-                // Wait for pasting to complete
-                Thread.sleep(1500);
+                // Brief delay to ensure block updates propagate before proceeding
+                // (SchematicUtils paste is synchronous, but block lighting/updates may need time)
+                Thread.sleep(500);
 
                 // Step 4.5: Restore challenge progress for the target slot (Challenges addon integration)
                 if (challenges.isEnabled()) {

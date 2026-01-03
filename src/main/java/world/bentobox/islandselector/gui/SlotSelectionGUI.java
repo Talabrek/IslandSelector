@@ -168,9 +168,28 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         }
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 
+        // Get island level and members from the active island
+        String levelStr = "0";
+        int memberCount = 1;
+        UUID playerUUID = player.getUniqueId();
+
+        // Get level from Level addon
+        if (addon.getLevelIntegration() != null && addon.getLevelIntegration().isEnabled()) {
+            levelStr = addon.getLevelIntegration().getFormattedIslandLevel(playerUUID);
+        }
+
+        // Get members from island
+        World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+        if (bskyblockWorld != null) {
+            Island island = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
+            if (island != null) {
+                memberCount = island.getMemberSet().size();
+            }
+        }
+
         List<String> lore = new ArrayList<>();
-        lore.add(colorize("&7Level: &f0")); // TODO: Get from Level addon
-        lore.add(colorize("&7Members: &f1")); // TODO: Get from island data
+        lore.add(colorize("&7Level: &f" + levelStr));
+        lore.add(colorize("&7Members: &f" + memberCount));
         lore.add("");
         lore.add(colorize("&e★ ACTIVE"));
 
@@ -190,9 +209,11 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(colorize("&f" + slotData.getSlotName()));
 
+        // For inactive slots, the island is saved as schematic so level/members aren't available
+        // Show "Saved" to indicate the data is preserved in the schematic
         List<String> lore = new ArrayList<>();
-        lore.add(colorize("&7Level: &f0")); // TODO: Get from Level addon
-        lore.add(colorize("&7Members: &f1")); // TODO: Get from island data
+        lore.add(colorize("&7Level: &8(Saved)"));
+        lore.add(colorize("&7Members: &8(Saved)"));
         lore.add("");
         lore.add(colorize("&eClick to switch to this slot"));
 

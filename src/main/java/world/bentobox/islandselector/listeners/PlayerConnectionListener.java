@@ -47,5 +47,8 @@ public class PlayerConnectionListener implements Listener {
 
         // Clean up permission attachments
         addon.getBlueprintChallengesManager().onPlayerQuit(player);
+
+        // Clean up pending slot operations to prevent memory leaks
+        addon.getSlotManager().cleanupPlayer(player.getUniqueId());
     }
 }

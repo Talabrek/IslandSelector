@@ -304,7 +304,8 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 }
                 // Verify location is still available
                 if (!addon.getGridManager().isAvailable(coord)) {
-                    // TODO: Refund the player
+                    // Refund the player since we already charged them
+                    refundPlayer(price);
                     player.sendMessage(colorize("&cThis location is no longer available!"));
                     createListener.cancelClaim(player);
                     return;
@@ -442,6 +443,46 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
             addon.logError("Economy error: " + e.getMessage());
             player.sendMessage(colorize("&cAn error occurred with the economy system."));
             return false;
+        }
+    }
+
+    /**
+     * Refund money to the player (used when location becomes unavailable after payment)
+     */
+    private void refundPlayer(double amount) {
+        if (amount <= 0) {
+            return;
+        }
+
+        // Check for bypass permission - if bypassed, no refund needed
+        String bypassPerm = null;
+        if (actionType == ActionType.PURCHASE || actionType == ActionType.PREMIUM_RELOCATE) {
+            bypassPerm = "islandselector.bypass.cost.purchase";
+        }
+        if (bypassPerm != null && player.hasPermission(bypassPerm)) {
+            return; // Player didn't pay, so no refund needed
+        }
+
+        // Check for Vault
+        if (!Bukkit.getPluginManager().isPluginEnabled("Vault")) {
+            return;
+        }
+
+        try {
+            var rsp = Bukkit.getServicesManager().getRegistration(net.milkbowl.vault.economy.Economy.class);
+            if (rsp == null) {
+                return;
+            }
+
+            var economy = rsp.getProvider();
+            var result = economy.depositPlayer(player, amount);
+            if (result.transactionSuccess()) {
+                player.sendMessage(colorize("&aRefunded &f$" + String.format("%.2f", amount)));
+            } else {
+                addon.logError("Failed to refund player " + player.getName() + ": " + result.errorMessage);
+            }
+        } catch (Exception e) {
+            addon.logError("Error refunding player: " + e.getMessage());
         }
     }
 
