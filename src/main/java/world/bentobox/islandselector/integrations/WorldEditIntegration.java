@@ -198,20 +198,25 @@ public class WorldEditIntegration {
         int minZ = center.getBlockZ() - range;
         int maxZ = center.getBlockZ() + range;
 
-        int removedCount = 0;
+        // Collect entities to remove first to avoid ConcurrentModificationException
+        java.util.List<Entity> entitiesToRemove = new java.util.ArrayList<>();
         for (Entity entity : world.getEntities()) {
             if (entity instanceof Player) continue;
 
             Location loc = entity.getLocation();
             if (loc.getBlockX() >= minX && loc.getBlockX() <= maxX &&
                 loc.getBlockZ() >= minZ && loc.getBlockZ() <= maxZ) {
-                entity.remove();
-                removedCount++;
+                entitiesToRemove.add(entity);
             }
         }
 
-        addon.log("Removed " + removedCount + " entities in region around " + center.getBlockX() + "," + center.getBlockZ());
-        return removedCount;
+        // Now remove collected entities
+        for (Entity entity : entitiesToRemove) {
+            entity.remove();
+        }
+
+        addon.log("Removed " + entitiesToRemove.size() + " entities in region around " + center.getBlockX() + "," + center.getBlockZ());
+        return entitiesToRemove.size();
     }
 
     /**

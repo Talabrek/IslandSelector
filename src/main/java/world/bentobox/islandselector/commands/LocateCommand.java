@@ -2,6 +2,7 @@ package world.bentobox.islandselector.commands;
 
 import java.util.List;
 
+import org.bukkit.Location;
 import org.bukkit.World;
 
 import world.bentobox.bentobox.api.commands.CompositeCommand;
@@ -41,9 +42,16 @@ public class LocateCommand extends CompositeCommand {
         }
         GridManager gridManager = addon.getGridManager();
 
+        // Check if island has a valid center
+        Location center = island.getCenter();
+        if (center == null) {
+            user.sendMessage("commands.islandselector.locate.error");
+            return false;
+        }
+
         // Convert world coordinates to grid coordinates
-        int worldX = island.getCenter().getBlockX();
-        int worldZ = island.getCenter().getBlockZ();
+        int worldX = center.getBlockX();
+        int worldZ = center.getBlockZ();
         GridCoordinate gridCoord = gridManager.worldToGrid(worldX, worldZ);
 
         if (gridCoord == null) {

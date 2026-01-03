@@ -274,7 +274,15 @@ public class RelocationManager {
         Player targetPlayer = Bukkit.getPlayer(targetUUID);
         if (targetPlayer != null && targetPlayer.isOnline()) {
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                Location serverSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
+                World spawnWorld = Bukkit.getWorld("world");
+                if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+                    spawnWorld = Bukkit.getWorlds().get(0);
+                }
+                if (spawnWorld == null) {
+                    addon.logWarning("Cannot teleport player during relocation - no spawn world available");
+                    return;
+                }
+                Location serverSpawn = spawnWorld.getSpawnLocation();
                 // Use safe teleport for server spawn
                 new SafeSpotTeleport.Builder(addon.getPlugin())
                     .entity(targetPlayer)
@@ -531,7 +539,15 @@ public class RelocationManager {
         // This prevents the player from falling into the void during the move
         Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
             // Use server spawn (first world's spawn) not the current world's spawn
-            Location serverSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
+            World spawnWorld = Bukkit.getWorld("world");
+            if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+                spawnWorld = Bukkit.getWorlds().get(0);
+            }
+            if (spawnWorld == null) {
+                player.sendMessage(colorize("&cCannot relocate - no spawn world available!"));
+                return;
+            }
+            Location serverSpawn = spawnWorld.getSpawnLocation();
             // Use safe teleport for server spawn
             new SafeSpotTeleport.Builder(addon.getPlugin())
                 .entity(player)

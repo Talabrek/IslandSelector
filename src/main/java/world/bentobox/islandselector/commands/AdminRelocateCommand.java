@@ -59,11 +59,12 @@ public class AdminRelocateCommand extends CompositeCommand {
         }
 
         // Find target player UUID
-        UUID playerUUID = Bukkit.getOfflinePlayer(playerName).getUniqueId();
-        if (playerUUID == null) {
+        org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
+        if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
             user.sendMessage("§cPlayer not found: " + playerName);
             return false;
         }
+        UUID playerUUID = offlinePlayer.getUniqueId();
 
         GridManager gridManager = addon.getGridManager();
         RelocationManager relocationManager = addon.getRelocationManager();

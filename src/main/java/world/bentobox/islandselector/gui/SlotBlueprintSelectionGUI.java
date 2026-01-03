@@ -284,7 +284,15 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
         String gridCoordinate = activeSlot.getGridCoordinate();
 
         // Step 0: Teleport player to SERVER spawn for safety during the operation
-        Location serverSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
+        World spawnWorld = Bukkit.getWorld("world");
+        if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+            spawnWorld = Bukkit.getWorlds().get(0);
+        }
+        if (spawnWorld == null) {
+            player.sendMessage(colorize("&cCannot create slot - no spawn world available!"));
+            return;
+        }
+        Location serverSpawn = spawnWorld.getSpawnLocation();
         // Use safe teleport for server spawn
         new SafeSpotTeleport.Builder(addon.getPlugin())
             .entity(player)

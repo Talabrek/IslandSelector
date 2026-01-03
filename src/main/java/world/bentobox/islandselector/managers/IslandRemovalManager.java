@@ -88,7 +88,15 @@ public class IslandRemovalManager {
         // Teleport player to spawn if online using safe teleport
         Player player = Bukkit.getPlayer(playerUUID);
         if (player != null && player.isOnline()) {
-            Location spawn = Bukkit.getWorlds().get(0).getSpawnLocation();
+            World spawnWorld = Bukkit.getWorld("world");
+            if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+                spawnWorld = Bukkit.getWorlds().get(0);
+            }
+            if (spawnWorld == null) {
+                addon.logWarning("Cannot teleport player during island removal - no spawn world available");
+                return;
+            }
+            Location spawn = spawnWorld.getSpawnLocation();
             new SafeSpotTeleport.Builder(addon.getPlugin())
                 .entity(player)
                 .location(spawn)

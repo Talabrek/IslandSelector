@@ -592,6 +592,12 @@ public class GridManager {
         // Real spacing between island centers is distance * 2
         int actualSpacing = addon.getIslandSpacing() * 2;
 
+        // Prevent division by zero if spacing is invalid
+        if (actualSpacing <= 0) {
+            addon.logWarning("Invalid island spacing detected (" + actualSpacing + "), defaulting to grid (0,0)");
+            return new GridCoordinate(0, 0);
+        }
+
         // Use floor division to get the grid coordinate
         // This handles both positive and negative coordinates correctly
         int gridX = Math.floorDiv(worldX, actualSpacing);

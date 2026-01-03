@@ -7,6 +7,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.gui.AdminGridGUI;
@@ -314,6 +315,18 @@ public class SearchListener implements Listener {
      */
     public void cancelSearch(Player player) {
         activeSessions.remove(player.getUniqueId());
+    }
+
+    /**
+     * Clean up player data when they disconnect to prevent memory leaks
+     */
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        activeSessions.remove(playerId);
+        pendingAdminSearch.remove(playerId);
+        pendingAdminJump.remove(playerId);
+        pendingAdminPriceSet.remove(playerId);
     }
 
     /**

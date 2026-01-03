@@ -565,8 +565,14 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
         player.sendMessage(colorize("&7Please wait while your island is being placed."));
 
         // IMPORTANT: Teleport player to spawn FIRST to prevent BentoBox's teleport from conflicting
-        Location spawn = Bukkit.getWorlds().get(0).getSpawnLocation();
-        player.teleport(spawn);
+        World spawnWorld = Bukkit.getWorld("world");
+        if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+            spawnWorld = Bukkit.getWorlds().get(0);
+        }
+        if (spawnWorld != null) {
+            Location spawn = spawnWorld.getSpawnLocation();
+            player.teleport(spawn);
+        }
         player.sendMessage(colorize("&7Preparing your island..."));
 
         // Store player UUID for async callbacks (player reference may become stale)

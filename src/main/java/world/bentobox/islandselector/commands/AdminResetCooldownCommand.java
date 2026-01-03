@@ -46,11 +46,12 @@ public class AdminResetCooldownCommand extends CompositeCommand {
         }
 
         // Find player UUID (works for online and offline players)
-        UUID playerUUID = Bukkit.getOfflinePlayer(playerName).getUniqueId();
-        if (playerUUID == null) {
+        org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
+        if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
             user.sendMessage("commands.islandselector.admin.resetcooldown.player-not-found");
             return false;
         }
+        UUID playerUUID = offlinePlayer.getUniqueId();
 
         IslandSelector addon = (IslandSelector) getAddon();
 

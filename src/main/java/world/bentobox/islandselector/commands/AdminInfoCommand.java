@@ -103,12 +103,13 @@ public class AdminInfoCommand extends CompositeCommand {
 
         // Get player UUID from name
         @SuppressWarnings("deprecation")
-        UUID playerUUID = Bukkit.getOfflinePlayer(playerName).getUniqueId();
+        org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
 
-        if (playerUUID == null) {
+        if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
             user.sendMessage("commands.islandselector.admin.info.player-not-found", "[player]", playerName);
             return false;
         }
+        UUID playerUUID = offlinePlayer.getUniqueId();
 
         // Get player's slots
         List<SlotData> slots = slotManager.getPlayerSlots(playerUUID);

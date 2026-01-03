@@ -53,12 +53,15 @@ public class AdminRestoreCommand extends CompositeCommand {
 
         // Get player UUID
         String playerName = args.get(0);
-        UUID playerUUID = Bukkit.getOfflinePlayer(playerName).getUniqueId();
+        org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
 
-        if (playerUUID == null) {
+        // Check if player has actually played on this server
+        if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
             user.sendMessage("commands.islandselector.admin.restore.player-not-found", "[player]", playerName);
             return false;
         }
+
+        UUID playerUUID = offlinePlayer.getUniqueId();
 
         // Parse slot number
         int slotNumber;
@@ -90,7 +93,7 @@ public class AdminRestoreCommand extends CompositeCommand {
         } else {
             // Use most recent backup
             File[] backups = backupManager.listBackups(playerUUID, slotNumber);
-            if (backups.length == 0) {
+            if (backups == null || backups.length == 0) {
                 user.sendMessage("commands.islandselector.admin.restore.no-backups",
                     "[player]", playerName,
                     "[slot]", String.valueOf(slotNumber));
@@ -148,11 +151,18 @@ public class AdminRestoreCommand extends CompositeCommand {
         } else if (args.size() == 3) {
             // Tab complete backup filenames for this player and slot
             String playerName = args.get(0);
-            UUID playerUUID = Bukkit.getOfflinePlayer(playerName).getUniqueId();
+            org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
+            if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
+                return Optional.empty();
+            }
+            UUID playerUUID = offlinePlayer.getUniqueId();
 
             try {
                 int slotNumber = Integer.parseInt(args.get(1));
                 File[] backups = backupManager.listBackups(playerUUID, slotNumber);
+                if (backups == null) {
+                    return Optional.empty();
+                }
 
                 List<String> backupNames = new ArrayList<>();
                 for (File backup : backups) {

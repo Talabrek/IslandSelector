@@ -57,11 +57,12 @@ public class AdminRemoveIslandCommand extends CompositeCommand {
         String playerName = args.get(0);
 
         // Find target player UUID
-        UUID playerUUID = Bukkit.getOfflinePlayer(playerName).getUniqueId();
-        if (playerUUID == null) {
+        org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
+        if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
             user.sendMessage("§cPlayer not found: " + playerName);
             return false;
         }
+        UUID playerUUID = offlinePlayer.getUniqueId();
 
         IslandSelector addon = (IslandSelector) getAddon();
         GridManager gridManager = addon.getGridManager();
@@ -125,11 +126,15 @@ public class AdminRemoveIslandCommand extends CompositeCommand {
     public Optional<List<String>> tabComplete(User user, String alias, List<String> args) {
         if (args.size() == 1) {
             // Tab complete with player names who have islands
-            IslandSelector addon = (IslandSelector) getAddon();
             List<String> playerNames = new ArrayList<>();
+            String prefix = args.get(0).toLowerCase();
 
-            // Add online players
-            Bukkit.getOnlinePlayers().forEach(p -> playerNames.add(p.getName()));
+            // Add online players, filtering by typed prefix
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getName().toLowerCase().startsWith(prefix)) {
+                    playerNames.add(p.getName());
+                }
+            }
 
             // Could also add offline players with islands, but that would require
             // iterating through all slot data which could be expensive

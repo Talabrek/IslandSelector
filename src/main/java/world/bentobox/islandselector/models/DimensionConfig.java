@@ -83,6 +83,9 @@ public class DimensionConfig {
         String[] parts = key.split("_");
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {
+            if (part.isEmpty()) {
+                continue; // Skip empty parts from double underscores
+            }
             if (sb.length() > 0) {
                 sb.append(" ");
             }
@@ -91,7 +94,7 @@ public class DimensionConfig {
                 sb.append(part.substring(1).toLowerCase());
             }
         }
-        return sb.toString();
+        return sb.length() > 0 ? sb.toString() : "Unknown";
     }
 
     // Getters and Setters

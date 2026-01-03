@@ -15,8 +15,10 @@ import world.bentobox.islandselector.utils.CustomCommandExecutor;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -28,8 +30,18 @@ public class SlotSwitchManager {
 
     private final IslandSelector addon;
 
+    // Track players currently in a switch operation to prevent concurrent switches
+    private final Set<UUID> switchingPlayers = ConcurrentHashMap.newKeySet();
+
     public SlotSwitchManager(IslandSelector addon) {
         this.addon = addon;
+    }
+
+    /**
+     * Check if a player is currently switching slots
+     */
+    public boolean isSwitching(UUID playerUUID) {
+        return switchingPlayers.contains(playerUUID);
     }
 
     /**
@@ -54,6 +66,13 @@ public class SlotSwitchManager {
 
         UUID playerUUID = player.getUniqueId();
 
+        // Prevent concurrent slot switches for the same player
+        if (switchingPlayers.contains(playerUUID)) {
+            player.sendMessage(colorize("&cA slot switch is already in progress! Please wait."));
+            return;
+        }
+        switchingPlayers.add(playerUUID);
+
         // Fire SlotSwitchEvent on main thread BEFORE starting the async operation
         SlotSwitchEvent event = new SlotSwitchEvent(
             player,
@@ -67,6 +86,7 @@ public class SlotSwitchManager {
 
             // Check if event was cancelled
             if (event.isCancelled()) {
+                switchingPlayers.remove(playerUUID);
                 addon.log("SlotSwitchEvent cancelled for " + player.getName() +
                          " from slot " + fromSlot.getSlotNumber() + " to " + toSlot.getSlotNumber());
                 if (event.getCancellationReason() != null) {
@@ -89,7 +109,16 @@ public class SlotSwitchManager {
         UUID playerUUID = player.getUniqueId();
 
         // Step 0: Teleport player to SERVER spawn for safety during the switch
-        Location serverSpawn = Bukkit.getWorlds().get(0).getSpawnLocation();
+        World spawnWorld = Bukkit.getWorld("world");
+        if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+            spawnWorld = Bukkit.getWorlds().get(0);
+        }
+        if (spawnWorld == null) {
+            switchingPlayers.remove(playerUUID);
+            player.sendMessage(colorize("&cCannot switch slots - no spawn world available!"));
+            return;
+        }
+        Location serverSpawn = spawnWorld.getSpawnLocation();
         // Use safe teleport for server spawn
         new SafeSpotTeleport.Builder(addon.getPlugin())
             .entity(player)
@@ -134,6 +163,7 @@ public class SlotSwitchManager {
                 sendProgress(player, "&eSaving current island...");
                 boolean saved = saveIslandToSchematic(playerUUID, fromSlot);
                 if (!saved) {
+                    switchingPlayers.remove(playerUUID);
                     sendError(player, "&cFailed to save current island! Switch cancelled.");
                     return;
                 }
@@ -160,15 +190,18 @@ public class SlotSwitchManager {
                     clearSuccess = clearFuture.get(30, TimeUnit.SECONDS);
                 } catch (TimeoutException e) {
                     addon.logError("Timeout waiting for island clearing");
+                    switchingPlayers.remove(playerUUID);
                     sendError(player, "&cTimeout clearing island! Please contact an admin.");
                     return;
                 } catch (Exception e) {
                     addon.logError("Error during island clearing: " + e.getMessage());
+                    switchingPlayers.remove(playerUUID);
                     sendError(player, "&cFailed to clear current island! Please contact an admin.");
                     return;
                 }
 
                 if (!clearSuccess) {
+                    switchingPlayers.remove(playerUUID);
                     sendError(player, "&cFailed to clear current island! Please contact an admin.");
                     return;
                 }
@@ -181,6 +214,7 @@ public class SlotSwitchManager {
                 sendProgress(player, "&eLoading target island...");
                 boolean loaded = loadSchematicToWorld(playerUUID, toSlot);
                 if (!loaded) {
+                    switchingPlayers.remove(playerUUID);
                     sendError(player, "&cFailed to load target island! Please contact an admin.");
                     return;
                 }
@@ -225,6 +259,9 @@ public class SlotSwitchManager {
                     // Step 7: Send completion message and execute custom commands
                     sendSuccess(player, "&aSlot switch complete! Welcome to &e" + toSlot.getSlotName());
 
+                    // Clear switching flag on success
+                    switchingPlayers.remove(playerUUID);
+
                     // Execute custom commands after slot switch (with delay to ensure teleport completes)
                     Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
                         executeSlotSwitchCommands(player, fromSlotNumber, toSlotNumber);
@@ -234,6 +271,7 @@ public class SlotSwitchManager {
             } catch (Exception e) {
                 addon.logError("Error during slot switch for " + player.getName() + ": " + e.getMessage());
                 e.printStackTrace();
+                switchingPlayers.remove(playerUUID);
                 sendError(player, "&cAn error occurred during slot switch. Please contact an admin.");
             }
         });

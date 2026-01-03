@@ -49,12 +49,15 @@ public class AdminBackupCommand extends CompositeCommand {
 
         // Get player UUID
         String playerName = args.get(0);
-        UUID playerUUID = Bukkit.getOfflinePlayer(playerName).getUniqueId();
+        org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
 
-        if (playerUUID == null) {
+        // Check if player has actually played on this server
+        if (!offlinePlayer.hasPlayedBefore() && !offlinePlayer.isOnline()) {
             user.sendMessage("commands.islandselector.admin.backup.player-not-found", "[player]", playerName);
             return false;
         }
+
+        UUID playerUUID = offlinePlayer.getUniqueId();
 
         // Parse slot number
         int slotNumber;

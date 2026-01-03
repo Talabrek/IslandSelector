@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import world.bentobox.bentobox.api.commands.CompositeCommand;
@@ -70,7 +71,11 @@ public class SetIconCommand extends CompositeCommand {
         }
 
         // Check if player is holding an item
-        ItemStack heldItem = user.getPlayer().getInventory().getItemInMainHand();
+        Player player = user.getPlayer();
+        if (player == null) {
+            return false;
+        }
+        ItemStack heldItem = player.getInventory().getItemInMainHand();
         if (heldItem == null || heldItem.getType() == Material.AIR) {
             user.sendMessage("commands.islandselector.seticon.no-item");
             return false;

@@ -237,6 +237,10 @@ public class Settings implements ConfigObject {
 
     public void setGridMinX(int gridMinX) {
         this.gridMinX = gridMinX;
+        // Ensure gridMaxX is at least gridMinX
+        if (this.gridMaxX < gridMinX) {
+            this.gridMaxX = gridMinX;
+        }
     }
 
     public int getGridMaxX() {
@@ -244,7 +248,8 @@ public class Settings implements ConfigObject {
     }
 
     public void setGridMaxX(int gridMaxX) {
-        this.gridMaxX = gridMaxX;
+        // Ensure gridMaxX is at least gridMinX
+        this.gridMaxX = Math.max(this.gridMinX, gridMaxX);
     }
 
     public int getGridMinZ() {
@@ -253,6 +258,10 @@ public class Settings implements ConfigObject {
 
     public void setGridMinZ(int gridMinZ) {
         this.gridMinZ = gridMinZ;
+        // Ensure gridMaxZ is at least gridMinZ
+        if (this.gridMaxZ < gridMinZ) {
+            this.gridMaxZ = gridMinZ;
+        }
     }
 
     public int getGridMaxZ() {
@@ -260,7 +269,8 @@ public class Settings implements ConfigObject {
     }
 
     public void setGridMaxZ(int gridMaxZ) {
-        this.gridMaxZ = gridMaxZ;
+        // Ensure gridMaxZ is at least gridMinZ
+        this.gridMaxZ = Math.max(this.gridMinZ, gridMaxZ);
     }
 
     /**
@@ -291,7 +301,8 @@ public class Settings implements ConfigObject {
     }
 
     public void setMaxSlots(int maxSlots) {
-        this.maxSlots = maxSlots;
+        // Ensure at least 1 slot is available
+        this.maxSlots = Math.max(1, maxSlots);
     }
 
     public int getSwitchCooldown() {
