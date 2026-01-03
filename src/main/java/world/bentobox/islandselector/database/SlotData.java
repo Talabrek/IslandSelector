@@ -338,13 +338,13 @@ public class SlotData implements DataObject {
     /**
      * Get the dimension island UUIDs map
      */
-    public Map<String, String> getDimensionIslandUUIDs() {
+    public synchronized Map<String, String> getDimensionIslandUUIDs() {
         if (dimensionIslandUUIDs == null) {
             dimensionIslandUUIDs = new HashMap<>();
         }
         // Auto-migrate legacy field if present
         migrateFromLegacy();
-        return dimensionIslandUUIDs;
+        return new HashMap<>(dimensionIslandUUIDs);
     }
 
     /**
@@ -501,8 +501,12 @@ public class SlotData implements DataObject {
 
     /**
      * Migrate legacy single-dimension fields to multi-dimension maps
+     * Must be called with synchronization or after null check of dimensionIslandUUIDs
      */
     private void migrateFromLegacy() {
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
         if (islandUUID != null && !islandUUID.isEmpty() &&
                 !dimensionIslandUUIDs.containsKey("overworld")) {
             dimensionIslandUUIDs.put("overworld", islandUUID);

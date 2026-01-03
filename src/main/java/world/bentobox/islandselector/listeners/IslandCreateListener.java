@@ -507,7 +507,8 @@ public class IslandCreateListener implements Listener {
 
         if (coord != null && gridManager.isWithinBounds(coord)) {
             // Don't clear the location if this is part of a reset - the player is keeping this location
-            boolean isReset = pendingResets.values().stream().anyMatch(c -> c.equals(coord));
+            // Create defensive copy to avoid ConcurrentModificationException
+            boolean isReset = new java.util.ArrayList<>(pendingResets.values()).stream().anyMatch(c -> c.equals(coord));
             if (isReset) {
                 addon.log("Skipping grid location clear for " + coord + " - reset in progress");
                 return;

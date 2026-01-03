@@ -62,6 +62,9 @@ public class SlotSwitchConfirmationGUI implements InventoryHolder, Listener {
         // Info item
         ItemStack info = new ItemStack(Material.BOOK);
         ItemMeta infoMeta = info.getItemMeta();
+        if (infoMeta == null) {
+            return;
+        }
         infoMeta.setDisplayName(colorize("&eSwitch Island Slots"));
 
         List<String> lore = new ArrayList<>();
@@ -85,6 +88,9 @@ public class SlotSwitchConfirmationGUI implements InventoryHolder, Listener {
         // Confirm button
         ItemStack confirm = new ItemStack(Material.LIME_WOOL);
         ItemMeta confirmMeta = confirm.getItemMeta();
+        if (confirmMeta == null) {
+            return;
+        }
         confirmMeta.setDisplayName(colorize("&a&lCONFIRM"));
 
         List<String> confirmLore = new ArrayList<>();
@@ -97,6 +103,9 @@ public class SlotSwitchConfirmationGUI implements InventoryHolder, Listener {
         // Cancel button
         ItemStack cancel = new ItemStack(Material.RED_WOOL);
         ItemMeta cancelMeta = cancel.getItemMeta();
+        if (cancelMeta == null) {
+            return;
+        }
         cancelMeta.setDisplayName(colorize("&c&lCANCEL"));
 
         List<String> cancelLore = new ArrayList<>();
@@ -113,8 +122,10 @@ public class SlotSwitchConfirmationGUI implements InventoryHolder, Listener {
     private void fillEmptySlots() {
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             if (inventory.getItem(i) == null) {

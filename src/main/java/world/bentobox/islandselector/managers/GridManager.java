@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -32,11 +33,11 @@ import world.bentobox.islandselector.utils.GridCoordinate;
 public class GridManager {
 
     private final IslandSelector addon;
-    private final Map<String, GridLocation> gridLocations; // Key: coordinate string like "A1"
-    private final Map<UUID, GridCoordinate> islandToCoord; // Maps island UUIDs to their coordinates
-    private final Map<UUID, GridCoordinate> playerToCoord; // Maps player UUIDs to their coordinates
+    private final Map<String, GridLocation> gridLocations; // Key: coordinate string like "A1" - thread-safe
+    private final Map<UUID, GridCoordinate> islandToCoord; // Maps island UUIDs to their coordinates - thread-safe
+    private final Map<UUID, GridCoordinate> playerToCoord; // Maps player UUIDs to their coordinates - thread-safe
 
-    // Multi-dimension support: Maps dimension key -> (island UUID -> grid coordinate)
+    // Multi-dimension support: Maps dimension key -> (island UUID -> grid coordinate) - thread-safe
     private final Map<String, Map<UUID, GridCoordinate>> dimensionIslandToCoord;
 
     // Database handler for persistence
@@ -47,10 +48,10 @@ public class GridManager {
 
     public GridManager(IslandSelector addon) {
         this.addon = addon;
-        this.gridLocations = new HashMap<>();
-        this.islandToCoord = new HashMap<>();
-        this.playerToCoord = new HashMap<>();
-        this.dimensionIslandToCoord = new HashMap<>();
+        this.gridLocations = new ConcurrentHashMap<>();
+        this.islandToCoord = new ConcurrentHashMap<>();
+        this.playerToCoord = new ConcurrentHashMap<>();
+        this.dimensionIslandToCoord = new ConcurrentHashMap<>();
 
         // Initialize database
         this.database = new Database<>(addon, GridLocationData.class);

@@ -252,6 +252,9 @@ public class MainGridGUI implements InventoryHolder {
     private ItemStack createDisabledArrow(String tooltip) {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize(tooltip));
         item.setItemMeta(meta);
         return item;
@@ -355,6 +358,9 @@ public class MainGridGUI implements InventoryHolder {
         Material mat = parseMaterial(settings.getItemAvailable(), Material.GREEN_STAINED_GLASS_PANE);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&a" + coord.toString() + " - Available"));
 
         List<String> lore = new ArrayList<>();
@@ -604,6 +610,9 @@ public class MainGridGUI implements InventoryHolder {
         Material mat = parseMaterial(settings.getItemReservedPurchasable(), Material.GOLD_BLOCK);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&6⭐ Premium Location: " + coord.toString()));
 
         List<String> lore = new ArrayList<>();
@@ -627,6 +636,9 @@ public class MainGridGUI implements InventoryHolder {
         Material mat = parseMaterial(settings.getItemReservedBlocked(), Material.GRAY_STAINED_GLASS_PANE);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&7" + coord.toString() + " - Reserved"));
 
         List<String> lore = new ArrayList<>();
@@ -646,6 +658,9 @@ public class MainGridGUI implements InventoryHolder {
         Material mat = parseMaterial(settings.getItemLockedArea(), Material.BLACK_STAINED_GLASS_PANE);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&8" + coord.toString() + " - Locked"));
 
         List<String> lore = new ArrayList<>();
@@ -714,8 +729,10 @@ public class MainGridGUI implements InventoryHolder {
         Material mat = parseMaterial(settings.getItemFiller(), Material.BLACK_STAINED_GLASS_PANE);
         ItemStack filler = new ItemStack(mat);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             if (inventory.getItem(i) == null) {
@@ -729,6 +746,9 @@ public class MainGridGUI implements InventoryHolder {
     private ItemStack createButton(Material material, String name, String... loreLines) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize(name));
 
         List<String> lore = new ArrayList<>();
@@ -743,6 +763,9 @@ public class MainGridGUI implements InventoryHolder {
 
     private void addGlow(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return;
+        }
         Enchantment glow = org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft("unbreaking"));
         if (glow != null) {
             meta.addEnchant(glow, 1, true);

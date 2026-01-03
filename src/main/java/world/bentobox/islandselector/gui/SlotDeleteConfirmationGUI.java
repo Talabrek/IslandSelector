@@ -63,6 +63,9 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
         // Warning/info item
         ItemStack info = new ItemStack(Material.BARRIER);
         ItemMeta infoMeta = info.getItemMeta();
+        if (infoMeta == null) {
+            return;
+        }
         infoMeta.setDisplayName(colorize("&c&lWARNING: Delete Slot"));
 
         List<String> lore = new ArrayList<>();
@@ -91,6 +94,9 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
         // Confirm button
         ItemStack confirm = new ItemStack(Material.RED_WOOL);
         ItemMeta confirmMeta = confirm.getItemMeta();
+        if (confirmMeta == null) {
+            return;
+        }
         confirmMeta.setDisplayName(colorize("&c&lDELETE SLOT"));
 
         List<String> confirmLore = new ArrayList<>();
@@ -106,6 +112,9 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
         // Cancel button
         ItemStack cancel = new ItemStack(Material.LIME_WOOL);
         ItemMeta cancelMeta = cancel.getItemMeta();
+        if (cancelMeta == null) {
+            return;
+        }
         cancelMeta.setDisplayName(colorize("&a&lCANCEL"));
 
         List<String> cancelLore = new ArrayList<>();
@@ -123,8 +132,10 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
     private void fillEmptySlots() {
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             if (inventory.getItem(i) == null) {

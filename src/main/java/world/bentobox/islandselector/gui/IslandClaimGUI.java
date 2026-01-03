@@ -191,6 +191,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
     private ItemStack createDisabledArrow(String tooltip) {
         ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize(tooltip));
         item.setItemMeta(meta);
         return item;
@@ -264,6 +267,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         Material mat = parseMaterial(settings.getItemAvailable(), Material.GREEN_STAINED_GLASS_PANE);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&a" + coord.toString() + " - Available"));
 
         List<String> lore = new ArrayList<>();
@@ -288,6 +294,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         // Always use player head for occupied islands
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
         // Set the owner for the skull texture using OfflinePlayer
         if (location != null && location.getOwnerUUID() != null) {
@@ -314,6 +323,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         Material mat = parseMaterial(settings.getItemReservedPurchasable(), Material.GOLD_BLOCK);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&6⭐ Premium Location: " + coord.toString()));
 
         List<String> lore = new ArrayList<>();
@@ -334,6 +346,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         Material mat = parseMaterial(settings.getItemReservedBlocked(), Material.GRAY_STAINED_GLASS_PANE);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&7" + coord.toString() + " - Reserved"));
 
         List<String> lore = new ArrayList<>();
@@ -350,6 +365,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         Material mat = parseMaterial(settings.getItemLockedArea(), Material.BLACK_STAINED_GLASS_PANE);
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&8" + coord.toString() + " - Locked"));
 
         List<String> lore = new ArrayList<>();
@@ -365,6 +383,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         // Title/info in top center
         ItemStack title = new ItemStack(Material.NETHER_STAR);
         ItemMeta titleMeta = title.getItemMeta();
+        if (titleMeta == null) {
+            return;
+        }
         titleMeta.setDisplayName(colorize("&a&lSelect Your Island Location"));
 
         List<String> titleLore = new ArrayList<>();
@@ -386,12 +407,14 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         // Cancel button at bottom
         ItemStack cancel = new ItemStack(Material.BARRIER);
         ItemMeta cancelMeta = cancel.getItemMeta();
-        cancelMeta.setDisplayName(colorize("&c&lCancel"));
+        if (cancelMeta != null) {
+            cancelMeta.setDisplayName(colorize("&c&lCancel"));
 
-        List<String> cancelLore = new ArrayList<>();
-        cancelLore.add(colorize("&7Click to cancel island creation"));
-        cancelMeta.setLore(cancelLore);
-        cancel.setItemMeta(cancelMeta);
+            List<String> cancelLore = new ArrayList<>();
+            cancelLore.add(colorize("&7Click to cancel island creation"));
+            cancelMeta.setLore(cancelLore);
+            cancel.setItemMeta(cancelMeta);
+        }
         inventory.setItem(CANCEL_SLOT, cancel);
     }
 
@@ -399,8 +422,10 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         Material mat = parseMaterial(settings.getItemFiller(), Material.BLACK_STAINED_GLASS_PANE);
         ItemStack filler = new ItemStack(mat);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             if (inventory.getItem(i) == null) {

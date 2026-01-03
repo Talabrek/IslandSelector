@@ -159,6 +159,9 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
 
         ItemStack item = new ItemStack(iconMaterial);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&a&l" + slotData.getSlotName()));
 
         // Add glow
@@ -207,6 +210,9 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
 
         ItemStack item = new ItemStack(iconMaterial);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&f" + slotData.getSlotName()));
 
         // For inactive slots, the island is saved as schematic so level/members aren't available
@@ -225,6 +231,9 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
     private ItemStack createEmptySlotItem(int slotNumber) {
         ItemStack item = new ItemStack(Material.LIME_DYE);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&aEmpty Slot"));
 
         List<String> lore = new ArrayList<>();
@@ -240,6 +249,9 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
     private ItemStack createLockedSlotItem(int slotNumber) {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&cLocked Slot"));
 
         List<String> lore = new ArrayList<>();
@@ -255,6 +267,9 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
     private ItemStack createButton(Material material, String name, String... loreLines) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize(name));
 
         List<String> lore = new ArrayList<>();
@@ -270,8 +285,10 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
     private void fillEmptySlots() {
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             if (inventory.getItem(i) == null) {

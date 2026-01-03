@@ -105,8 +105,10 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
         // Fill with glass panes
         ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.setDisplayName(" ");
-        filler.setItemMeta(fillerMeta);
+        if (fillerMeta != null) {
+            fillerMeta.setDisplayName(" ");
+            filler.setItemMeta(fillerMeta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             inventory.setItem(i, filler);
@@ -204,6 +206,9 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
 
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize(name));
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -213,6 +218,9 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
     private ItemStack createConfirmItem() {
         ItemStack item = new ItemStack(Material.LIME_WOOL);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&a&l✓ CONFIRM"));
 
         List<String> lore = new ArrayList<>();
@@ -245,6 +253,9 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
     private ItemStack createCancelItem() {
         ItemStack item = new ItemStack(Material.RED_WOOL);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&c&l✗ CANCEL"));
 
         List<String> lore = new ArrayList<>();

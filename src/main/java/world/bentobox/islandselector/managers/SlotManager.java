@@ -10,6 +10,7 @@ import world.bentobox.islandselector.database.SlotData;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -21,15 +22,16 @@ public class SlotManager {
     private final Database<SlotData> database;
     private final Map<String, SlotData> slotCache; // Key: uniqueId (playerUUID-slotNumber)
     // Note: Cleaned up by PlayerConnectionListener.onPlayerQuit() when player disconnects
+    // Thread-safe maps for cross-thread access
     private final Map<UUID, Integer> pendingSlotCreations; // Track which slot a new island should go into
     private final Map<UUID, Integer> pendingSlotRestorations; // Track which slot a homeless player wants to restore
 
     public SlotManager(IslandSelector addon) {
         this.addon = addon;
         this.database = new Database<>(addon, SlotData.class);
-        this.slotCache = new HashMap<>();
-        this.pendingSlotCreations = new HashMap<>();
-        this.pendingSlotRestorations = new HashMap<>();
+        this.slotCache = new ConcurrentHashMap<>();
+        this.pendingSlotCreations = new ConcurrentHashMap<>();
+        this.pendingSlotRestorations = new ConcurrentHashMap<>();
         loadAllSlots();
         // Sync will be called after GridManager is ready - see IslandSelector.onEnable()
     }

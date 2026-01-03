@@ -93,6 +93,9 @@ public class SlotSettingsGUI implements InventoryHolder, Listener {
 
         ItemStack item = new ItemStack(iconMaterial);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&e&l" + slotData.getSlotName()));
 
         List<String> lore = new ArrayList<>();
@@ -115,6 +118,9 @@ public class SlotSettingsGUI implements InventoryHolder, Listener {
     private ItemStack createRenameButton() {
         ItemStack item = new ItemStack(Material.NAME_TAG);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&e&lRename Slot"));
 
         List<String> lore = new ArrayList<>();
@@ -136,6 +142,9 @@ public class SlotSettingsGUI implements InventoryHolder, Listener {
     private ItemStack createChangeIconButton() {
         ItemStack item = new ItemStack(Material.ITEM_FRAME);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&e&lChange Icon"));
 
         List<String> lore = new ArrayList<>();
@@ -160,6 +169,9 @@ public class SlotSettingsGUI implements InventoryHolder, Listener {
     private ItemStack createDeleteButton() {
         ItemStack item = new ItemStack(Material.TNT);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&c&lDelete Slot"));
 
         List<String> lore = new ArrayList<>();
@@ -182,6 +194,9 @@ public class SlotSettingsGUI implements InventoryHolder, Listener {
     private ItemStack createBackButton() {
         ItemStack item = new ItemStack(Material.ARROW);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&e← Back to Slots"));
 
         List<String> lore = new ArrayList<>();
@@ -195,8 +210,10 @@ public class SlotSettingsGUI implements InventoryHolder, Listener {
     private void fillEmptySlots() {
         ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             if (inventory.getItem(i) == null) {

@@ -104,6 +104,11 @@ public class CustomCommandExecutor {
      * Execute command as the player with their normal permissions
      */
     private void executeAsPlayer(Player player, String command) {
+        // Double-check player is still online before executing
+        if (!player.isOnline()) {
+            addon.logWarning("Cannot execute command as player '" + player.getName() + "' - player is offline");
+            return;
+        }
         player.performCommand(command);
     }
 
@@ -112,6 +117,11 @@ public class CustomCommandExecutor {
      * OP is granted only for the duration of the command execution.
      */
     private void executeAsPlayerOp(Player player, String command) {
+        // Double-check player is still online before executing
+        if (!player.isOnline()) {
+            addon.logWarning("Cannot execute command as player '" + player.getName() + "' - player is offline");
+            return;
+        }
         boolean wasOp = player.isOp();
         try {
             if (!wasOp) {

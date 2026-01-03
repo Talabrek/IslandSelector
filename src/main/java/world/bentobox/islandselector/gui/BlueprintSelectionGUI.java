@@ -110,8 +110,10 @@ public class BlueprintSelectionGUI implements InventoryHolder, Listener {
         // Fill with glass panes
         ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.setDisplayName(" ");
-        filler.setItemMeta(fillerMeta);
+        if (fillerMeta != null) {
+            fillerMeta.setDisplayName(" ");
+            filler.setItemMeta(fillerMeta);
+        }
 
         for (int i = 0; i < inventory.getSize(); i++) {
             inventory.setItem(i, filler);
@@ -149,11 +151,13 @@ public class BlueprintSelectionGUI implements InventoryHolder, Listener {
         int cancelSlot = inventory.getSize() == LARGE_SIZE ? 49 : 22;
         ItemStack cancel = new ItemStack(Material.BARRIER);
         ItemMeta cancelMeta = cancel.getItemMeta();
-        cancelMeta.setDisplayName(colorize("&c&lCancel"));
-        List<String> cancelLore = new ArrayList<>();
-        cancelLore.add(colorize("&7Click to cancel island creation"));
-        cancelMeta.setLore(cancelLore);
-        cancel.setItemMeta(cancelMeta);
+        if (cancelMeta != null) {
+            cancelMeta.setDisplayName(colorize("&c&lCancel"));
+            List<String> cancelLore = new ArrayList<>();
+            cancelLore.add(colorize("&7Click to cancel island creation"));
+            cancelMeta.setLore(cancelLore);
+            cancel.setItemMeta(cancelMeta);
+        }
         inventory.setItem(cancelSlot, cancel);
     }
 
@@ -166,6 +170,9 @@ public class BlueprintSelectionGUI implements InventoryHolder, Listener {
 
         ItemStack item = new ItemStack(iconMat);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
         // Display name
         String displayName = bundle.getDisplayName();

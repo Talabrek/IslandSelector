@@ -122,6 +122,11 @@ public class NovaIntegration {
             Class<?> worldDataManagerClass = Class.forName("xyz.xenondevs.nova.world.format.WorldDataManager");
             Object worldDataManager = worldDataManagerClass.getField("INSTANCE").get(null);
 
+            if (worldDataManager == null) {
+                addon.logWarning("Nova WorldDataManager INSTANCE is null - cannot capture Nova blocks");
+                return novaBlocks;
+            }
+
             // Get the getBlockState method
             java.lang.reflect.Method getBlockStateMethod = worldDataManagerClass.getMethod(
                 "getBlockState", Location.class

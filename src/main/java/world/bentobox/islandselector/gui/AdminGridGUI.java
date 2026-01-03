@@ -204,6 +204,9 @@ public class AdminGridGUI implements InventoryHolder {
     private ItemStack createArrowHead(String textureUrl, String name, String... loreLines) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta == null) {
+            return head;
+        }
 
         try {
             PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
@@ -230,6 +233,9 @@ public class AdminGridGUI implements InventoryHolder {
     private ItemStack createDisabledArrow(String tooltip) {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize(tooltip));
         item.setItemMeta(meta);
         return item;

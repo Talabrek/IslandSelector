@@ -2,6 +2,7 @@ package world.bentobox.islandselector.integrations;
 
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import world.bentobox.bentobox.database.objects.Island;
@@ -107,7 +108,12 @@ public class PlaceholderAPIIntegration extends PlaceholderExpansion {
             return "None";
         }
 
-        GridCoordinate coord = gridManager.worldToGrid(island.getCenter().getBlockX(), island.getCenter().getBlockZ());
+        Location center = island.getCenter();
+        if (center == null) {
+            return "Unknown";
+        }
+
+        GridCoordinate coord = gridManager.worldToGrid(center.getBlockX(), center.getBlockZ());
         if (coord == null) {
             return "Unknown";
         }
@@ -180,7 +186,12 @@ public class PlaceholderAPIIntegration extends PlaceholderExpansion {
             return 0;
         }
 
-        GridCoordinate playerCoord = gridManager.worldToGrid(island.getCenter().getBlockX(), island.getCenter().getBlockZ());
+        Location center = island.getCenter();
+        if (center == null) {
+            return 0;
+        }
+
+        GridCoordinate playerCoord = gridManager.worldToGrid(center.getBlockX(), center.getBlockZ());
         if (playerCoord == null) {
             return 0;
         }

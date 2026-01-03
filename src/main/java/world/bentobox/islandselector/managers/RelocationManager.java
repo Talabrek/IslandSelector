@@ -369,8 +369,10 @@ public class RelocationManager {
                     java.lang.reflect.Field cacheField = islandsManager.getClass().getDeclaredField("islandCache");
                     cacheField.setAccessible(true);
                     Object islandCache = cacheField.get(islandsManager);
-                    java.lang.reflect.Method deleteMethod = islandCache.getClass().getMethod("deleteIslandFromCache", Island.class);
-                    deleteMethod.invoke(islandCache, island);
+                    if (islandCache != null) {
+                        java.lang.reflect.Method deleteMethod = islandCache.getClass().getMethod("deleteIslandFromCache", Island.class);
+                        deleteMethod.invoke(islandCache, island);
+                    }
                 } catch (Exception e) {
                     addon.logWarning("Could not remove island from cache: " + e.getMessage());
                 }
@@ -405,8 +407,10 @@ public class RelocationManager {
                     java.lang.reflect.Field cacheField = islandsManager.getClass().getDeclaredField("islandCache");
                     cacheField.setAccessible(true);
                     Object islandCache = cacheField.get(islandsManager);
-                    java.lang.reflect.Method addMethod = islandCache.getClass().getMethod("addIsland", Island.class);
-                    addMethod.invoke(islandCache, island);
+                    if (islandCache != null) {
+                        java.lang.reflect.Method addMethod = islandCache.getClass().getMethod("addIsland", Island.class);
+                        addMethod.invoke(islandCache, island);
+                    }
                 } catch (Exception e) {
                     addon.logWarning("Could not re-add island to cache: " + e.getMessage());
                 }
@@ -667,9 +671,11 @@ public class RelocationManager {
                 cacheField.setAccessible(true);
                 Object islandCache = cacheField.get(islandsManager);
 
-                java.lang.reflect.Method deleteMethod = islandCache.getClass().getMethod("deleteIslandFromCache", Island.class);
-                deleteMethod.invoke(islandCache, island);
-                addon.log("Removed island from BentoBox cache at old location");
+                if (islandCache != null) {
+                    java.lang.reflect.Method deleteMethod = islandCache.getClass().getMethod("deleteIslandFromCache", Island.class);
+                    deleteMethod.invoke(islandCache, island);
+                    addon.log("Removed island from BentoBox cache at old location");
+                }
             } catch (Exception e) {
                 addon.logWarning("Could not remove island from cache: " + e.getMessage());
             }
@@ -707,9 +713,11 @@ public class RelocationManager {
                 cacheField.setAccessible(true);
                 Object islandCache = cacheField.get(islandsManager);
 
-                java.lang.reflect.Method addMethod = islandCache.getClass().getMethod("addIsland", Island.class);
-                addMethod.invoke(islandCache, island);
-                addon.log("Re-added island to BentoBox cache at new location");
+                if (islandCache != null) {
+                    java.lang.reflect.Method addMethod = islandCache.getClass().getMethod("addIsland", Island.class);
+                    addMethod.invoke(islandCache, island);
+                    addon.log("Re-added island to BentoBox cache at new location");
+                }
             } catch (Exception e) {
                 addon.logWarning("Could not re-add island to cache: " + e.getMessage());
             }
