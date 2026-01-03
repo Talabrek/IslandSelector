@@ -310,3 +310,241 @@ Execute commands on relocation or slot switch:
 
 // Scopes: CONSOLE, PLAYER, PLAYER_OP
 ```
+
+## Anti-Patterns and Common Bugs
+
+This section documents bugs discovered during code review. Use this as a checklist to avoid similar issues.
+
+### 1. ItemMeta Null Checks (26 instances fixed)
+
+**Problem:** `ItemStack.getItemMeta()` can return null, but code often continues without checking.
+
+```java
+// BAD - NullPointerException if meta is null
+ItemStack item = new ItemStack(Material.DIAMOND);
+ItemMeta meta = item.getItemMeta();
+meta.setDisplayName("Diamond"); // NPE!
+
+// GOOD - Check for null
+ItemStack item = new ItemStack(Material.DIAMOND);
+ItemMeta meta = item.getItemMeta();
+if (meta == null) {
+    return item;
+}
+meta.setDisplayName("Diamond");
+item.setItemMeta(meta);
+```
+
+**Where it happens:** Every GUI class that creates items with custom names/lore.
+
+### 2. Island.getCenter() Null Check
+
+**Problem:** `island.getCenter()` can return null for islands without a center defined.
+
+```java
+// BAD - NPE if center is null
+Island island = islandsManager.getIsland(world, playerUUID);
+int x = island.getCenter().getBlockX(); // NPE!
+
+// GOOD - Check for null
+Island island = islandsManager.getIsland(world, playerUUID);
+if (island == null) return;
+Location center = island.getCenter();
+if (center == null) return;
+int x = center.getBlockX();
+```
+
+### 3. Reflection Results Not Null-Checked
+
+**Problem:** When using reflection to access BentoBox internals, the returned objects may be null.
+
+```java
+// BAD - NPE if cache field returns null
+Object islandCache = cacheField.get(islandsManager);
+Method deleteMethod = islandCache.getClass().getMethod(...); // NPE!
+
+// GOOD - Check for null
+Object islandCache = cacheField.get(islandsManager);
+if (islandCache != null) {
+    Method deleteMethod = islandCache.getClass().getMethod(...);
+    deleteMethod.invoke(islandCache, island);
+}
+```
+
+### 4. Unsynchronized HashMap Access from Multiple Threads
+
+**Problem:** Plain HashMap accessed from async callbacks causes ConcurrentModificationException.
+
+```java
+// BAD - Race condition in multi-threaded access
+private final Map<UUID, Integer> pendingSlotCreations = new HashMap<>();
+
+// GOOD - Use ConcurrentHashMap
+private final Map<UUID, Integer> pendingSlotCreations = new ConcurrentHashMap<>();
+```
+
+**Where it happens:** Any map accessed from both main thread and async callbacks (GridManager, SlotManager).
+
+### 5. GUI Slot Constant Conflicts
+
+**Problem:** Two different GUI elements assigned to the same slot position.
+
+```java
+// BAD - Both use slot 13, one will overwrite the other!
+private static final int CENTER_SLOT = 13;
+private static final int S_SLOT = 13;
+
+// GOOD - Use unique slots
+private static final int CENTER_SLOT = 13;
+private static final int S_SLOT = 22;
+```
+
+### 6. Stream Operations on Mutable Collections
+
+**Problem:** Streaming over a collection that could be modified during iteration.
+
+```java
+// BAD - ConcurrentModificationException if pendingResets is modified
+boolean isReset = pendingResets.values().stream().anyMatch(c -> c.equals(coord));
+
+// GOOD - Create defensive copy first
+boolean isReset = new ArrayList<>(pendingResets.values()).stream()
+    .anyMatch(c -> c.equals(coord));
+```
+
+### 7. Player Online Status Not Checked Before Commands
+
+**Problem:** Player could disconnect between check and command execution.
+
+```java
+// BAD - Player might be offline when performCommand runs
+public void executeAsPlayer(Player player, String command) {
+    player.performCommand(command); // May fail if player disconnected
+}
+
+// GOOD - Double-check online status
+public void executeAsPlayer(Player player, String command) {
+    if (!player.isOnline()) {
+        addon.logWarning("Player offline, cannot execute command");
+        return;
+    }
+    player.performCommand(command);
+}
+```
+
+### 8. Thread.sleep() in Async Code
+
+**Problem:** Using Thread.sleep() blocks the async worker thread.
+
+```java
+// BAD - Blocks thread pool worker
+Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    doSomething();
+    Thread.sleep(2000); // Blocks the worker!
+    doSomethingElse();
+});
+
+// GOOD - Use scheduler delays
+Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    doSomething();
+    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        doSomethingElse();
+    }, 40L); // 2 seconds = 40 ticks
+});
+```
+
+### 9. Stale Player References in Async Callbacks
+
+**Problem:** Storing Player reference and using it later in async callback.
+
+```java
+// BAD - Player object could be stale if they reconnect
+private final Player player; // Stored during GUI creation
+Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    // ... async work ...
+    Bukkit.getScheduler().runTask(plugin, () -> {
+        player.sendMessage("Done!"); // Might be stale!
+    });
+});
+
+// GOOD - Store UUID, look up fresh reference
+private final UUID playerUUID;
+Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    // ... async work ...
+    Bukkit.getScheduler().runTask(plugin, () -> {
+        Player freshPlayer = Bukkit.getPlayer(playerUUID);
+        if (freshPlayer != null) {
+            freshPlayer.sendMessage("Done!");
+        }
+    });
+});
+```
+
+### 10. Check-Then-Act Race Conditions (Economy)
+
+**Problem:** Checking balance then withdrawing in separate operations.
+
+```java
+// BAD - Race condition: balance could change between check and withdraw
+if (economy.has(player, cost)) {
+    // Another thread could withdraw here!
+    economy.withdrawPlayer(player, cost);
+}
+
+// BETTER - Use atomic withdraw that returns success/failure
+EconomyResponse response = economy.withdrawPlayer(player, cost);
+if (response.transactionSuccess()) {
+    // Proceed
+} else {
+    // Handle insufficient funds
+}
+```
+
+### 11. Event Listeners Not Unregistered
+
+**Problem:** Registering listener per-GUI instance but never unregistering.
+
+```java
+// BAD - Memory leak: listener stays registered forever
+public void open() {
+    Bukkit.getPluginManager().registerEvents(this, addon.getPlugin());
+    player.openInventory(inventory);
+}
+
+// GOOD - Unregister on close
+@EventHandler
+public void onInventoryClose(InventoryCloseEvent event) {
+    if (event.getInventory().getHolder() == this) {
+        HandlerList.unregisterAll(this);
+    }
+}
+```
+
+### 12. Synchronized Method Returns Internal Reference
+
+**Problem:** Synchronized getter returns the internal collection, allowing external modification.
+
+```java
+// BAD - Caller can modify internal map
+public synchronized Map<String, String> getDimensionIslandUUIDs() {
+    return dimensionIslandUUIDs; // Caller can modify!
+}
+
+// GOOD - Return defensive copy
+public synchronized Map<String, String> getDimensionIslandUUIDs() {
+    return new HashMap<>(dimensionIslandUUIDs);
+}
+```
+
+## Bug Fix Summary
+
+| Round | Bugs Fixed | Categories |
+|-------|------------|------------|
+| Round 1 | 25+ | Race conditions, memory leaks, async issues |
+| Round 2 | 40+ | Null safety, thread safety, logic errors |
+
+**Key Files Most Affected:**
+- All GUI classes (ItemMeta null checks)
+- GridManager, SlotManager (ConcurrentHashMap)
+- RelocationManager (reflection null checks)
+- IslandCreateListener (defensive copies)
