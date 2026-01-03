@@ -14,9 +14,9 @@ import world.bentobox.islandselector.gui.MainGridGUI;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles player search functionality for finding islands
@@ -33,10 +33,11 @@ public class SearchListener implements Listener {
 
     public SearchListener(IslandSelector addon) {
         this.addon = addon;
-        this.activeSessions = new HashMap<>();
-        this.pendingAdminSearch = new HashMap<>();
-        this.pendingAdminJump = new HashMap<>();
-        this.pendingAdminPriceSet = new HashMap<>();
+        // Use ConcurrentHashMap since AsyncPlayerChatEvent runs on async thread
+        this.activeSessions = new ConcurrentHashMap<>();
+        this.pendingAdminSearch = new ConcurrentHashMap<>();
+        this.pendingAdminJump = new ConcurrentHashMap<>();
+        this.pendingAdminPriceSet = new ConcurrentHashMap<>();
     }
 
     /**
@@ -298,7 +299,10 @@ public class SearchListener implements Listener {
         for (var location : gridManager.getAllLocations()) {
             String ownerName = location.getOwnerName();
             if (ownerName != null && ownerName.toLowerCase().startsWith(lowerSearch)) {
-                return location.getCoordinate();
+                GridCoordinate coord = location.getCoordinate();
+                if (coord != null) {
+                    return coord;
+                }
             }
         }
 
@@ -345,19 +349,20 @@ public class SearchListener implements Listener {
     }
 
     /**
-     * Inner class to track a search session
+     * Inner class to track a search session.
+     * Stores UUID instead of Player to avoid stale player references.
      */
     private static class SearchSession {
-        private final Player player;
+        private final UUID playerUUID;
         private final MainGridGUI gui;
 
         public SearchSession(Player player, MainGridGUI gui) {
-            this.player = player;
+            this.playerUUID = player.getUniqueId();
             this.gui = gui;
         }
 
-        public Player getPlayer() {
-            return player;
+        public UUID getPlayerUUID() {
+            return playerUUID;
         }
 
         public MainGridGUI getGui() {

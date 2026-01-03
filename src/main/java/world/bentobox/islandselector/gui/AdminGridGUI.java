@@ -23,6 +23,8 @@ import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.models.GridLocation;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
+import org.bukkit.event.HandlerList;
+
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -104,6 +106,9 @@ public class AdminGridGUI implements InventoryHolder {
     private GridCoordinate relocationSource = null;
     private UUID relocationPlayerUUID = null;
     private String relocationPlayerName = null;
+
+    // Track current listener to prevent memory leak
+    private AdminGridGUIListener currentListener = null;
 
     public enum FilterType {
         ALL, OCCUPIED, RESERVED
@@ -767,8 +772,13 @@ public class AdminGridGUI implements InventoryHolder {
         createInventory();
         populateInventory();
         player.openInventory(inventory);
-        // Register listener for the new inventory (old one was unregistered on close)
-        Bukkit.getPluginManager().registerEvents(new AdminGridGUIListener(this), addon.getPlugin());
+        // Unregister old listener if exists to prevent memory leak
+        if (currentListener != null) {
+            HandlerList.unregisterAll(currentListener);
+        }
+        // Register new listener for the new inventory
+        currentListener = new AdminGridGUIListener(this);
+        Bukkit.getPluginManager().registerEvents(currentListener, addon.getPlugin());
     }
 
     /**
@@ -783,8 +793,13 @@ public class AdminGridGUI implements InventoryHolder {
         createInventory();
         populateInventory();
         player.openInventory(inventory);
-        // Register listener for the new inventory (old one was unregistered on close)
-        Bukkit.getPluginManager().registerEvents(new AdminGridGUIListener(this), addon.getPlugin());
+        // Unregister old listener if exists to prevent memory leak
+        if (currentListener != null) {
+            HandlerList.unregisterAll(currentListener);
+        }
+        // Register new listener for the new inventory
+        currentListener = new AdminGridGUIListener(this);
+        Bukkit.getPluginManager().registerEvents(currentListener, addon.getPlugin());
     }
 
     @Override

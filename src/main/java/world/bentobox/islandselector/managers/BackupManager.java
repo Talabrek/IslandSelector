@@ -274,10 +274,14 @@ public class BackupManager {
         // Delete oldest backups to maintain the limit
         int toDelete = backupFiles.length - maxBackups;
         for (int i = 0; i < toDelete; i++) {
-            if (backupFiles[i].delete()) {
-                addon.log("Deleted old backup: " + backupFiles[i].getName());
-            } else {
-                addon.logError("Failed to delete old backup: " + backupFiles[i].getName());
+            try {
+                if (backupFiles[i].delete()) {
+                    addon.log("Deleted old backup: " + backupFiles[i].getName());
+                } else {
+                    addon.logError("Failed to delete old backup (file may be in use): " + backupFiles[i].getName());
+                }
+            } catch (SecurityException e) {
+                addon.logError("Security exception deleting backup " + backupFiles[i].getName() + ": " + e.getMessage());
             }
         }
     }

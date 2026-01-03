@@ -226,11 +226,18 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
                 addon.getSlotSwitchManager().switchSlot(player, slot, targetSlot);
 
                 // Schedule deletion after switch completes (give it 5 seconds)
+                // Store UUID to avoid stale player reference in delayed task
                 final int finalSlotNumber = slotNumber;
+                final java.util.UUID playerUUID = player.getUniqueId();
+                final int remainingSlots = totalSlots - 1;
                 Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
-                    addon.getSlotManager().deleteSlot(player.getUniqueId(), finalSlotNumber);
-                    player.sendMessage(colorize("&aSlot #" + finalSlotNumber + " has been deleted!"));
-                    player.sendMessage(colorize("&7You now have " + (totalSlots - 1) + " slot(s) remaining."));
+                    addon.getSlotManager().deleteSlot(playerUUID, finalSlotNumber);
+                    // Re-fetch player to avoid stale reference
+                    Player freshPlayer = Bukkit.getPlayer(playerUUID);
+                    if (freshPlayer != null && freshPlayer.isOnline()) {
+                        freshPlayer.sendMessage(colorize("&aSlot #" + finalSlotNumber + " has been deleted!"));
+                        freshPlayer.sendMessage(colorize("&7You now have " + remainingSlots + " slot(s) remaining."));
+                    }
                 }, 100L); // 5 seconds
             }
         } else {

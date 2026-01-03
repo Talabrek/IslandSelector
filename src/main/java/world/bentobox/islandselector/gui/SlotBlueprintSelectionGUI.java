@@ -265,7 +265,8 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
      * This saves the current island first, then creates the new one.
      */
     private void createIslandInSlot(String blueprintBundleId) {
-        UUID playerUUID = player.getUniqueId();
+        // Store UUID to avoid stale player references in async callbacks
+        final UUID playerUUID = player.getUniqueId();
 
         // Get the player's current island
         Island currentIsland = addon.getIslands().getIsland(
@@ -300,7 +301,11 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
                 boolean saved = saveCurrentIslandToSlot(currentIsland, activeSlot);
                 if (!saved) {
                     Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                        player.sendMessage(colorize("&cFailed to save current island!"));
+                        // Re-fetch player to avoid stale reference
+                        Player freshPlayer = Bukkit.getPlayer(playerUUID);
+                        if (freshPlayer != null && freshPlayer.isOnline()) {
+                            freshPlayer.sendMessage(colorize("&cFailed to save current island!"));
+                        }
                         addon.getSlotManager().clearPendingSlotCreation(playerUUID);
                     });
                     return;
@@ -308,7 +313,11 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
 
                 // Step 2: Clear the current island blocks
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    player.sendMessage(colorize("&eClearing island area..."));
+                    // Re-fetch player to avoid stale reference
+                    Player freshPlayer = Bukkit.getPlayer(playerUUID);
+                    if (freshPlayer != null && freshPlayer.isOnline()) {
+                        freshPlayer.sendMessage(colorize("&eClearing island area..."));
+                    }
                 });
 
                 clearIslandBlocks(currentIsland);
@@ -316,15 +325,23 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
 
                 // Step 3: Create the new island using BSkyBlock's blueprint pasting
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    player.sendMessage(colorize("&eCreating new island..."));
-                    pasteNewIslandInSlot(currentIsland, blueprintBundleId, gridCoordinate);
+                    // Re-fetch player to avoid stale reference
+                    Player freshPlayer = Bukkit.getPlayer(playerUUID);
+                    if (freshPlayer != null && freshPlayer.isOnline()) {
+                        freshPlayer.sendMessage(colorize("&eCreating new island..."));
+                    }
+                    pasteNewIslandInSlot(currentIsland, blueprintBundleId, gridCoordinate, playerUUID);
                 });
 
             } catch (Exception e) {
                 addon.logError("Error creating island in slot: " + e.getMessage());
                 e.printStackTrace();
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    player.sendMessage(colorize("&cAn error occurred. Please contact an admin."));
+                    // Re-fetch player to avoid stale reference
+                    Player freshPlayer = Bukkit.getPlayer(playerUUID);
+                    if (freshPlayer != null && freshPlayer.isOnline()) {
+                        freshPlayer.sendMessage(colorize("&cAn error occurred. Please contact an admin."));
+                    }
                     addon.getSlotManager().clearPendingSlotCreation(playerUUID);
                 });
             }
@@ -447,10 +464,12 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
 
     /**
      * Paste a new island from blueprint at the same location
+     * @param island The island to paste the blueprint at
+     * @param blueprintBundleId The blueprint bundle ID to use
+     * @param gridCoordinate The grid coordinate for the slot
+     * @param playerUUID The player's UUID (to avoid stale player references in callbacks)
      */
-    private void pasteNewIslandInSlot(Island island, String blueprintBundleId, String gridCoordinate) {
-        UUID playerUUID = player.getUniqueId();
-
+    private void pasteNewIslandInSlot(Island island, String blueprintBundleId, String gridCoordinate, UUID playerUUID) {
         try {
             // Get the blueprint manager
             BlueprintsManager blueprintsManager = addon.getPlugin().getBlueprintsManager();
@@ -529,23 +548,36 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
                     }
                 }
 
-                // Notify player
-                player.sendMessage(colorize("&a&lSlot " + targetSlotNumber + " created successfully!"));
-                player.sendMessage(colorize("&7Your new island is ready at the same location."));
-                player.sendMessage(colorize("&7Use &e/islandselector slots&7 to switch between islands."));
+                // Re-fetch player to avoid stale reference in callback
+                Player freshPlayer = Bukkit.getPlayer(playerUUID);
+                if (freshPlayer != null && freshPlayer.isOnline()) {
+                    // Notify player
+                    freshPlayer.sendMessage(colorize("&a&lSlot " + targetSlotNumber + " created successfully!"));
+                    freshPlayer.sendMessage(colorize("&7Your new island is ready at the same location."));
+                    freshPlayer.sendMessage(colorize("&7Use &e/islandselector slots&7 to switch between islands."));
 
-                // Teleport player to the island using safe teleport
-                new SafeSpotTeleport.Builder(addon.getPlugin())
-                    .entity(player)
-                    .island(island)
-                    .ifFail(() -> player.sendMessage(colorize("&eCouldn't find safe spot - you may need to use /island go")))
-                    .buildFuture();
+                    // Teleport player to the island using safe teleport
+                    new SafeSpotTeleport.Builder(addon.getPlugin())
+                        .entity(freshPlayer)
+                        .island(island)
+                        .ifFail(() -> {
+                            Player p = Bukkit.getPlayer(playerUUID);
+                            if (p != null && p.isOnline()) {
+                                p.sendMessage(colorize("&eCouldn't find safe spot - you may need to use /island go"));
+                            }
+                        })
+                        .buildFuture();
+                }
             }, true); // true = use default chest contents
 
         } catch (Exception e) {
             addon.logError("Failed to paste blueprint for slot: " + e.getMessage());
             e.printStackTrace();
-            player.sendMessage(colorize("&cFailed to create island. Please contact an admin."));
+            // Re-fetch player to avoid stale reference
+            Player freshPlayer = Bukkit.getPlayer(playerUUID);
+            if (freshPlayer != null && freshPlayer.isOnline()) {
+                freshPlayer.sendMessage(colorize("&cFailed to create island. Please contact an admin."));
+            }
             addon.getSlotManager().clearPendingSlotCreation(playerUUID);
         }
     }

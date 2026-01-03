@@ -176,9 +176,9 @@ public class MainGridGUI implements InventoryHolder {
      */
     private void populateNavigationArrows() {
         boolean canScrollUp = viewportZ > settings.getGridMinZ();
-        boolean canScrollDown = viewportZ + GRID_ROWS - 1 < settings.getGridMaxZ();
+        boolean canScrollDown = viewportZ + GRID_ROWS - 1 <= settings.getGridMaxZ();
         boolean canScrollLeft = viewportX > settings.getGridMinX();
-        boolean canScrollRight = viewportX + GRID_COLS - 1 < settings.getGridMaxX();
+        boolean canScrollRight = viewportX + GRID_COLS - 1 <= settings.getGridMaxX();
 
         // Up arrows
         ItemStack upArrow = canScrollUp ?

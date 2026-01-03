@@ -30,6 +30,12 @@ public class AutoBackupManager {
             return;
         }
 
+        // Cancel any existing task before starting a new one to prevent duplicates
+        if (backupTask != null && !backupTask.isCancelled()) {
+            backupTask.cancel();
+            addon.log("Cancelled existing auto-backup task before starting new one");
+        }
+
         // Convert minutes to ticks (20 ticks = 1 second)
         int intervalMinutes = addon.getSettings().getAutoBackupInterval();
         long intervalTicks = intervalMinutes * 60L * 20L;

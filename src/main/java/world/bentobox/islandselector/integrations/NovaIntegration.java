@@ -201,12 +201,21 @@ public class NovaIntegration {
         }
 
         CompletableFuture.allOf(chunkFutures.toArray(new CompletableFuture[0]))
+            .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .thenRun(() -> {
                 // Chunks loaded, now capture on main thread
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                     List<NovaBlockData> blocks = captureNovaBlocks(center, range);
                     callback.accept(blocks);
                 });
+            })
+            .exceptionally(throwable -> {
+                // Timeout or error occurred - invoke callback with empty list to prevent hang
+                addon.logWarning("Nova block capture timed out or failed: " + throwable.getMessage());
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                    callback.accept(new ArrayList<>());
+                });
+                return null;
             });
     }
 

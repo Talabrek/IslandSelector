@@ -95,7 +95,8 @@ public class PlaceholderAPIIntegration extends PlaceholderExpansion {
             return String.valueOf(getOnlineNeighborsCount(playerUUID));
         }
 
-        return null; // Unknown placeholder
+        // Return empty string for unknown placeholders to prevent NPE in some PAPI versions
+        return "";
     }
 
     /**
