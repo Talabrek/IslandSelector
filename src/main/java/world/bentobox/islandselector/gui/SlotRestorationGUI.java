@@ -199,8 +199,8 @@ public class SlotRestorationGUI implements InventoryHolder, Listener {
             return;
         }
 
-        // Check if a slot was clicked
-        for (int i = 0; i < slotsWithData.size(); i++) {
+        // Check if a slot was clicked (with bounds check for slotMapping array)
+        for (int i = 0; i < slotsWithData.size() && i < slotMapping.length; i++) {
             if (slotMapping[i] == slot) {
                 SlotData selectedSlot = slotsWithData.get(i);
                 selectSlotForRestoration(selectedSlot);

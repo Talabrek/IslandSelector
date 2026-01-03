@@ -567,6 +567,9 @@ public class IslandCreateListener implements Listener {
             } else {
                 player.sendMessage("§cYou cannot claim this location.");
             }
+            // Clean up pending maps to prevent player from being locked into wrong location
+            pendingClaims.remove(playerUUID);
+            confirmedBlueprints.remove(playerUUID);
             return;
         }
 
@@ -615,6 +618,9 @@ public class IslandCreateListener implements Listener {
             } else {
                 player.sendMessage("§cYou cannot claim this location.");
             }
+            // Clean up pending maps to prevent player from being locked into wrong location
+            pendingClaims.remove(playerUUID);
+            confirmedBlueprints.remove(playerUUID);
             return;
         }
 

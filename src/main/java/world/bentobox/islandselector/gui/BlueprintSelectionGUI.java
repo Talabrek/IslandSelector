@@ -23,10 +23,10 @@ import world.bentobox.islandselector.listeners.IslandCreateListener;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Blueprint Selection GUI - Shows available island schematics/blueprints.
@@ -46,8 +46,8 @@ public class BlueprintSelectionGUI implements InventoryHolder, Listener {
     private final IslandCreateListener createListener;
     private Inventory inventory;
 
-    // Map slot to blueprint bundle ID
-    private final Map<Integer, String> slotToBundleId = new HashMap<>();
+    // Map slot to blueprint bundle ID (ConcurrentHashMap for thread safety)
+    private final Map<Integer, String> slotToBundleId = new ConcurrentHashMap<>();
 
     // Available bundles
     private List<BlueprintBundle> bundles;

@@ -65,7 +65,10 @@ public class AutoBackupManager {
         int backupCount = 0;
         int failCount = 0;
 
-        for (Player player : Bukkit.getOnlinePlayers()) {
+        // Create defensive copy to prevent ConcurrentModificationException
+        // if a player disconnects during backup iteration
+        java.util.List<Player> onlinePlayers = new java.util.ArrayList<>(Bukkit.getOnlinePlayers());
+        for (Player player : onlinePlayers) {
             UUID playerUUID = player.getUniqueId();
 
             // Get player's active slot

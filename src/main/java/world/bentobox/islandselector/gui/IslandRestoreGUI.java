@@ -167,6 +167,9 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
     private ItemStack createArrowHead(String textureUrl, String name, String... loreLines) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta == null) {
+            return head; // Defensive null check
+        }
 
         try {
             PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
@@ -285,6 +288,9 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
     private ItemStack createOccupiedItem(GridCoordinate coord, GridLocation location) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
+        if (meta == null) {
+            return item; // Defensive null check
+        }
 
         if (location != null && location.getOwnerUUID() != null) {
             org.bukkit.OfflinePlayer owner = Bukkit.getOfflinePlayer(location.getOwnerUUID());
@@ -526,6 +532,15 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
     }
 
     private void confirmRestoration(GridCoordinate coord) {
+        // Re-validate that location is still available before starting restoration
+        // This prevents race conditions where two players try to restore to the same location
+        if (!addon.getGridManager().isAvailable(coord)) {
+            player.sendMessage(colorize("&cThis location is no longer available! Someone else claimed it."));
+            selectedCoord = null;
+            refresh();
+            return;
+        }
+
         player.closeInventory();
         player.sendMessage(colorize("&a&lRestoring your island to " + coord.toString() + "..."));
         player.sendMessage(colorize("&7Please wait while your island is being placed."));
@@ -535,6 +550,9 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
         player.teleport(spawn);
         player.sendMessage(colorize("&7Preparing your island..."));
 
+        // Store player UUID for async callbacks (player reference may become stale)
+        final UUID playerUUID = player.getUniqueId();
+
         // Perform restoration async
         Bukkit.getScheduler().runTaskAsynchronously(addon.getPlugin(), () -> {
             try {
@@ -543,7 +561,11 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                 addon.logError("Failed to restore island: " + e.getMessage());
                 e.printStackTrace();
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    player.sendMessage(colorize("&cFailed to restore your island. Please contact an administrator."));
+                    // Use fresh player lookup in case original reference is stale
+                    Player onlinePlayer = Bukkit.getPlayer(playerUUID);
+                    if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                        onlinePlayer.sendMessage(colorize("&cFailed to restore your island. Please contact an administrator."));
+                    }
                 });
             }
         });
@@ -633,7 +655,11 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                     addon.logError("Failed to paste schematic: " + e.getMessage());
                     e.printStackTrace();
                     Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                        player.sendMessage(colorize("&cFailed to paste your island data."));
+                        // Use fresh player lookup in async callback
+                        Player onlinePlayer = Bukkit.getPlayer(playerUUID);
+                        if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                            onlinePlayer.sendMessage(colorize("&cFailed to paste your island data."));
+                        }
                     });
                 }
             });
@@ -644,6 +670,9 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
      * Finish the restoration process after schematic is pasted
      */
     private void finishRestoration(UUID playerUUID, Island island, GridCoordinate coord) {
+        // Get fresh player reference - may have disconnected during async operation
+        Player onlinePlayer = Bukkit.getPlayer(playerUUID);
+
         try {
             UUID islandUUID = null;
             try {
@@ -652,8 +681,10 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                 // Island ID not a UUID - that's fine
             }
 
+            // Get player name - use cached if player offline
+            String playerName = onlinePlayer != null ? onlinePlayer.getName() : player.getName();
             addon.getSlotManager().restoreSlot(playerUUID, slotData.getSlotNumber(), islandUUID, coord.toString());
-            gridManager.occupyLocation(coord, playerUUID, player.getName(), islandUUID);
+            gridManager.occupyLocation(coord, playerUUID, playerName, islandUUID);
 
             // IMPORTANT: Clear the pending restoration state so future /island commands work correctly
             addon.getSlotManager().clearPendingSlotRestoration(playerUUID);
@@ -679,22 +710,39 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
 
             addon.log("Restored slot " + slotData.getSlotNumber() + " for " + playerUUID + " at " + coord);
 
+            // Check if player is still online for teleport
+            if (onlinePlayer == null || !onlinePlayer.isOnline()) {
+                addon.log("Player " + playerUUID + " went offline during restoration - will teleport on next login");
+                return;
+            }
+
             // Wait for chunks to load and FAWE to finish pasting, then teleport
-            player.sendMessage(colorize("&7Finalizing island... teleporting in 3 seconds."));
+            onlinePlayer.sendMessage(colorize("&7Finalizing island... teleporting in 3 seconds."));
+            final Player finalPlayer = onlinePlayer;
             Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+                // Re-check player is still online
+                Player teleportPlayer = Bukkit.getPlayer(playerUUID);
+                if (teleportPlayer == null || !teleportPlayer.isOnline()) {
+                    addon.log("Player " + playerUUID + " went offline before teleport");
+                    return;
+                }
+
                 // Use BentoBox SafeSpotTeleport for safe async teleportation
                 new SafeSpotTeleport.Builder(addon.getPlugin())
-                    .entity(player)
+                    .entity(teleportPlayer)
                     .location(finalSpawn)
                     .thenRun(() -> {
-                        player.sendMessage(colorize("&a&lIsland Restored!"));
-                        player.sendMessage(colorize("&7Your island has been placed at " + coord.toString()));
+                        teleportPlayer.sendMessage(colorize("&a&lIsland Restored!"));
+                        teleportPlayer.sendMessage(colorize("&7Your island has been placed at " + coord.toString()));
                     })
                     .ifFail(() -> {
                         // Fallback - teleport directly to center
-                        player.teleport(island.getCenter().add(0.5, 1, 0.5));
-                        player.sendMessage(colorize("&a&lIsland Restored!"));
-                        player.sendMessage(colorize("&7Your island has been placed at " + coord.toString()));
+                        Location islandCenter = island.getCenter();
+                        if (islandCenter != null) {
+                            teleportPlayer.teleport(islandCenter.add(0.5, 1, 0.5));
+                        }
+                        teleportPlayer.sendMessage(colorize("&a&lIsland Restored!"));
+                        teleportPlayer.sendMessage(colorize("&7Your island has been placed at " + coord.toString()));
                     })
                     .buildFuture();
             }, 60L); // 3 seconds delay
@@ -702,7 +750,9 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
         } catch (Exception e) {
             addon.logError("Failed to finish restoration: " + e.getMessage());
             e.printStackTrace();
-            player.sendMessage(colorize("&cFailed to complete restoration."));
+            if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                onlinePlayer.sendMessage(colorize("&cFailed to complete restoration."));
+            }
         }
     }
 

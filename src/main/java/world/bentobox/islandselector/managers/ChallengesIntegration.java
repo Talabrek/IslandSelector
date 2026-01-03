@@ -88,10 +88,15 @@ public class ChallengesIntegration {
                 playerSlotDir.mkdirs();
             }
 
-            // Copy current challenge data to slot backup
+            // Copy current challenge data to slot backup using atomic write via temp file
             File slotBackup = new File(playerSlotDir, "slot-" + fromSlot + ".json");
-            Files.copy(playerChallengeFile.toPath(), slotBackup.toPath(),
+            File tempFile = new File(playerSlotDir, "slot-" + fromSlot + ".json.tmp");
+
+            // Write to temp file first, then atomic rename
+            Files.copy(playerChallengeFile.toPath(), tempFile.toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
+            Files.move(tempFile.toPath(), slotBackup.toPath(),
+                StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 
             addon.log("Saved challenge progress for " + playerUUID + " slot " + fromSlot);
 
@@ -120,9 +125,12 @@ public class ChallengesIntegration {
             File slotBackup = new File(playerSlotDir, "slot-" + toSlot + ".json");
 
             if (slotBackup.exists()) {
-                // Restore challenge data from slot backup
-                Files.copy(slotBackup.toPath(), playerChallengeFile.toPath(),
+                // Restore challenge data from slot backup using atomic write via temp file
+                File tempFile = new File(challengesDataDir, playerUUID.toString() + ".json.tmp");
+                Files.copy(slotBackup.toPath(), tempFile.toPath(),
                     StandardCopyOption.REPLACE_EXISTING);
+                Files.move(tempFile.toPath(), playerChallengeFile.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
                 addon.log("Restored challenge progress for " + playerUUID + " slot " + toSlot);
             } else {
                 // No backup for this slot - create empty/fresh challenge data
@@ -237,8 +245,12 @@ public class ChallengesIntegration {
                 playerSlotDir.mkdirs();
             }
 
-            Files.copy(sourceBackup.toPath(), destBackup.toPath(),
+            // Use atomic write via temp file
+            File tempFile = new File(playerSlotDir, "slot-" + toSlot + ".json.tmp");
+            Files.copy(sourceBackup.toPath(), tempFile.toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
+            Files.move(tempFile.toPath(), destBackup.toPath(),
+                StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 
             addon.log("Copied challenge progress from slot " + fromSlot + " to slot " + toSlot +
                 " for " + playerUUID);

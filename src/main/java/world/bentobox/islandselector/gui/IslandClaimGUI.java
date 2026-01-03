@@ -164,6 +164,9 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
     private ItemStack createArrowHead(String textureUrl, String name, String... loreLines) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta == null) {
+            return head; // Defensive null check
+        }
 
         try {
             PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());

@@ -219,6 +219,9 @@ public class MainGridGUI implements InventoryHolder {
     private ItemStack createArrowHead(String textureUrl, String name, String... loreLines) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta == null) {
+            return head; // Defensive null check
+        }
 
         // Set the texture using profile
         try {
@@ -390,7 +393,7 @@ public class MainGridGUI implements InventoryHolder {
         if (isOwnerOnline) {
             item = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
-            if (ownerUUID != null) {
+            if (skullMeta != null && ownerUUID != null) {
                 OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerUUID);
                 skullMeta.setOwningPlayer(owner);
             }

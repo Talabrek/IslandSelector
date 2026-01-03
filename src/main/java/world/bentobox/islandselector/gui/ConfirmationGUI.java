@@ -298,16 +298,14 @@ public class ConfirmationGUI implements InventoryHolder, Listener {
                 break;
 
             case PURCHASE:
-                // Check if player has enough money
-                if (!checkAndChargeMoney()) {
-                    return;
-                }
-                // Verify location is still available
+                // Verify location is still available FIRST (before charging)
                 if (!addon.getGridManager().isAvailable(coord)) {
-                    // Refund the player since we already charged them
-                    refundPlayer(price);
                     player.sendMessage(colorize("&cThis location is no longer available!"));
                     createListener.cancelClaim(player);
+                    return;
+                }
+                // Now check if player has enough money and charge them
+                if (!checkAndChargeMoney()) {
                     return;
                 }
                 // Open blueprint selection GUI for premium locations too

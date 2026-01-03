@@ -12,7 +12,13 @@ import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 /**
@@ -31,6 +37,8 @@ import java.util.function.Consumer;
 public class IslandRemovalManager {
 
     private final IslandSelector addon;
+    // Track ongoing removals to prevent concurrent removal of same player's island
+    private final Set<UUID> pendingRemovals = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public IslandRemovalManager(IslandSelector addon) {
         this.addon = addon;
@@ -44,8 +52,16 @@ public class IslandRemovalManager {
      * @param callback Called with true if successful, false otherwise
      */
     public void removeIsland(UUID playerUUID, User executor, Consumer<Boolean> callback) {
+        // Prevent concurrent removal of same player's island
+        if (!pendingRemovals.add(playerUUID)) {
+            executor.sendMessage("§cIsland removal already in progress for this player.");
+            callback.accept(false);
+            return;
+        }
+
         World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
         if (bskyblockWorld == null) {
+            pendingRemovals.remove(playerUUID);
             callback.accept(false);
             return;
         }
@@ -53,6 +69,7 @@ public class IslandRemovalManager {
         // Get the island
         Island island = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
         if (island == null) {
+            pendingRemovals.remove(playerUUID);
             callback.accept(false);
             return;
         }
@@ -60,6 +77,7 @@ public class IslandRemovalManager {
         // Get active slot
         SlotData activeSlot = addon.getSlotManager().getActiveSlot(playerUUID);
         if (activeSlot == null) {
+            pendingRemovals.remove(playerUUID);
             callback.accept(false);
             return;
         }
@@ -102,17 +120,44 @@ public class IslandRemovalManager {
 
                 // Step 2: Clear island blocks (back to main thread for chunk access)
                 executor.sendMessage("§7Clearing island blocks...");
+
+                // Use CompletableFuture for proper async coordination
+                CompletableFuture<Boolean> clearFuture = new CompletableFuture<>();
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    clearIslandBlocks(island);
+                    try {
+                        clearIslandBlocks(island);
+                        clearFuture.complete(true);
+                    } catch (Exception e) {
+                        clearFuture.completeExceptionally(e);
+                    }
                 });
 
-                // TODO BUG: Thread.sleep() is fragile for waiting on async operations
-                // The scheduled task and FAWE operations may not complete within 2 seconds,
-                // especially for large islands. This can cause race conditions where
-                // the island is unregistered before clearing is complete.
-                // Fix: Use a callback-based approach or CompletableFuture to properly wait.
-                // Wait for clearing
-                Thread.sleep(2000);
+                // Wait for clearing to complete with proper timeout handling
+                boolean clearSuccess;
+                try {
+                    clearSuccess = clearFuture.get(30, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    addon.logError("Timeout waiting for island clearing");
+                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                        pendingRemovals.remove(playerUUID);
+                        addon.getIslandCreateListener().unmarkAdminRemoval(playerUUID);
+                        executor.sendMessage("§cTimeout clearing island blocks. Please try again.");
+                        callback.accept(false);
+                    });
+                    return;
+                } catch (Exception e) {
+                    addon.logError("Error during island clearing: " + e.getMessage());
+                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                        pendingRemovals.remove(playerUUID);
+                        addon.getIslandCreateListener().unmarkAdminRemoval(playerUUID);
+                        executor.sendMessage("§cFailed to clear island blocks. Please try again.");
+                        callback.accept(false);
+                    });
+                    return;
+                }
+
+                // Brief delay to ensure block updates propagate
+                Thread.sleep(500);
 
                 // Step 3: Unregister island from BentoBox (main thread)
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
@@ -159,8 +204,9 @@ public class IslandRemovalManager {
                     // Step 5: Update slot data to mark as homeless
                     markPlayerAsHomeless(playerUUID, activeSlot);
 
-                    // Unmark the admin removal now that we're done
+                    // Unmark the admin removal and clear pending state
                     addon.getIslandCreateListener().unmarkAdminRemoval(playerUUID);
+                    pendingRemovals.remove(playerUUID);
 
                     addon.log("Removed island for " + playerUUID + " at " + coord);
 
@@ -172,6 +218,7 @@ public class IslandRemovalManager {
                 e.printStackTrace();
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                     addon.getIslandCreateListener().unmarkAdminRemoval(playerUUID);
+                    pendingRemovals.remove(playerUUID);
                     callback.accept(false);
                 });
             }

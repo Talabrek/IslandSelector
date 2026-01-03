@@ -26,10 +26,10 @@ import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Blueprint Selection GUI for creating a new island in an empty slot.
@@ -48,8 +48,8 @@ public class SlotBlueprintSelectionGUI implements InventoryHolder, Listener {
     private final SlotData activeSlot;
     private Inventory inventory;
 
-    // Map slot to blueprint bundle ID
-    private final Map<Integer, String> slotToBundleId = new HashMap<>();
+    // Map slot to blueprint bundle ID (ConcurrentHashMap for thread safety)
+    private final Map<Integer, String> slotToBundleId = new ConcurrentHashMap<>();
 
     // Available bundles
     private List<BlueprintBundle> bundles;

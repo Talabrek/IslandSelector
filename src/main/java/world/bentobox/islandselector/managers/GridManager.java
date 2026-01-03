@@ -106,8 +106,10 @@ public class GridManager {
                                     dimensionIslandToCoord
                                             .computeIfAbsent(dimensionKey, k -> new HashMap<>())
                                             .put(islandUUID, coord);
-                                } catch (IllegalArgumentException ignored) {
-                                    // Invalid UUID format, skip
+                                } catch (IllegalArgumentException e) {
+                                    // Log skipped records for debugging
+                                    addon.logWarning("Skipped invalid UUID '" + uuidStr +
+                                        "' for dimension " + dimensionKey + " at " + coord);
                                 }
                             }
                         }

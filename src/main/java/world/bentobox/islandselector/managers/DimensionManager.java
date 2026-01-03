@@ -22,11 +22,11 @@ public class DimensionManager {
 
     private final IslandSelector addon;
 
-    // Maps dimension key to Bukkit World
-    private final Map<String, World> dimensionWorlds = new HashMap<>();
+    // Maps dimension key to world NAME (not World reference to avoid stale refs)
+    private final Map<String, String> dimensionWorldNames = new HashMap<>();
 
-    // Reverse lookup: Bukkit World to dimension key
-    private final Map<World, String> worldToDimensionKey = new HashMap<>();
+    // Cached world references - cleared on reload to avoid stale references
+    private final Map<String, World> dimensionWorldCache = new HashMap<>();
 
     // Cached list of enabled dimensions
     private List<DimensionConfig> enabledDimensions = new ArrayList<>();
@@ -44,8 +44,8 @@ public class DimensionManager {
      * Should be called after all worlds are loaded.
      */
     public void initialize() {
-        dimensionWorlds.clear();
-        worldToDimensionKey.clear();
+        dimensionWorldNames.clear();
+        dimensionWorldCache.clear();
         enabledDimensions.clear();
 
         if (!addon.getSettings().isMultiDimensionEnabled()) {
@@ -92,9 +92,9 @@ public class DimensionManager {
                 continue;
             }
 
-            // Register this dimension
-            dimensionWorlds.put(dimensionKey, world);
-            worldToDimensionKey.put(world, dimensionKey);
+            // Register this dimension by NAME (not World reference to avoid stale refs)
+            dimensionWorldNames.put(dimensionKey, worldName);
+            dimensionWorldCache.put(dimensionKey, world); // Cache for quick access
             enabledDimensions.add(config);
             loadedCount++;
 
@@ -111,11 +111,11 @@ public class DimensionManager {
 
         // Verify primary dimension is loaded
         String primaryKey = addon.getSettings().getPrimaryDimension();
-        if (!dimensionWorlds.containsKey(primaryKey)) {
+        if (!dimensionWorldNames.containsKey(primaryKey)) {
             addon.logWarning("Primary dimension '" + primaryKey + "' is not loaded!");
             // Try to find a fallback
-            if (!dimensionWorlds.isEmpty()) {
-                String fallback = dimensionWorlds.keySet().iterator().next();
+            if (!dimensionWorldNames.isEmpty()) {
+                String fallback = dimensionWorldNames.keySet().iterator().next();
                 addon.logWarning("Using '" + fallback + "' as primary dimension instead");
             }
         }
@@ -150,12 +150,22 @@ public class DimensionManager {
     }
 
     /**
-     * Get the Bukkit World for a dimension
+     * Get the Bukkit World for a dimension.
+     * Always looks up by world name to avoid stale World references.
      * @param dimensionKey The dimension key
      * @return The World, or null if not found/loaded
      */
     public World getWorld(String dimensionKey) {
-        return dimensionWorlds.get(dimensionKey);
+        String worldName = dimensionWorldNames.get(dimensionKey);
+        if (worldName == null) {
+            return null;
+        }
+        // Always look up fresh to avoid stale World references
+        World world = Bukkit.getWorld(worldName);
+        if (world != null) {
+            dimensionWorldCache.put(dimensionKey, world); // Update cache
+        }
+        return world;
     }
 
     /**
@@ -164,7 +174,17 @@ public class DimensionManager {
      * @return The dimension key, or null if not a registered dimension world
      */
     public String getDimensionKey(World world) {
-        return worldToDimensionKey.get(world);
+        if (world == null) {
+            return null;
+        }
+        String worldName = world.getName();
+        // Search by world name to avoid stale reference issues
+        for (Map.Entry<String, String> entry : dimensionWorldNames.entrySet()) {
+            if (entry.getValue().equals(worldName)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     /**
@@ -173,7 +193,7 @@ public class DimensionManager {
      * @return true if this world is a registered dimension
      */
     public boolean isDimensionWorld(World world) {
-        return worldToDimensionKey.containsKey(world);
+        return getDimensionKey(world) != null;
     }
 
     /**
@@ -195,8 +215,8 @@ public class DimensionManager {
     public String getPrimaryDimensionKey() {
         String primary = addon.getSettings().getPrimaryDimension();
         // Fallback if primary is not loaded
-        if (!dimensionWorlds.containsKey(primary) && !dimensionWorlds.isEmpty()) {
-            return dimensionWorlds.keySet().iterator().next();
+        if (!dimensionWorldNames.containsKey(primary) && !dimensionWorldNames.isEmpty()) {
+            return dimensionWorldNames.keySet().iterator().next();
         }
         return primary;
     }
@@ -297,7 +317,7 @@ public class DimensionManager {
      * @return List of all registered dimension keys
      */
     public List<String> getDimensionKeys() {
-        return new ArrayList<>(dimensionWorlds.keySet());
+        return new ArrayList<>(dimensionWorldNames.keySet());
     }
 
     /**

@@ -134,6 +134,9 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
     private void populateCenterSlot(int slot) {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
+        if (skullMeta == null) {
+            return; // Defensive null check
+        }
 
         // Set the player's head texture
         skullMeta.setOwningPlayer(player);
@@ -412,8 +415,9 @@ public class NeighborhoodGUI implements InventoryHolder, Listener {
         // Get the world coordinates for this grid coordinate
         // Use the addon's getIslandSpacing() method which gets it from BSkyBlock config
         int spacing = addon.getIslandSpacing() * 2; // Actual spacing between centers
-        int worldX = coord.getColumn() * spacing;
-        int worldZ = coord.getRow() * spacing;
+        // Use getX() and getZ() - GridCoordinate uses these methods, not getColumn/getRow
+        int worldX = coord.getX() * spacing;
+        int worldZ = coord.getZ() * spacing;
 
         // Get BSkyBlock world
         World world = getBSkyBlockWorld();

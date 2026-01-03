@@ -134,15 +134,21 @@ public class AdminGridGUI implements InventoryHolder {
         createInventory();
         populateInventory();
         player.openInventory(inventory);
-
-        // Register click handler
-        Bukkit.getPluginManager().registerEvents(new AdminGridGUIListener(this), addon.getPlugin());
+        // Note: Click handling is done by SharedAdminGridGUIListener registered in IslandSelector.onEnable()
     }
 
     public void reopen() {
         populateInventory();
         player.openInventory(inventory);
-        Bukkit.getPluginManager().registerEvents(new AdminGridGUIListener(this), addon.getPlugin());
+        // Note: Click handling is done by SharedAdminGridGUIListener registered in IslandSelector.onEnable()
+    }
+
+    /**
+     * Called by SharedAdminGridGUIListener when the inventory is closed.
+     * Can be used for cleanup if needed.
+     */
+    public void handleClose() {
+        // Currently no cleanup needed - SharedAdminGridGUIListener handles event routing
     }
 
     private void createInventory() {
