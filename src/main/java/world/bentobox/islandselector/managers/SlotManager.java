@@ -20,6 +20,9 @@ public class SlotManager {
     private final IslandSelector addon;
     private final Database<SlotData> database;
     private final Map<String, SlotData> slotCache; // Key: uniqueId (playerUUID-slotNumber)
+    // TODO BUG: Memory leak potential - same as IslandCreateListener maps
+    // These maps are never cleaned up if a player disconnects during the island creation process.
+    // Fix: Add PlayerQuitEvent listener or scheduled cleanup task.
     private final Map<UUID, Integer> pendingSlotCreations; // Track which slot a new island should go into
     private final Map<UUID, Integer> pendingSlotRestorations; // Track which slot a homeless player wants to restore
 
@@ -65,6 +68,9 @@ public class SlotManager {
                 // Player has island but no slot data - create slot 1
                 String gridCoord = gridManager.getPlayerGridCoordinate(playerUUID);
 
+                // TODO BUG: Potential NPE if addon.getIslands() returns null during startup
+                // While rare, if this runs before BentoBox is fully initialized, getIslands()
+                // could return null. Consider adding a null check.
                 // Get the island UUID from BentoBox
                 Island island = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
                 UUID islandUUID = null;

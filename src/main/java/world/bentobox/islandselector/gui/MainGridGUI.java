@@ -117,6 +117,10 @@ public class MainGridGUI implements InventoryHolder {
         populateInventory();
         player.openInventory(inventory);
 
+        // TODO BUG: Listener leak - new listener is registered on every open() and reopen() call
+        // but never unregistered. This causes duplicate event handling and memory leaks.
+        // Fix: Store the listener reference and unregister it in the close handler, or use
+        // a single shared listener that routes events based on the inventory holder.
         // Register click handler
         Bukkit.getPluginManager().registerEvents(new GridGUIListener(this), addon.getPlugin());
     }
@@ -129,6 +133,7 @@ public class MainGridGUI implements InventoryHolder {
         populateInventory();
         player.openInventory(inventory);
 
+        // TODO BUG: Same listener leak issue as open() - see TODO above
         // Re-register click handler (was unregistered when inventory closed)
         Bukkit.getPluginManager().registerEvents(new GridGUIListener(this), addon.getPlugin());
     }

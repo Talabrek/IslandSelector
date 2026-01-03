@@ -356,6 +356,11 @@ public class RelocationManager {
             final int finalNewWorldX = newWorldX;
             final int finalNewWorldZ = newWorldZ;
 
+            // TODO BUG: Reflection fragility - accessing private BentoBox internals
+            // The field names "islandCache" and "location" are internal implementation details
+            // that could change in any BentoBox update, breaking this functionality silently.
+            // Fix: Request a public API from BentoBox for island relocation, or maintain a
+            // compatibility layer that checks BentoBox version and uses appropriate methods.
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 sendProgress(adminPlayer, "&eUpdating island data...");
 
@@ -654,6 +659,8 @@ public class RelocationManager {
             // Simply calling setCenter() does NOT update the cache!
             // We must: 1) Remove from cache, 2) Update center, 3) Re-add to cache
 
+            // TODO BUG: Reflection fragility - same issue as adminRelocateIsland above.
+            // Accessing private BentoBox fields that may change between versions.
             var islandsManager = BentoBox.getInstance().getIslandsManager();
 
             // Remove island from BentoBox's location cache at OLD location
