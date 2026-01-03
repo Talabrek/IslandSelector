@@ -25,6 +25,8 @@ Copy JAR to plugins/BentoBox/addons/
 | Vault | No | Economy for premium locations |
 | PlaceholderAPI | No | Placeholder integration |
 | Level | No | Island level display |
+| Challenges | No | Slot-specific challenge progress |
+| Nova | No | Custom block support in schematics |
 
 ## Key Technical Patterns
 
@@ -227,3 +229,84 @@ src/main/java/world/bentobox/islandselector/
 - Grid cache prevents redundant database queries
 - Slot switching can take 5-15 seconds for large islands (expected)
 - Relocation can take 10-30 seconds for complex builds (expected)
+
+## Integration Patterns
+
+### Nova Integration (Custom Blocks)
+
+Nova blocks are handled separately from FAWE schematics since WorldEdit doesn't natively support them.
+
+```java
+// In NovaIntegration.java
+// 1. Capture Nova blocks in a region
+public List<NovaBlockData> captureNovaBlocks(Location min, Location max) {
+    // Uses reflection to access Nova API
+    // Stores block type, location, and state data
+}
+
+// 2. Restore Nova blocks at new location
+public void restoreNovaBlocks(List<NovaBlockData> blocks, Location offset) {
+    // Async chunk loading
+    // Places Nova blocks via Nova API
+}
+```
+
+Key points:
+- Uses reflection to avoid hard dependency
+- Async block capture/restore with chunk loading
+- Serializable `NovaBlockData` class for storage
+- Gracefully skips if Nova not installed
+
+### Challenges Integration (Slot-Specific Progress)
+
+Each slot maintains separate challenge progress.
+
+```java
+// In ChallengesIntegration.java
+// Save/restore challenge progress per slot
+public void saveSlotChallenges(UUID playerUUID, int slot);
+public void restoreSlotChallenges(UUID playerUUID, int slot);
+
+// Data stored in: plugins/IslandSelector/slot-challenges/
+```
+
+Key points:
+- Challenge progress saved on slot switch
+- Progress restored when switching back to slot
+- Fresh challenges for new empty slots
+- Auto-detected if Challenges addon present
+
+### Level Integration
+
+Displays island levels in GUIs using reflection for version compatibility.
+
+```java
+// In LevelIntegration.java
+public long getIslandLevel(UUID playerUUID);
+public String getFormattedIslandLevel(UUID playerUUID);  // "1.2K", "1.5M", etc.
+```
+
+### PlaceholderAPI Integration
+
+Only 5 placeholders are implemented:
+
+| Placeholder | Method |
+|------------|--------|
+| `%islandselector_location%` | Player's grid coord |
+| `%islandselector_slot_active_name%` | Active slot name |
+| `%islandselector_cooldown_switch%` | Switch cooldown (formatted) |
+| `%islandselector_available%` | Available location count |
+| `%islandselector_neighbors_online%` | Online neighbor count (0-8) |
+
+### Custom Command Execution
+
+Execute commands on relocation or slot switch:
+
+```java
+// In CustomCommandExecutor.java
+// Placeholders available:
+// {player}, {uuid}, {from_coord}, {to_coord}, {world_x}, {world_z}
+// {from_slot}, {slot} (for slot switch)
+
+// Scopes: CONSOLE, PLAYER, PLAYER_OP
+```

@@ -1,66 +1,12 @@
 # IslandSelector - BentoBox Addon
 
 ## Project Overview
-This is a BentoBox addon for BSkyBlock that provides a grid-based island selection system. Players can visually select their island location from a GUI showing a map of all islands.
+This is a BentoBox addon for BSkyBlock that provides:
+- Grid-based island selection system
+- Multi-slot island management (up to 5 islands per player)
+- Multi-dimension support (overworld, nether, end)
 
-## Development Context
-This project is developed using a hybrid approach:
-- **Autonomous agents** run via `autonomous_agent_demo.py` for feature implementation
-- **Manual Claude Code sessions** for debugging and testing with a human tester
-
-Both session types MUST maintain the shared progress file.
-
-## Critical: Progress Tracking
-
-### Progress File: `claude-progress.txt`
-This file tracks ALL work done across sessions. It is the shared memory between autonomous agents and manual debugging sessions.
-
-**At the START of every session:**
-1. Read `claude-progress.txt` to understand previous work
-2. Check the "NEXT STEPS" section for priorities
-3. Review any "KNOWN ISSUES" that need fixing
-
-**At the END of every session:**
-1. Update `claude-progress.txt` with a new session entry
-2. Document: what was fixed, what was implemented, what issues remain
-3. Update "NEXT STEPS" for the next session
-4. Include "KEY LEARNINGS" for any gotchas discovered
-
-### Session Entry Format
-```
-=================================================
-SESSION N - [TYPE] ([Date or Context])
-=================================================
-
-Session Date: Session N
-Agent Role: [Bug Fixes / Feature Implementation / etc.]
-
-=================================================
-COMPLETED TASKS - SESSION N
-=================================================
-
-✅ 1. TASK NAME
-   - Issue: [What was wrong]
-   - Fix: [What was done]
-   - File: [Files modified]
-
-=================================================
-KNOWN ISSUES
-=================================================
-
-⚠️ ISSUE NAME
-   - Description
-   - Status
-   - Next steps
-
-=================================================
-NEXT STEPS FOR FUTURE AGENTS
-=================================================
-
-PRIORITY 1: [Task]
-  □ Step 1
-  □ Step 2
-```
+Players visually select their island location from a GUI showing a map of all islands.
 
 ## Build Commands
 ```bash
@@ -78,10 +24,36 @@ src/main/java/world/bentobox/islandselector/
 ├── Settings.java            # Configuration (implements ConfigObject!)
 ├── commands/                # Player and admin commands
 ├── database/                # BentoBox database models
+│   ├── GridLocationData.java
+│   └── SlotData.java
 ├── gui/                     # Inventory GUIs
-├── managers/                # GridManager for island tracking
+│   ├── MainGridGUI.java
+│   ├── SlotSelectionGUI.java
+│   ├── NeighborhoodGUI.java
+│   └── IslandRestoreGUI.java
+├── integrations/            # External plugin integrations
+│   ├── WorldEditIntegration.java
+│   ├── NovaIntegration.java
+│   └── PlaceholderAPIIntegration.java
+├── listeners/               # Event listeners
+│   └── IslandCreateListener.java
+├── managers/                # Core business logic
+│   ├── GridManager.java
+│   ├── SlotManager.java
+│   ├── SlotSwitchManager.java
+│   ├── BackupManager.java
+│   ├── RelocationManager.java
+│   ├── DimensionManager.java
+│   ├── MultiDimensionIslandCreator.java
+│   ├── ChallengesIntegration.java
+│   └── LevelIntegration.java
 ├── models/                  # Data models
-└── utils/                   # GridCoordinate utilities
+│   ├── GridLocation.java
+│   └── DimensionConfig.java
+└── utils/                   # Utility classes
+    ├── GridCoordinate.java
+    ├── SchematicUtils.java
+    └── EntityStorage.java
 ```
 
 ## Key Technical Notes
@@ -96,7 +68,13 @@ src/main/java/world/bentobox/islandselector/
 - Grid is centered at (0,0), supports negative coordinates
 - Format: "X,Z" (e.g., "0,0", "-5,3", "10,-2")
 - World-to-grid: `gridCoord = round(worldCoord / spacing)`
-- Default spacing: 500 blocks
+- Island spacing is detected from BSkyBlock config
+
+### Multi-Dimension Support
+- When enabled, islands exist in all configured dimensions simultaneously
+- All dimensions share the same grid coordinate
+- Slot switching saves/loads ALL dimensions
+- Relocation moves islands in ALL dimensions
 
 ### GUI Best Practices
 - Always call `getLocationStatus()` before `getGridLocation()` (registers islands)
@@ -110,8 +88,12 @@ After building, copy JAR to `plugins/BentoBox/addons/` on test server.
 Key commands:
 - `/islandselector` - Open grid GUI
 - `/islandselector slots` - Open slot GUI
+- `/islandselector neighbors` - Open neighborhood view
 - `/islandselector admin reload` - Reload config
 - `/islandselector admin info 0,0` - Show location info
+- `/islandselector admin remove <player>` - Remove player's island
 
-## Current Status
-See `claude-progress.txt` for detailed session history and current priorities.
+## Documentation
+- `README.md` - Full documentation for users
+- `DEVELOPMENT_NOTES.md` - Technical patterns and gotchas for developers
+- `app_spec.txt` - Original project specification
