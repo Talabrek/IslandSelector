@@ -44,6 +44,12 @@ public class IslandCreateListener implements Listener {
     private final GridManager gridManager;
     private final SlotManager slotManager;
 
+    // TODO BUG: Memory leak potential - these maps are never cleaned up on error paths
+    // or if a player disconnects during the island creation process.
+    // If confirmClaim() fails or the player quits before island creation completes,
+    // their UUID remains in these maps indefinitely.
+    // Fix: Add a cleanup mechanism (e.g., scheduled task or player disconnect listener)
+    // to remove stale entries from these maps.
     // Track pending island claims (player UUID -> grid coordinate)
     private final Map<UUID, GridCoordinate> pendingClaims = new HashMap<>();
 

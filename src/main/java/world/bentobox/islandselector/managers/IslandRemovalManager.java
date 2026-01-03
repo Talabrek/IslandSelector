@@ -106,6 +106,11 @@ public class IslandRemovalManager {
                     clearIslandBlocks(island);
                 });
 
+                // TODO BUG: Thread.sleep() is fragile for waiting on async operations
+                // The scheduled task and FAWE operations may not complete within 2 seconds,
+                // especially for large islands. This can cause race conditions where
+                // the island is unregistered before clearing is complete.
+                // Fix: Use a callback-based approach or CompletableFuture to properly wait.
                 // Wait for clearing
                 Thread.sleep(2000);
 

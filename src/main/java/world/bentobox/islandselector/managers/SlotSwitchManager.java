@@ -139,6 +139,10 @@ public class SlotSwitchManager {
                 // This MUST happen on main thread and complete before loading new schematic
                 sendProgress(player, "&eClearing current island from world...");
 
+                // TODO BUG: Race condition - Using wait/notify with Bukkit scheduler is fragile.
+                // If the scheduled task runs before we enter the wait(), we miss the notify().
+                // Also, InterruptedException is not properly handled.
+                // Fix: Use CompletableFuture or a callback-based approach instead.
                 // Use a synchronization mechanism to wait for clearing
                 final boolean[] clearSuccess = {false};
                 final Object clearLock = new Object();
@@ -160,6 +164,9 @@ public class SlotSwitchManager {
                     return;
                 }
 
+                // TODO BUG: Thread.sleep() is a fragile way to wait for FAWE operations.
+                // FAWE operations are async and may take longer than 2 seconds on large islands.
+                // Fix: Use FAWE's EditSession callbacks or CompletableFuture to properly wait for completion.
                 // Additional wait for FAWE to finish block operations
                 Thread.sleep(2000);
 
@@ -171,6 +178,7 @@ public class SlotSwitchManager {
                     return;
                 }
 
+                // TODO BUG: Same Thread.sleep() issue as above - FAWE paste is async
                 // Wait for pasting to complete
                 Thread.sleep(1500);
 
