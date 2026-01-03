@@ -49,8 +49,16 @@ public class CustomCommandExecutor {
 
         // Ensure we're on the main thread
         if (!Bukkit.isPrimaryThread()) {
-            Bukkit.getScheduler().runTask(addon.getPlugin(), () ->
-                executeCommandsInternal(player, commands, scope, placeholders));
+            // Capture player UUID to re-fetch if needed (avoid stale player references)
+            final java.util.UUID playerUUID = player.getUniqueId();
+            Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                Player freshPlayer = Bukkit.getPlayer(playerUUID);
+                if (freshPlayer != null && freshPlayer.isOnline()) {
+                    executeCommandsInternal(freshPlayer, commands, scope, placeholders);
+                } else {
+                    addon.logWarning("Player went offline before custom commands could be executed");
+                }
+            });
         } else {
             executeCommandsInternal(player, commands, scope, placeholders);
         }

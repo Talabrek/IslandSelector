@@ -11,6 +11,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
@@ -54,6 +56,7 @@ public class AdminPlayerActionsGUI implements InventoryHolder, Listener {
     private final UUID ownerUUID;
     private final String ownerName;
     private Inventory inventory;
+    private BukkitTask cleanupTask;
 
     public AdminPlayerActionsGUI(IslandSelector addon, Player adminPlayer, GridCoordinate coord, GridLocation location) {
         this.addon = addon;
@@ -74,6 +77,18 @@ public class AdminPlayerActionsGUI implements InventoryHolder, Listener {
         populateInventory();
         Bukkit.getPluginManager().registerEvents(this, addon.getPlugin());
         adminPlayer.openInventory(inventory);
+
+        // Schedule cleanup task as fallback (30 minutes)
+        cleanupTask = Bukkit.getScheduler().runTaskLater(addon.getPlugin(), this::cleanup, 20 * 60 * 30);
+    }
+
+    private void cleanup() {
+        if (cleanupTask != null) {
+            cleanupTask.cancel();
+            cleanupTask = null;
+        }
+        HandlerList.unregisterAll(this);
+        inventory = null;
     }
 
     private void populateInventory() {
@@ -393,7 +408,14 @@ public class AdminPlayerActionsGUI implements InventoryHolder, Listener {
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() == this) {
-            HandlerList.unregisterAll(this);
+            cleanup();
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        if (event.getPlayer().equals(adminPlayer)) {
+            cleanup();
         }
     }
 }

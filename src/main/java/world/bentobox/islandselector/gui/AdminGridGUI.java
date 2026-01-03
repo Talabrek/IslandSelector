@@ -318,39 +318,44 @@ public class AdminGridGUI implements InventoryHolder {
             // In relocation mode, show as a target location
             item = new ItemStack(Material.ENDER_PEARL);
             meta = item.getItemMeta();
-            meta.setDisplayName(colorize("&b" + coord.toString() + " - Move Here"));
+            if (meta != null) {
+                meta.setDisplayName(colorize("&b" + coord.toString() + " - Move Here"));
 
-            List<String> lore = new ArrayList<>();
-            lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
-            lore.add("");
-            lore.add(colorize("&7Relocating: &f" + relocationPlayerName));
-            lore.add(colorize("&7From: &f" + relocationSource.toString()));
-            lore.add("");
-            lore.add(colorize("&a[Click] &7Move island here"));
-            lore.add(colorize("&c[Shift+Click] &7Cancel relocation"));
+                List<String> lore = new ArrayList<>();
+                lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
+                lore.add("");
+                lore.add(colorize("&7Relocating: &f" + relocationPlayerName));
+                lore.add(colorize("&7From: &f" + relocationSource.toString()));
+                lore.add("");
+                lore.add(colorize("&a[Click] &7Move island here"));
+                lore.add(colorize("&c[Shift+Click] &7Cancel relocation"));
 
-            meta.setLore(lore);
-            // Add glow effect
-            Enchantment glow = org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft("unbreaking"));
-            if (glow != null) {
-                meta.addEnchant(glow, 1, true);
+                meta.setLore(lore);
+                // Add glow effect
+                Enchantment glow = org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft("unbreaking"));
+                if (glow != null) {
+                    meta.addEnchant(glow, 1, true);
+                }
+                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                item.setItemMeta(meta);
             }
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } else {
             item = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
             meta = item.getItemMeta();
-            meta.setDisplayName(colorize("&a" + coord.toString() + " - Available"));
+            if (meta != null) {
+                meta.setDisplayName(colorize("&a" + coord.toString() + " - Available"));
 
-            List<String> lore = new ArrayList<>();
-            lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
-            lore.add("");
-            lore.add(colorize("&e[Left-Click] &7Reserve this location"));
-            lore.add(colorize("&e[Right-Click] &7Set as premium (with price)"));
+                List<String> lore = new ArrayList<>();
+                lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
+                lore.add("");
+                lore.add(colorize("&e[Left-Click] &7Reserve this location"));
+                lore.add(colorize("&e[Right-Click] &7Set as premium (with price)"));
 
-            meta.setLore(lore);
+                meta.setLore(lore);
+                item.setItemMeta(meta);
+            }
         }
 
-        item.setItemMeta(meta);
         return item;
     }
 
@@ -366,7 +371,7 @@ public class AdminGridGUI implements InventoryHolder {
         if (isOwnerOnline) {
             item = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
-            if (ownerUUID != null) {
+            if (skullMeta != null && ownerUUID != null) {
                 OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerUUID);
                 skullMeta.setOwningPlayer(owner);
             }
@@ -377,6 +382,9 @@ public class AdminGridGUI implements InventoryHolder {
             meta = item.getItemMeta();
         }
 
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&c" + coord.toString() + " - " + ownerName));
 
         List<String> lore = new ArrayList<>();
@@ -435,6 +443,9 @@ public class AdminGridGUI implements InventoryHolder {
 
         ItemStack item = new ItemStack(isPurchasable ? Material.GOLD_BLOCK : Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
 
         if (isPurchasable) {
             String formattedPrice = String.format("%,d", (int) location.getPurchasePrice());
@@ -468,6 +479,9 @@ public class AdminGridGUI implements InventoryHolder {
     private ItemStack createLockedItem(GridCoordinate coord) {
         ItemStack item = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&8" + coord.toString() + " - Outside Grid"));
 
         List<String> lore = new ArrayList<>();
@@ -484,6 +498,9 @@ public class AdminGridGUI implements InventoryHolder {
     private ItemStack createFilteredOutItem(GridCoordinate coord) {
         ItemStack item = new ItemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
         meta.setDisplayName(colorize("&7" + coord.toString()));
 
         List<String> lore = new ArrayList<>();
@@ -568,8 +585,10 @@ public class AdminGridGUI implements InventoryHolder {
     private void fillEmptySlots() {
         ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < SIZE; i++) {
             if (inventory.getItem(i) == null) {
@@ -581,20 +600,25 @@ public class AdminGridGUI implements InventoryHolder {
     private ItemStack createButton(Material material, String name, String... loreLines) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(colorize(name));
+        if (meta != null) {
+            meta.setDisplayName(colorize(name));
 
-        List<String> lore = new ArrayList<>();
-        for (String line : loreLines) {
-            lore.add(colorize(line));
+            List<String> lore = new ArrayList<>();
+            for (String line : loreLines) {
+                lore.add(colorize(line));
+            }
+            meta.setLore(lore);
+
+            item.setItemMeta(meta);
         }
-        meta.setLore(lore);
-
-        item.setItemMeta(meta);
         return item;
     }
 
     private void addGlow(ItemStack item) {
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return;
+        }
         Enchantment glow = org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft("unbreaking"));
         if (glow != null) {
             meta.addEnchant(glow, 1, true);

@@ -7,6 +7,7 @@ import world.bentobox.bentobox.database.Database;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
+import world.bentobox.islandselector.models.DimensionConfig;
 
 import java.io.File;
 import java.util.*;
@@ -702,6 +703,11 @@ public class SlotManager {
         }
 
         Map<String, String> serialized = slot.getSerializedHomes();
+        if (serialized == null || serialized.isEmpty()) {
+            addon.log("No serialized homes to restore for " + playerUUID + " slot " + slotNumber);
+            return;
+        }
+
         int restoredCount = 0;
 
         for (Map.Entry<String, String> entry : serialized.entrySet()) {
@@ -713,6 +719,199 @@ public class SlotManager {
         }
 
         addon.log("Restored " + restoredCount + " island homes for " + playerUUID + " slot " + slotNumber);
+    }
+
+    /**
+     * Save island homes for a specific dimension.
+     * Used for multi-dimension support where each dimension has its own Island object.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number
+     * @param dimensionKey The dimension key (e.g., "overworld", "nether")
+     * @param island The island in that dimension
+     */
+    public void saveIslandHomesForDimension(UUID playerUUID, int slotNumber, String dimensionKey, Island island) {
+        SlotData slot = getSlot(playerUUID, slotNumber);
+        if (slot == null || island == null || dimensionKey == null) {
+            return;
+        }
+
+        Map<String, Location> homes = island.getHomes();
+        if (homes == null || homes.isEmpty()) {
+            // Clear homes for this dimension
+            Map<String, Map<String, String>> dimHomes = slot.getDimensionSerializedHomes();
+            if (dimHomes != null) {
+                dimHomes.remove(dimensionKey);
+                slot.setDimensionSerializedHomes(dimHomes);
+                saveSlot(slot);
+            }
+            return;
+        }
+
+        Location islandCenter = island.getCenter();
+        if (islandCenter == null) {
+            addon.logWarning("Cannot save homes for " + dimensionKey + " - island has no center");
+            return;
+        }
+
+        Map<String, String> serialized = new HashMap<>();
+        for (Map.Entry<String, Location> entry : homes.entrySet()) {
+            String serializedLoc = serializeLocationAsOffset(entry.getValue(), islandCenter);
+            if (serializedLoc != null) {
+                serialized.put(entry.getKey(), serializedLoc);
+            }
+        }
+
+        // Store in dimension-specific map
+        Map<String, Map<String, String>> dimHomes = slot.getDimensionSerializedHomes();
+        if (dimHomes == null) {
+            dimHomes = new HashMap<>();
+        }
+        dimHomes.put(dimensionKey, serialized);
+        slot.setDimensionSerializedHomes(dimHomes);
+        saveSlot(slot);
+
+        addon.log("Saved " + serialized.size() + " homes for dimension " + dimensionKey + " (player " + playerUUID + " slot " + slotNumber + ")");
+    }
+
+    /**
+     * Restore island homes for a specific dimension.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number
+     * @param dimensionKey The dimension key
+     * @param island The island in that dimension
+     */
+    public void restoreIslandHomesForDimension(UUID playerUUID, int slotNumber, String dimensionKey, Island island) {
+        if (island == null || dimensionKey == null) {
+            return;
+        }
+
+        // Clear existing homes first
+        Map<String, Location> existingHomes = island.getHomes();
+        if (existingHomes != null && !existingHomes.isEmpty()) {
+            List<String> homeNames = new ArrayList<>(existingHomes.keySet());
+            for (String homeName : homeNames) {
+                island.removeHome(homeName);
+            }
+        }
+
+        SlotData slot = getSlot(playerUUID, slotNumber);
+        if (slot == null) {
+            return;
+        }
+
+        Map<String, Map<String, String>> dimHomes = slot.getDimensionSerializedHomes();
+        if (dimHomes == null || !dimHomes.containsKey(dimensionKey)) {
+            addon.log("No saved homes for dimension " + dimensionKey + " (player " + playerUUID + " slot " + slotNumber + ")");
+            return;
+        }
+
+        Location islandCenter = island.getCenter();
+        if (islandCenter == null) {
+            addon.logWarning("Cannot restore homes for " + dimensionKey + " - island has no center");
+            return;
+        }
+
+        Map<String, String> serialized = dimHomes.get(dimensionKey);
+        int restoredCount = 0;
+
+        for (Map.Entry<String, String> entry : serialized.entrySet()) {
+            Location loc = deserializeLocationFromOffset(entry.getValue(), islandCenter);
+            if (loc != null) {
+                island.addHome(entry.getKey(), loc);
+                restoredCount++;
+            }
+        }
+
+        addon.log("Restored " + restoredCount + " homes for dimension " + dimensionKey + " (player " + playerUUID + " slot " + slotNumber + ")");
+    }
+
+    /**
+     * Save homes for all enabled dimensions.
+     * Gets the island for each dimension and saves its homes.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number
+     */
+    public void saveAllDimensionHomes(UUID playerUUID, int slotNumber) {
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager == null || !dimManager.isEnabled()) {
+            // Fall back to single-dimension mode
+            World primaryWorld = addon.getGridManager().getBSkyBlockWorld();
+            if (primaryWorld != null) {
+                Island island = addon.getIslands().getIsland(primaryWorld, playerUUID);
+                if (island != null) {
+                    saveIslandHomes(playerUUID, slotNumber, island);
+                }
+            }
+            return;
+        }
+
+        List<DimensionConfig> dimensions = dimManager.getEnabledDimensions();
+        if (dimensions == null || dimensions.isEmpty()) {
+            addon.log("No dimensions configured for home saving");
+            return;
+        }
+
+        int savedCount = 0;
+        for (DimensionConfig config : dimensions) {
+            World world = dimManager.getWorld(config.getDimensionKey());
+            if (world == null) {
+                continue;
+            }
+
+            Island island = addon.getIslands().getIsland(world, playerUUID);
+            if (island != null) {
+                saveIslandHomesForDimension(playerUUID, slotNumber, config.getDimensionKey(), island);
+                savedCount++;
+            }
+        }
+
+        addon.log("Saved homes for " + savedCount + " dimensions (player " + playerUUID + " slot " + slotNumber + ")");
+    }
+
+    /**
+     * Restore homes for all enabled dimensions.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number
+     */
+    public void restoreAllDimensionHomes(UUID playerUUID, int slotNumber) {
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager == null || !dimManager.isEnabled()) {
+            // Fall back to single-dimension mode
+            World primaryWorld = addon.getGridManager().getBSkyBlockWorld();
+            if (primaryWorld != null) {
+                Island island = addon.getIslands().getIsland(primaryWorld, playerUUID);
+                if (island != null) {
+                    restoreIslandHomes(playerUUID, slotNumber, island);
+                }
+            }
+            return;
+        }
+
+        List<DimensionConfig> dimensions = dimManager.getEnabledDimensions();
+        if (dimensions == null || dimensions.isEmpty()) {
+            addon.log("No dimensions configured for home restoration");
+            return;
+        }
+
+        int restoredCount = 0;
+        for (DimensionConfig config : dimensions) {
+            World world = dimManager.getWorld(config.getDimensionKey());
+            if (world == null) {
+                continue;
+            }
+
+            Island island = addon.getIslands().getIsland(world, playerUUID);
+            if (island != null) {
+                restoreIslandHomesForDimension(playerUUID, slotNumber, config.getDimensionKey(), island);
+                restoredCount++;
+            }
+        }
+
+        addon.log("Restored homes for " + restoredCount + " dimensions (player " + playerUUID + " slot " + slotNumber + ")");
     }
 
     /**

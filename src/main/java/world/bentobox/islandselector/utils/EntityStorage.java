@@ -734,9 +734,8 @@ public class EntityStorage {
                 living.setHealth(Math.min(serialized.health, maxHealth));
             }
 
-            if (serialized.remainingAir != 0) {
-                living.setRemainingAir(serialized.remainingAir);
-            }
+            // Always restore remainingAir - 0 is a valid value (entity suffocating)
+            living.setRemainingAir(serialized.remainingAir);
             if (serialized.noDamageTicks > 0) {
                 living.setNoDamageTicks(serialized.noDamageTicks);
             }

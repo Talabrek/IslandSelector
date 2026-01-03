@@ -257,6 +257,7 @@ public class MultiDimensionIslandCreator {
 
         } catch (Exception e) {
             addon.logError("Failed to create island in " + world.getName() + ": " + e.getMessage());
+            e.printStackTrace();
             // Continue to next dimension
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> createNextDimension(player));
         }
@@ -329,6 +330,11 @@ public class MultiDimensionIslandCreator {
 
         // Update GridManager with all dimension islands
         GridManager gridManager = addon.getGridManager();
+        if (gridManager == null) {
+            addon.logError("GridManager not available during island creation finish");
+            context.complete();
+            return;
+        }
         String ownerName = player != null ? player.getName() : "Unknown";
 
         gridManager.occupyLocation(context.getCoord(), playerUUID, ownerName, createdIslands);
@@ -336,6 +342,12 @@ public class MultiDimensionIslandCreator {
 
         // Update SlotManager with dimension islands
         SlotManager slotManager = addon.getSlotManager();
+        if (slotManager == null) {
+            addon.logError("SlotManager not available during island creation finish");
+            context.complete();
+            return;
+        }
+
         if (context.isReset()) {
             // For resets, update the existing slot
             SlotData activeSlot = slotManager.getActiveSlot(playerUUID);
@@ -355,7 +367,10 @@ public class MultiDimensionIslandCreator {
             if (blueprint != null && !blueprint.isEmpty()) {
                 slotManager.setBlueprintBundle(playerUUID, 1, blueprint);
                 if (player != null) {
-                    addon.getBlueprintChallengesManager().updateBlueprintPermissions(player, blueprint);
+                    BlueprintChallengesManager bcm = addon.getBlueprintChallengesManager();
+                    if (bcm != null) {
+                        bcm.updateBlueprintPermissions(player, blueprint);
+                    }
                 }
             }
         }

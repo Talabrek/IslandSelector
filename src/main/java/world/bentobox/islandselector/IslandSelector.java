@@ -229,6 +229,10 @@ public class IslandSelector extends Addon {
         SharedAdminGridGUIListener sharedAdminGridListener = new SharedAdminGridGUIListener(this);
         Bukkit.getPluginManager().registerEvents(sharedAdminGridListener, getPlugin());
         log("Registered shared admin grid GUI listener");
+
+        // Note: Home dimension validation would require overriding the sethome command
+        // or using BentoBox's command API, as there's no SETHOME event in IslandEvent.Reason.
+        // For now, homes can be set in any dimension - the player just needs to be on their island.
     }
 
     @Override

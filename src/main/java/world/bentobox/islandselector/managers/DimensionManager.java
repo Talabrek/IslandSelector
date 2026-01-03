@@ -6,11 +6,13 @@ import org.bukkit.World;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.models.DimensionConfig;
 import world.bentobox.islandselector.utils.GridCoordinate;
+import world.bentobox.islandselector.utils.WorldGenerator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class DimensionManager {
 
     private final IslandSelector addon;
+    private final WorldGenerator worldGenerator;
 
     // Maps dimension key to world NAME (not World reference to avoid stale refs)
     private final Map<String, String> dimensionWorldNames = new HashMap<>();
@@ -36,6 +39,7 @@ public class DimensionManager {
 
     public DimensionManager(IslandSelector addon) {
         this.addon = addon;
+        this.worldGenerator = new WorldGenerator(addon);
     }
 
     /**
@@ -88,8 +92,18 @@ public class DimensionManager {
 
             World world = Bukkit.getWorld(worldName);
             if (world == null) {
-                addon.logWarning("  - " + dimensionKey + ": World '" + worldName + "' not found, skipping");
-                continue;
+                // Try to create the world if configured to do so
+                if (config.isCreateIfMissing()) {
+                    addon.log("  - " + dimensionKey + ": World '" + worldName + "' not found, attempting to create...");
+                    world = worldGenerator.getOrCreateWorld(config);
+                    if (world == null) {
+                        addon.logWarning("  - " + dimensionKey + ": Failed to create world '" + worldName + "', skipping");
+                        continue;
+                    }
+                } else {
+                    addon.logWarning("  - " + dimensionKey + ": World '" + worldName + "' not found and createIfMissing is false, skipping");
+                    continue;
+                }
             }
 
             // Register this dimension by NAME (not World reference to avoid stale refs)
@@ -202,8 +216,11 @@ public class DimensionManager {
      * @return The DimensionConfig, or null if not found
      */
     public DimensionConfig getDimensionConfig(String dimensionKey) {
+        if (dimensionKey == null) {
+            return null;
+        }
         return enabledDimensions.stream()
-                .filter(dc -> dc.getDimensionKey().equals(dimensionKey))
+                .filter(dc -> dc.getDimensionKey() != null && dc.getDimensionKey().equals(dimensionKey))
                 .findFirst()
                 .orElse(null);
     }
@@ -214,11 +231,16 @@ public class DimensionManager {
      */
     public String getPrimaryDimensionKey() {
         String primary = addon.getSettings().getPrimaryDimension();
+        // Check if primary exists
+        if (dimensionWorldNames.containsKey(primary)) {
+            return primary;
+        }
         // Fallback if primary is not loaded
-        if (!dimensionWorldNames.containsKey(primary) && !dimensionWorldNames.isEmpty()) {
+        if (!dimensionWorldNames.isEmpty()) {
             return dimensionWorldNames.keySet().iterator().next();
         }
-        return primary;
+        // No dimensions loaded
+        return null;
     }
 
     /**
@@ -251,7 +273,8 @@ public class DimensionManager {
             return null;
         }
 
-        int spacing = addon.getIslandSpacing();
+        // Must use spacing * 2 to match GridManager and GridLocationStrategy calculations
+        int spacing = addon.getIslandSpacing() * 2;
         int worldX = coord.getX() * spacing;
         int worldZ = coord.getZ() * spacing;
 
@@ -276,7 +299,8 @@ public class DimensionManager {
             return null;
         }
 
-        int spacing = addon.getIslandSpacing();
+        // Must use spacing * 2 to match GridManager and GridLocationStrategy calculations
+        int spacing = addon.getIslandSpacing() * 2;
         int worldX = coord.getX() * spacing;
         int worldZ = coord.getZ() * spacing;
 

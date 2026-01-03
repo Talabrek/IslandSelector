@@ -13,6 +13,8 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
@@ -46,6 +48,7 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
     private final Player player;
     private final Settings settings;
     private Inventory inventory;
+    private BukkitTask cleanupTask;
 
     public SlotSelectionGUI(IslandSelector addon, Player player) {
         this.addon = addon;
@@ -61,6 +64,18 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         populateInventory();
         player.openInventory(inventory);
         Bukkit.getPluginManager().registerEvents(this, addon.getPlugin());
+
+        // Schedule cleanup task as fallback (30 minutes)
+        cleanupTask = Bukkit.getScheduler().runTaskLater(addon.getPlugin(), this::cleanup, 20 * 60 * 30);
+    }
+
+    private void cleanup() {
+        if (cleanupTask != null) {
+            cleanupTask.cancel();
+            cleanupTask = null;
+        }
+        HandlerList.unregisterAll(this);
+        inventory = null;
     }
 
     private void createInventory() {
@@ -176,9 +191,9 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
         int memberCount = 1;
         UUID playerUUID = player.getUniqueId();
 
-        // Get level from Level addon
+        // Get level from Level addon (aggregated across all dimensions)
         if (addon.getLevelIntegration() != null && addon.getLevelIntegration().isEnabled()) {
-            levelStr = addon.getLevelIntegration().getFormattedIslandLevel(playerUUID);
+            levelStr = addon.getLevelIntegration().getFormattedAggregatedLevel(playerUUID);
         }
 
         // Get members from island
@@ -480,7 +495,14 @@ public class SlotSelectionGUI implements InventoryHolder, Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof SlotSelectionGUI &&
             event.getInventory().getHolder().equals(this)) {
-            HandlerList.unregisterAll(this);
+            cleanup();
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        if (event.getPlayer().equals(player)) {
+            cleanup();
         }
     }
 

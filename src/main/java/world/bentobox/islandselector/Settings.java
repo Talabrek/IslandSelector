@@ -714,6 +714,9 @@ public class Settings implements ConfigObject {
             overworld.setDisplayName("Overworld");
             overworld.setIconMaterial("GRASS_BLOCK");
             overworld.setDefaultBlueprint("default");
+            overworld.setGeneratorType("void");
+            overworld.setEnvironment("normal");
+            overworld.setCreateIfMissing(true);
             dimensionConfigs.put("overworld", overworld);
 
             // Add default nether dimension (disabled by default)
@@ -722,6 +725,9 @@ public class Settings implements ConfigObject {
             nether.setDisplayName("Nether");
             nether.setIconMaterial("NETHERRACK");
             nether.setDefaultBlueprint("default_nether");
+            nether.setGeneratorType("void");
+            nether.setEnvironment("nether");
+            nether.setCreateIfMissing(true);
             dimensionConfigs.put("nether", nether);
 
             // Add default end dimension (disabled by default)
@@ -730,6 +736,9 @@ public class Settings implements ConfigObject {
             theEnd.setDisplayName("The End");
             theEnd.setIconMaterial("END_STONE");
             theEnd.setDefaultBlueprint("default_end");
+            theEnd.setGeneratorType("void");
+            theEnd.setEnvironment("the_end");
+            theEnd.setCreateIfMissing(true);
             dimensionConfigs.put("the_end", theEnd);
         }
     }

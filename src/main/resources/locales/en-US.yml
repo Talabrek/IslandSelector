@@ -178,6 +178,9 @@ commands:
       slot-not-found: "&cYou don't have an island in slot [slot]!"
       warning-active-slot: "&e⚠ Warning: This is your currently active slot!"
 
+    sethome:
+      dimension-mismatch: "&cYou must be in the [target] dimension to set a home there! You are currently in [current]."
+
     admin:
       description: "&7Admin commands for IslandSelector"
 

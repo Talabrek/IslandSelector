@@ -151,17 +151,26 @@ public class SlotSwitchManager {
                     challenges.saveSlotChallenges(playerUUID, fromSlot.getSlotNumber());
                 }
 
-                // Step 1.7: Save island homes for the current slot
+                // Step 1.7: Save island homes for the current slot (multi-dimension aware)
                 sendProgress(player, "&eSaving island homes...");
-                World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
-                Island fromIsland = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
-                if (fromIsland != null) {
-                    addon.getSlotManager().saveIslandHomes(playerUUID, fromSlot.getSlotNumber(), fromIsland);
+                if (isMultiDimensionEnabled()) {
+                    addon.getSlotManager().saveAllDimensionHomes(playerUUID, fromSlot.getSlotNumber());
+                } else {
+                    GridManager gm = addon.getGridManager();
+                    if (gm != null) {
+                        World bskyblockWorld = gm.getBSkyBlockWorld();
+                        if (bskyblockWorld != null) {
+                            Island fromIsland = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
+                            if (fromIsland != null) {
+                                addon.getSlotManager().saveIslandHomes(playerUUID, fromSlot.getSlotNumber(), fromIsland);
+                            }
+                        }
+                    }
                 }
 
-                // Step 2: Save current island to schematic
+                // Step 2: Save current island to schematic (multi-dimension aware)
                 sendProgress(player, "&eSaving current island...");
-                boolean saved = saveIslandToSchematic(playerUUID, fromSlot);
+                boolean saved = saveAllDimensionIslands(playerUUID, fromSlot);
                 if (!saved) {
                     switchingPlayers.remove(playerUUID);
                     sendError(player, "&cFailed to save current island! Switch cancelled.");
@@ -177,7 +186,8 @@ public class SlotSwitchManager {
 
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                     try {
-                        boolean success = clearIslandBlocksAndEntities(playerUUID, fromSlot);
+                        // Multi-dimension aware clearing
+                        boolean success = clearAllDimensionIslands(playerUUID, fromSlot);
                         clearFuture.complete(success);
                     } catch (Exception e) {
                         clearFuture.completeExceptionally(e);
@@ -210,9 +220,9 @@ public class SlotSwitchManager {
                 // within the async thread, but a brief delay ensures block updates propagate)
                 Thread.sleep(500);
 
-                // Step 4: Load target slot schematic
+                // Step 4: Load target slot schematic (multi-dimension aware)
                 sendProgress(player, "&eLoading target island...");
-                boolean loaded = loadSchematicToWorld(playerUUID, toSlot);
+                boolean loaded = loadAllDimensionIslands(playerUUID, toSlot);
                 if (!loaded) {
                     switchingPlayers.remove(playerUUID);
                     sendError(player, "&cFailed to load target island! Please contact an admin.");
@@ -229,11 +239,21 @@ public class SlotSwitchManager {
                     challenges.restoreSlotChallenges(playerUUID, toSlot.getSlotNumber());
                 }
 
-                // Step 4.6: Restore island homes for the target slot
+                // Step 4.6: Restore island homes for the target slot (multi-dimension aware)
                 sendProgress(player, "&eRestoring island homes...");
-                Island toIsland = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
-                if (toIsland != null) {
-                    addon.getSlotManager().restoreIslandHomes(playerUUID, toSlot.getSlotNumber(), toIsland);
+                if (isMultiDimensionEnabled()) {
+                    addon.getSlotManager().restoreAllDimensionHomes(playerUUID, toSlot.getSlotNumber());
+                } else {
+                    GridManager gm = addon.getGridManager();
+                    if (gm != null) {
+                        World bskyblockWorld = gm.getBSkyBlockWorld();
+                        if (bskyblockWorld != null) {
+                            Island toIsland = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
+                            if (toIsland != null) {
+                                addon.getSlotManager().restoreIslandHomes(playerUUID, toSlot.getSlotNumber(), toIsland);
+                            }
+                        }
+                    }
                 }
 
                 // Step 4.7: Update blueprint permissions for the target slot
@@ -241,7 +261,10 @@ public class SlotSwitchManager {
                 String blueprintName = toSlot.getBlueprintBundle();
                 if (blueprintName != null && !blueprintName.isEmpty()) {
                     Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                        addon.getBlueprintChallengesManager().updateBlueprintPermissions(player, blueprintName);
+                        BlueprintChallengesManager bcm = addon.getBlueprintChallengesManager();
+                        if (bcm != null) {
+                            bcm.updateBlueprintPermissions(player, blueprintName);
+                        }
                     });
                 }
 

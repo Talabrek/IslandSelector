@@ -10,6 +10,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -52,6 +54,7 @@ public class BlueprintSelectionGUI implements InventoryHolder, Listener {
     // Available bundles
     private List<BlueprintBundle> bundles;
     private GameModeAddon bskyblock;
+    private BukkitTask cleanupTask;
 
     public BlueprintSelectionGUI(IslandSelector addon, Player player, GridCoordinate coord,
                                  IslandCreateListener createListener) {
@@ -99,6 +102,19 @@ public class BlueprintSelectionGUI implements InventoryHolder, Listener {
         populateInventory();
         player.openInventory(inventory);
         Bukkit.getPluginManager().registerEvents(this, addon.getPlugin());
+
+        // Schedule cleanup task as fallback (30 minutes)
+        cleanupTask = Bukkit.getScheduler().runTaskLater(addon.getPlugin(), this::cleanup, 20 * 60 * 30);
+    }
+
+    private void cleanup() {
+        if (cleanupTask != null) {
+            cleanupTask.cancel();
+            cleanupTask = null;
+        }
+        HandlerList.unregisterAll(this);
+        slotToBundleId.clear();
+        inventory = null;
     }
 
     private void createInventory() {
@@ -290,7 +306,14 @@ public class BlueprintSelectionGUI implements InventoryHolder, Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         InventoryHolder holder = event.getInventory().getHolder();
         if (holder instanceof BlueprintSelectionGUI && holder.equals(this)) {
-            HandlerList.unregisterAll(this);
+            cleanup();
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        if (event.getPlayer().equals(player)) {
+            cleanup();
         }
     }
 

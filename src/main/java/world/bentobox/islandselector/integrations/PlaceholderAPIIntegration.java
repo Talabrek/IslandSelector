@@ -3,6 +3,7 @@ package world.bentobox.islandselector.integrations;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import world.bentobox.bentobox.database.objects.Island;
@@ -104,7 +105,12 @@ public class PlaceholderAPIIntegration extends PlaceholderExpansion {
      * @return Grid coordinate (e.g., "Q17") or "None"
      */
     private String getPlayerLocation(UUID playerUUID) {
-        Island island = addon.getIslands().getIsland(gridManager.getBSkyBlockWorld(), playerUUID);
+        World bskyWorld = gridManager.getBSkyBlockWorld();
+        if (bskyWorld == null) {
+            return "None";
+        }
+
+        Island island = addon.getIslands().getIsland(bskyWorld, playerUUID);
         if (island == null) {
             return "None";
         }

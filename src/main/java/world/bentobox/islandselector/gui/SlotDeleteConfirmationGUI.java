@@ -9,6 +9,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -36,6 +38,7 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
     private final Player player;
     private final SlotData slot;
     private Inventory inventory;
+    private BukkitTask cleanupTask;
 
     public SlotDeleteConfirmationGUI(IslandSelector addon, Player player, SlotData slot) {
         this.addon = addon;
@@ -51,6 +54,18 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
         populateInventory();
         player.openInventory(inventory);
         Bukkit.getPluginManager().registerEvents(this, addon.getPlugin());
+
+        // Schedule cleanup task as fallback (30 minutes)
+        cleanupTask = Bukkit.getScheduler().runTaskLater(addon.getPlugin(), this::cleanup, 20 * 60 * 30);
+    }
+
+    private void cleanup() {
+        if (cleanupTask != null) {
+            cleanupTask.cancel();
+            cleanupTask = null;
+        }
+        HandlerList.unregisterAll(this);
+        inventory = null;
     }
 
     private void createInventory() {
@@ -265,7 +280,14 @@ public class SlotDeleteConfirmationGUI implements InventoryHolder, Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof SlotDeleteConfirmationGUI &&
             event.getInventory().getHolder().equals(this)) {
-            HandlerList.unregisterAll(this);
+            cleanup();
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        if (event.getPlayer().equals(player)) {
+            cleanup();
         }
     }
 

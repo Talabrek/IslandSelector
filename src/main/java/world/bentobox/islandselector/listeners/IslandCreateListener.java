@@ -119,8 +119,13 @@ public class IslandCreateListener implements Listener {
             GridCoordinate coord = GridCoordinate.parse(existingGridCoord);
             if (coord != null) {
                 // Check if they actually have a BentoBox island
+                World bskyWorld = gridManager.getBSkyBlockWorld();
+                if (bskyWorld == null) {
+                    addon.logWarning("BSkyBlock world not available during reset check");
+                    return;
+                }
                 Island existingIsland = BentoBox.getInstance().getIslands()
-                    .getIsland(gridManager.getBSkyBlockWorld(), playerUUID);
+                    .getIsland(bskyWorld, playerUUID);
 
                 if (existingIsland != null) {
                     // Player is resetting their island - cancel BentoBox's default reset
@@ -471,7 +476,11 @@ public class IslandCreateListener implements Listener {
 
         if (islandFile.exists()) {
             boolean deleted = islandFile.delete();
-            addon.log("Deleted island database file " + islandId + ".json: " + deleted);
+            if (deleted) {
+                addon.log("Deleted island database file " + islandId + ".json");
+            } else {
+                addon.logWarning("Failed to delete island database file " + islandId + ".json");
+            }
         } else {
             addon.log("File not found at primary path");
             // Try with BSkyBlock prefix if the ID looks like a UUID
@@ -483,7 +492,11 @@ public class IslandCreateListener implements Listener {
                 addon.log("Trying prefixed path: " + prefixedFile.getAbsolutePath());
                 if (prefixedFile.exists()) {
                     boolean deleted = prefixedFile.delete();
-                    addon.log("Deleted island database file BSkyBlock" + islandId + ".json: " + deleted);
+                    if (deleted) {
+                        addon.log("Deleted island database file BSkyBlock" + islandId + ".json");
+                    } else {
+                        addon.logWarning("Failed to delete island database file BSkyBlock" + islandId + ".json");
+                    }
                 } else {
                     addon.log("Prefixed file also not found");
                 }

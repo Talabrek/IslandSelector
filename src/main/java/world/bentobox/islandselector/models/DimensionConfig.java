@@ -43,6 +43,27 @@ public class DimensionConfig {
     private String iconMaterial = "GRASS_BLOCK";
 
     /**
+     * Generator type for this world: "void" for empty chunks, "normal" for vanilla,
+     * or a plugin name for custom generators (e.g., "Terra", "EpicWorldGenerator")
+     */
+    private String generatorType = "void";
+
+    /**
+     * World environment type: "normal", "nether", or "the_end"
+     */
+    private String environment = "normal";
+
+    /**
+     * Whether to create the world if it doesn't exist
+     */
+    private boolean createIfMissing = true;
+
+    /**
+     * Optional world seed. If null, uses a random seed.
+     */
+    private Long worldSeed = null;
+
+    /**
      * Default constructor for serialization
      */
     public DimensionConfig() {
@@ -158,6 +179,38 @@ public class DimensionConfig {
         this.iconMaterial = iconMaterial;
     }
 
+    public String getGeneratorType() {
+        return generatorType;
+    }
+
+    public void setGeneratorType(String generatorType) {
+        this.generatorType = generatorType;
+    }
+
+    public String getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(String environment) {
+        this.environment = environment;
+    }
+
+    public boolean isCreateIfMissing() {
+        return createIfMissing;
+    }
+
+    public void setCreateIfMissing(boolean createIfMissing) {
+        this.createIfMissing = createIfMissing;
+    }
+
+    public Long getWorldSeed() {
+        return worldSeed;
+    }
+
+    public void setWorldSeed(Long worldSeed) {
+        this.worldSeed = worldSeed;
+    }
+
     @Override
     public String toString() {
         return "DimensionConfig{" +
@@ -166,6 +219,10 @@ public class DimensionConfig {
                 ", enabled=" + enabled +
                 ", defaultBlueprint='" + defaultBlueprint + '\'' +
                 ", createOnClaim=" + createOnClaim +
+                ", generatorType='" + generatorType + '\'' +
+                ", environment='" + environment + '\'' +
+                ", createIfMissing=" + createIfMissing +
+                ", worldSeed=" + worldSeed +
                 '}';
     }
 }

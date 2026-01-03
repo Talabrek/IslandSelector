@@ -484,9 +484,9 @@ public class MainGridGUI implements InventoryHolder {
             lore.add(colorize("&7Protection: &f" + protectionRange + " blocks"));
         }
 
-        // Island level from Level addon
+        // Island level from Level addon (aggregated across all dimensions)
         if (ownerUUID != null && addon.getLevelIntegration().isEnabled()) {
-            String levelStr = addon.getLevelIntegration().getFormattedIslandLevel(ownerUUID);
+            String levelStr = addon.getLevelIntegration().getFormattedAggregatedLevel(ownerUUID);
             if (!levelStr.equals("N/A")) {
                 lore.add(colorize("&7Island Level: &b" + levelStr));
             }
