@@ -9,9 +9,11 @@ import world.bentobox.bentobox.util.teleport.SafeSpotTeleport;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.events.SlotSwitchEvent;
+import world.bentobox.islandselector.models.DimensionConfig;
 import world.bentobox.islandselector.utils.CustomCommandExecutor;
 
 import java.io.File;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -458,7 +460,8 @@ public class SlotSwitchManager {
 
     /**
      * Safely teleport player and team members to island home location.
-     * This method loads chunks first to prevent falling through blocks.
+     * This method loads chunks first to prevent falling through blocks,
+     * and uses a chunk refresh technique to fix invisible blocks after FAWE paste.
      */
     private void teleportPlayersSafely(Island island, Player owner, Location targetLocation) {
         try {
@@ -468,42 +471,31 @@ public class SlotSwitchManager {
                 return;
             }
 
-            // First, load the chunk at the target location synchronously
-            int chunkX = targetLocation.getBlockX() >> 4;
-            int chunkZ = targetLocation.getBlockZ() >> 4;
+            // Pre-load all chunks in the island area
+            int islandSpacing = addon.getIslandSpacing();
+            int range = islandSpacing / 2;
+            int chunkRange = (range >> 4) + 1;
+            int centerChunkX = targetLocation.getBlockX() >> 4;
+            int centerChunkZ = targetLocation.getBlockZ() >> 4;
 
-            // Force load the chunk and surrounding chunks
-            world.loadChunk(chunkX, chunkZ, true);
-            world.loadChunk(chunkX + 1, chunkZ, true);
-            world.loadChunk(chunkX - 1, chunkZ, true);
-            world.loadChunk(chunkX, chunkZ + 1, true);
-            world.loadChunk(chunkX, chunkZ - 1, true);
+            for (int dx = -chunkRange; dx <= chunkRange; dx++) {
+                for (int dz = -chunkRange; dz <= chunkRange; dz++) {
+                    world.loadChunk(centerChunkX + dx, centerChunkZ + dz, true);
+                }
+            }
 
-            // Wait a bit for chunks to fully generate, then teleport
+            // Wait for chunks to fully generate and FAWE to complete, then teleport
             Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
-                // Refresh chunks for the player to fix invisible blocks
-                refreshChunksForPlayer(owner, targetLocation);
+                // Step 1: Teleport players using the chunk refresh teleport technique
+                teleportWithChunkRefresh(owner, island, targetLocation);
 
-                // Use BentoBox SafeSpotTeleport for owner, targeting the home location
-                new SafeSpotTeleport.Builder(addon.getPlugin())
-                    .entity(owner)
-                    .island(island)
-                    .location(targetLocation)
-                    .thenRun(() -> addon.log("Teleported " + owner.getName() + " to island home"))
-                    .ifFail(() -> owner.sendMessage(colorize("&eCouldn't find safe spot - use /island go")))
-                    .buildFuture();
-
-                // Teleport team members if online using safe teleport to home
+                // Teleport team members with the same technique
                 for (UUID memberUUID : island.getMemberSet()) {
                     if (!memberUUID.equals(owner.getUniqueId())) {
                         Player member = Bukkit.getPlayer(memberUUID);
                         if (member != null && member.isOnline()) {
-                            new SafeSpotTeleport.Builder(addon.getPlugin())
-                                .entity(member)
-                                .island(island)
-                                .location(targetLocation)
-                                .thenRun(() -> member.sendMessage(colorize("&eYou have been teleported to the new island slot.")))
-                                .buildFuture();
+                            teleportWithChunkRefresh(member, island, targetLocation);
+                            member.sendMessage(colorize("&eYou have been teleported to the new island slot."));
                         }
                     }
                 }
@@ -511,7 +503,12 @@ public class SlotSwitchManager {
                 // Handle visitors - teleport them away from the island
                 teleportVisitorsAway(island, owner);
 
-            }, 20L); // Wait 1 second for chunks to fully generate
+                // Schedule additional chunk refresh for nearby players after teleports complete
+                Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+                    refreshChunksForPlayer(owner, targetLocation);
+                }, 20L);
+
+            }, 30L); // Wait 1.5 seconds for chunks to fully generate
 
         } catch (Exception e) {
             addon.logError("Failed to teleport players safely: " + e.getMessage());
@@ -520,22 +517,176 @@ public class SlotSwitchManager {
     }
 
     /**
-     * Refresh chunks around a location for a player to fix invisible blocks
+     * Teleport a player with chunk refresh to fix invisible blocks.
+     * This works by briefly teleporting the player far away to force chunk unload,
+     * then teleporting them to the destination. This ensures the client fetches fresh chunk data.
+     */
+    private void teleportWithChunkRefresh(Player player, Island island, Location destination) {
+        World world = destination.getWorld();
+        if (world == null) {
+            addon.logError("Cannot teleport - world is null");
+            return;
+        }
+
+        // Create a temporary location far from the island to force chunk unload
+        // Move player 1000 blocks away temporarily
+        Location tempLocation = destination.clone().add(1000, 0, 1000);
+        tempLocation.setY(world.getHighestBlockYAt(tempLocation) + 10);
+
+        // First teleport: move player far away (forces client to unload island chunks)
+        player.teleport(tempLocation);
+
+        // Second teleport: after a short delay, teleport to actual destination
+        // The client will request fresh chunk data since the chunks are now "new" to it
+        Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+            // Use SafeSpotTeleport for the final destination
+            new SafeSpotTeleport.Builder(addon.getPlugin())
+                .entity(player)
+                .island(island)
+                .location(destination)
+                .thenRun(() -> {
+                    addon.log("Teleported " + player.getName() + " to island home with chunk refresh");
+                    // Send one more chunk refresh after landing
+                    Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+                        sendChunkUpdatesToPlayer(player, destination);
+                    }, 10L);
+                })
+                .ifFail(() -> player.sendMessage(colorize("&eCouldn't find safe spot - use /island go")))
+                .buildFuture();
+        }, 5L); // Very short delay - just enough for client to register the position change
+    }
+
+    /**
+     * Send chunk updates to a player for the area around a location.
+     * This uses block state updates which are more reliable than refreshChunk.
+     */
+    private void sendChunkUpdatesToPlayer(Player player, Location center) {
+        World world = center.getWorld();
+        if (world == null) return;
+
+        int islandSpacing = addon.getIslandSpacing();
+        int range = islandSpacing / 2;
+        int chunkRange = (range >> 4) + 1;
+        int centerChunkX = center.getBlockX() >> 4;
+        int centerChunkZ = center.getBlockZ() >> 4;
+
+        // For each chunk in the island area
+        for (int dx = -chunkRange; dx <= chunkRange; dx++) {
+            for (int dz = -chunkRange; dz <= chunkRange; dz++) {
+                org.bukkit.Chunk chunk = world.getChunkAt(centerChunkX + dx, centerChunkZ + dz);
+
+                // Check if player can see this chunk
+                int playerChunkX = player.getLocation().getBlockX() >> 4;
+                int playerChunkZ = player.getLocation().getBlockZ() >> 4;
+                int viewDistance = Bukkit.getViewDistance();
+
+                if (Math.abs(chunk.getX() - playerChunkX) <= viewDistance &&
+                    Math.abs(chunk.getZ() - playerChunkZ) <= viewDistance) {
+
+                    // Try to force chunk resend
+                    try {
+                        world.refreshChunk(chunk.getX(), chunk.getZ());
+                    } catch (Exception ignored) {
+                        // refreshChunk is deprecated but still works on some versions
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Refresh chunks around a location for a player and nearby players to fix invisible blocks.
+     * This is necessary after FAWE schematic pasting which doesn't always send proper chunk updates.
      */
     private void refreshChunksForPlayer(Player player, Location center) {
         World world = center.getWorld();
         if (world == null) return;
 
-        int chunkX = center.getBlockX() >> 4;
-        int chunkZ = center.getBlockZ() >> 4;
+        // Get island bounds for proper chunk coverage
+        int islandSpacing = addon.getIslandSpacing();
+        int range = islandSpacing / 2;
+        int chunkRange = (range >> 4) + 2; // Convert to chunks and add buffer
 
-        // Refresh a 3x3 chunk area around the center
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                org.bukkit.Chunk chunk = world.getChunkAt(chunkX + dx, chunkZ + dz);
-                // Force the chunk to resend to the player
+        int centerChunkX = center.getBlockX() >> 4;
+        int centerChunkZ = center.getBlockZ() >> 4;
+
+        // Collect all chunks in the island area
+        java.util.List<org.bukkit.Chunk> chunksToRefresh = new java.util.ArrayList<>();
+        for (int dx = -chunkRange; dx <= chunkRange; dx++) {
+            for (int dz = -chunkRange; dz <= chunkRange; dz++) {
+                org.bukkit.Chunk chunk = world.getChunkAt(centerChunkX + dx, centerChunkZ + dz);
                 chunk.load(true);
+                chunksToRefresh.add(chunk);
             }
+        }
+
+        // Schedule chunk refresh for all nearby players after a short delay
+        // This gives FAWE time to finish any pending operations
+        Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+            refreshChunksForNearbyPlayers(world, center, chunksToRefresh);
+        }, 10L); // 0.5 second delay
+
+        // Do another refresh after a longer delay for any stragglers
+        Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+            refreshChunksForNearbyPlayers(world, center, chunksToRefresh);
+        }, 40L); // 2 second delay
+    }
+
+    /**
+     * Refresh chunks for all players near the given location.
+     * Uses multiple techniques to ensure clients receive updated chunk data.
+     */
+    private void refreshChunksForNearbyPlayers(World world, Location center, java.util.List<org.bukkit.Chunk> chunks) {
+        int refreshRadius = addon.getIslandSpacing() + 100; // Island size + view distance buffer
+
+        for (Player player : world.getPlayers()) {
+            if (player.getLocation().distanceSquared(center) < refreshRadius * refreshRadius) {
+                forceChunkResendToPlayer(player, chunks);
+            }
+        }
+    }
+
+    /**
+     * Force resend chunk data to a specific player.
+     * Uses Paper's native chunk resend if available, otherwise falls back to workarounds.
+     */
+    private void forceChunkResendToPlayer(Player player, java.util.List<org.bukkit.Chunk> chunks) {
+        try {
+            for (org.bukkit.Chunk chunk : chunks) {
+                // Check if player can see this chunk (within view distance)
+                int playerChunkX = player.getLocation().getBlockX() >> 4;
+                int playerChunkZ = player.getLocation().getBlockZ() >> 4;
+                int viewDistance = Bukkit.getViewDistance();
+
+                if (Math.abs(chunk.getX() - playerChunkX) <= viewDistance &&
+                    Math.abs(chunk.getZ() - playerChunkZ) <= viewDistance) {
+
+                    // Method 1: Try Paper's chunk refresh (most reliable)
+                    try {
+                        // Paper 1.19+ has player.getWorld().refreshChunk() but it's deprecated
+                        // Instead, use the chunk's addPluginChunkTicket to force reload
+                        boolean hadTicket = chunk.isForceLoaded();
+                        if (!hadTicket) {
+                            chunk.addPluginChunkTicket(addon.getPlugin());
+                        }
+
+                        // Force chunk to regenerate lighting and resend
+                        chunk.getWorld().refreshChunk(chunk.getX(), chunk.getZ());
+
+                        if (!hadTicket) {
+                            // Schedule ticket removal
+                            Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
+                                chunk.removePluginChunkTicket(addon.getPlugin());
+                            }, 5L);
+                        }
+                    } catch (Exception e) {
+                        // Fallback: deprecated but still works on some versions
+                        chunk.getWorld().refreshChunk(chunk.getX(), chunk.getZ());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            addon.logWarning("Chunk refresh failed: " + e.getMessage());
         }
     }
 
@@ -665,7 +816,7 @@ public class SlotSwitchManager {
     }
 
     /**
-     * Get the schematic file for a slot
+     * Get the schematic file for a slot (legacy single-dimension)
      */
     private File getSchematicFile(SlotData slotData) {
         String path = addon.getSlotManager().getSlotSchematicPath(
@@ -673,6 +824,40 @@ public class SlotSwitchManager {
             slotData.getSlotNumber()
         );
         return new File(path);
+    }
+
+    /**
+     * Get the schematic file for a slot in a specific dimension
+     * @param slotData The slot data
+     * @param dimensionKey The dimension key (e.g., "overworld", "nether")
+     * @return The schematic file for this dimension
+     */
+    private File getSchematicFile(SlotData slotData, String dimensionKey) {
+        String path = addon.getSlotManager().getSlotSchematicPath(
+            slotData.getPlayerUUIDAsUUID(),
+            slotData.getSlotNumber(),
+            dimensionKey
+        );
+        return new File(path);
+    }
+
+    /**
+     * Check if multi-dimension mode is enabled
+     */
+    private boolean isMultiDimensionEnabled() {
+        DimensionManager dimManager = addon.getDimensionManager();
+        return dimManager != null && dimManager.isEnabled();
+    }
+
+    /**
+     * Get the list of enabled dimensions for slot switching
+     */
+    private List<DimensionConfig> getEnabledDimensions() {
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager != null && dimManager.isEnabled()) {
+            return dimManager.getEnabledDimensions();
+        }
+        return List.of();
     }
 
     /**
@@ -743,5 +928,258 @@ public class SlotSwitchManager {
             addon.getSettings().getSlotSwitchCommandScope(),
             placeholders
         );
+    }
+
+    // ==================== MULTI-DIMENSION SUPPORT ====================
+
+    /**
+     * Save island schematic for a specific dimension.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotData The slot data
+     * @param dimensionKey The dimension key
+     * @param world The dimension world
+     * @return true if save was successful
+     */
+    private boolean saveIslandToSchematicForDimension(UUID playerUUID, SlotData slotData,
+                                                       String dimensionKey, World world) {
+        try {
+            Island island = addon.getIslands().getIsland(world, playerUUID);
+            if (island == null) {
+                addon.log("No island found for player in dimension " + dimensionKey);
+                return true; // Not an error - player may not have island in this dimension
+            }
+
+            Location center = island.getCenter();
+            if (center == null || center.getWorld() == null) {
+                return true;
+            }
+
+            int islandSpacing = addon.getIslandSpacing();
+            int protectionRange = island.getProtectionRange();
+            int range = Math.max(islandSpacing / 2, protectionRange);
+
+            File schematicFile = getSchematicFile(slotData, dimensionKey);
+
+            // Ensure parent directory exists
+            schematicFile.getParentFile().mkdirs();
+
+            // Save entities if on main thread
+            final int finalRange = range;
+            final Location finalCenter = center;
+            final World finalWorld = world;
+
+            if (Bukkit.isPrimaryThread()) {
+                addon.getEntityStorage().saveEntities(finalWorld, finalCenter, finalRange, schematicFile);
+            } else {
+                try {
+                    Bukkit.getScheduler().callSyncMethod(addon.getPlugin(), () -> {
+                        addon.getEntityStorage().saveEntities(finalWorld, finalCenter, finalRange, schematicFile);
+                        return true;
+                    }).get();
+                } catch (Exception e) {
+                    addon.logWarning("Failed to save entities for dimension " + dimensionKey + ": " + e.getMessage());
+                }
+            }
+
+            // Save blocks
+            boolean success = addon.getSchematicUtils().copyAndSave(center, range, true, schematicFile);
+            if (success) {
+                addon.log("Saved island schematic for " + dimensionKey + ": " + slotData.getUniqueId());
+            }
+            return success;
+
+        } catch (Exception e) {
+            addon.logError("Failed to save schematic for dimension " + dimensionKey + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Load island schematic for a specific dimension.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotData The slot data
+     * @param dimensionKey The dimension key
+     * @param world The dimension world
+     * @return true if load was successful
+     */
+    private boolean loadSchematicForDimension(UUID playerUUID, SlotData slotData,
+                                               String dimensionKey, World world) {
+        try {
+            File schematicFile = getSchematicFile(slotData, dimensionKey);
+            if (!schematicFile.exists()) {
+                addon.log("No schematic file for dimension " + dimensionKey + " - skipping");
+                return true; // Not an error - may not have saved this dimension yet
+            }
+
+            Island island = addon.getIslands().getIsland(world, playerUUID);
+            if (island == null) {
+                addon.logError("Island not found for player in dimension " + dimensionKey);
+                return false;
+            }
+
+            Location center = island.getCenter();
+            if (center == null || center.getWorld() == null) {
+                return false;
+            }
+
+            // Load and paste blocks
+            boolean success = addon.getSchematicUtils().loadAndPaste(schematicFile, center);
+            if (!success) {
+                addon.logError("Failed to paste schematic for dimension " + dimensionKey);
+                return false;
+            }
+
+            // Restore entities
+            final Location finalCenter = center;
+            final World finalWorld = world;
+
+            if (Bukkit.isPrimaryThread()) {
+                addon.getEntityStorage().loadEntities(finalWorld, finalCenter, schematicFile);
+            } else {
+                try {
+                    Bukkit.getScheduler().callSyncMethod(addon.getPlugin(), () -> {
+                        addon.getEntityStorage().loadEntities(finalWorld, finalCenter, schematicFile);
+                        return true;
+                    }).get();
+                } catch (Exception e) {
+                    addon.logWarning("Failed to restore entities for dimension " + dimensionKey + ": " + e.getMessage());
+                }
+            }
+
+            addon.log("Loaded island schematic for " + dimensionKey + ": " + slotData.getUniqueId());
+            return true;
+
+        } catch (Exception e) {
+            addon.logError("Failed to load schematic for dimension " + dimensionKey + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Clear island blocks and entities for a specific dimension.
+     * Must be called from main thread.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotData The slot data
+     * @param dimensionKey The dimension key
+     * @param world The dimension world
+     * @return true if clear was successful
+     */
+    private boolean clearIslandForDimension(UUID playerUUID, SlotData slotData,
+                                             String dimensionKey, World world) {
+        try {
+            Island island = addon.getIslands().getIsland(world, playerUUID);
+            if (island == null) {
+                return true; // No island in this dimension
+            }
+
+            Location center = island.getCenter();
+            if (center == null || center.getWorld() == null) {
+                return true;
+            }
+
+            int islandSpacing = addon.getIslandSpacing();
+            int protectionRange = island.getProtectionRange();
+            int range = Math.max(islandSpacing / 2, protectionRange);
+
+            // Remove entities
+            addon.getWorldEditIntegration().removeEntitiesInRegion(world, center, range);
+
+            // Clear blocks
+            boolean success = addon.getSchematicUtils().clearRegion(center, range);
+            if (success) {
+                addon.log("Cleared island for " + dimensionKey + ": " + slotData.getUniqueId());
+            }
+
+            return success;
+
+        } catch (Exception e) {
+            addon.logError("Failed to clear island for dimension " + dimensionKey + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Save all dimension islands to schematics.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotData The slot data
+     * @return true if all saves were successful
+     */
+    public boolean saveAllDimensionIslands(UUID playerUUID, SlotData slotData) {
+        if (!isMultiDimensionEnabled()) {
+            return saveIslandToSchematic(playerUUID, slotData);
+        }
+
+        boolean success = true;
+        DimensionManager dimManager = addon.getDimensionManager();
+
+        for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+            World world = dimManager.getWorld(config.getDimensionKey());
+            if (world != null) {
+                if (!saveIslandToSchematicForDimension(playerUUID, slotData, config.getDimensionKey(), world)) {
+                    success = false;
+                }
+            }
+        }
+
+        return success;
+    }
+
+    /**
+     * Load all dimension islands from schematics.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotData The slot data
+     * @return true if all loads were successful
+     */
+    public boolean loadAllDimensionIslands(UUID playerUUID, SlotData slotData) {
+        if (!isMultiDimensionEnabled()) {
+            return loadSchematicToWorld(playerUUID, slotData);
+        }
+
+        boolean success = true;
+        DimensionManager dimManager = addon.getDimensionManager();
+
+        for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+            World world = dimManager.getWorld(config.getDimensionKey());
+            if (world != null) {
+                if (!loadSchematicForDimension(playerUUID, slotData, config.getDimensionKey(), world)) {
+                    success = false;
+                }
+            }
+        }
+
+        return success;
+    }
+
+    /**
+     * Clear all dimension islands.
+     * Must be called from main thread.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotData The slot data
+     * @return true if all clears were successful
+     */
+    public boolean clearAllDimensionIslands(UUID playerUUID, SlotData slotData) {
+        if (!isMultiDimensionEnabled()) {
+            return clearIslandBlocksAndEntities(playerUUID, slotData);
+        }
+
+        boolean success = true;
+        DimensionManager dimManager = addon.getDimensionManager();
+
+        for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+            World world = dimManager.getWorld(config.getDimensionKey());
+            if (world != null) {
+                if (!clearIslandForDimension(playerUUID, slotData, config.getDimensionKey(), world)) {
+                    success = false;
+                }
+            }
+        }
+
+        return success;
     }
 }

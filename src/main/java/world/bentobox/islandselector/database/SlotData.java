@@ -84,12 +84,35 @@ public class SlotData implements DataObject {
     private String blueprintBundle;
 
     /**
-     * Serialized island homes for this slot.
+     * Serialized island homes for this slot (legacy single-dimension).
      * Maps home name to serialized location string "world;x;y;z;yaw;pitch"
      * Preserved when switching slots so each slot has its own homes.
      */
     @Expose
     private Map<String, String> serializedHomes;
+
+    // Multi-dimension fields
+
+    /**
+     * Island UUIDs per dimension (dimension key -> island UUID string)
+     * Used for multi-dimension support where each dimension has its own island
+     */
+    @Expose
+    private Map<String, String> dimensionIslandUUIDs;
+
+    /**
+     * Blueprint bundle per dimension (dimension key -> blueprint name)
+     * Allows different blueprints for each dimension
+     */
+    @Expose
+    private Map<String, String> dimensionBlueprints;
+
+    /**
+     * Serialized homes per dimension (dimension key -> (home name -> location string))
+     * Each dimension can have its own set of named homes
+     */
+    @Expose
+    private Map<String, Map<String, String>> dimensionSerializedHomes;
 
     /**
      * Default constructor for database serialization
@@ -250,12 +273,45 @@ public class SlotData implements DataObject {
     }
 
     /**
-     * Mark this slot as having an island
+     * Mark this slot as having an island (legacy single-dimension)
      */
     public void createIsland(UUID islandUUID, String gridCoordinate) {
         this.islandUUID = islandUUID != null ? islandUUID.toString() : null;
         this.gridCoordinate = gridCoordinate;
         this.hasIsland = true;
+        // Also add to dimension map for overworld
+        if (islandUUID != null) {
+            if (dimensionIslandUUIDs == null) {
+                dimensionIslandUUIDs = new HashMap<>();
+            }
+            dimensionIslandUUIDs.put("overworld", islandUUID.toString());
+        }
+    }
+
+    /**
+     * Mark this slot as having islands in multiple dimensions
+     * @param dimensionIslands Map of dimension key to island UUID
+     * @param gridCoordinate The grid coordinate for all islands
+     */
+    public void createIslands(Map<String, UUID> dimensionIslands, String gridCoordinate) {
+        this.gridCoordinate = gridCoordinate;
+        this.hasIsland = true;
+
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        dimensionIslandUUIDs.clear();
+
+        if (dimensionIslands != null) {
+            for (Map.Entry<String, UUID> entry : dimensionIslands.entrySet()) {
+                if (entry.getValue() != null) {
+                    dimensionIslandUUIDs.put(entry.getKey(), entry.getValue().toString());
+                }
+            }
+            // Set legacy field from overworld
+            UUID overworldIsland = dimensionIslands.get("overworld");
+            this.islandUUID = overworldIsland != null ? overworldIsland.toString() : null;
+        }
     }
 
     /**
@@ -263,6 +319,9 @@ public class SlotData implements DataObject {
      */
     public void clearIsland() {
         this.islandUUID = null;
+        if (dimensionIslandUUIDs != null) {
+            dimensionIslandUUIDs.clear();
+        }
         this.hasIsland = false;
         // Keep gridCoordinate so we know where to place future islands
     }
@@ -272,6 +331,182 @@ public class SlotData implements DataObject {
      */
     public void updateSwitchTime() {
         this.lastSwitchTime = System.currentTimeMillis();
+    }
+
+    // Multi-dimension getters and setters
+
+    /**
+     * Get the dimension island UUIDs map
+     */
+    public Map<String, String> getDimensionIslandUUIDs() {
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        // Auto-migrate legacy field if present
+        migrateFromLegacy();
+        return dimensionIslandUUIDs;
+    }
+
+    /**
+     * Set the dimension island UUIDs map
+     */
+    public void setDimensionIslandUUIDs(Map<String, String> dimensionIslandUUIDs) {
+        this.dimensionIslandUUIDs = dimensionIslandUUIDs != null ? dimensionIslandUUIDs : new HashMap<>();
+    }
+
+    /**
+     * Get the island UUID for a specific dimension
+     */
+    public String getIslandUUID(String dimensionKey) {
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        migrateFromLegacy();
+        return dimensionIslandUUIDs.get(dimensionKey);
+    }
+
+    /**
+     * Set the island UUID for a specific dimension
+     */
+    public void setIslandUUID(String dimensionKey, String islandUUID) {
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        if (islandUUID != null) {
+            dimensionIslandUUIDs.put(dimensionKey, islandUUID);
+        } else {
+            dimensionIslandUUIDs.remove(dimensionKey);
+        }
+        // Also update legacy field if this is the overworld
+        if ("overworld".equals(dimensionKey)) {
+            this.islandUUID = islandUUID;
+        }
+    }
+
+    /**
+     * Set the island UUID for a specific dimension using UUID object
+     */
+    public void setIslandUUID(String dimensionKey, UUID islandUUID) {
+        setIslandUUID(dimensionKey, islandUUID != null ? islandUUID.toString() : null);
+    }
+
+    /**
+     * Get the dimension blueprints map
+     */
+    public Map<String, String> getDimensionBlueprints() {
+        if (dimensionBlueprints == null) {
+            dimensionBlueprints = new HashMap<>();
+        }
+        // Auto-migrate legacy field if present
+        if (blueprintBundle != null && !blueprintBundle.isEmpty() &&
+                !dimensionBlueprints.containsKey("overworld")) {
+            dimensionBlueprints.put("overworld", blueprintBundle);
+        }
+        return dimensionBlueprints;
+    }
+
+    /**
+     * Set the dimension blueprints map
+     */
+    public void setDimensionBlueprints(Map<String, String> dimensionBlueprints) {
+        this.dimensionBlueprints = dimensionBlueprints != null ? dimensionBlueprints : new HashMap<>();
+    }
+
+    /**
+     * Get the blueprint for a specific dimension
+     */
+    public String getDimensionBlueprint(String dimensionKey) {
+        Map<String, String> blueprints = getDimensionBlueprints();
+        return blueprints.get(dimensionKey);
+    }
+
+    /**
+     * Set the blueprint for a specific dimension
+     */
+    public void setDimensionBlueprint(String dimensionKey, String blueprint) {
+        if (dimensionBlueprints == null) {
+            dimensionBlueprints = new HashMap<>();
+        }
+        if (blueprint != null) {
+            dimensionBlueprints.put(dimensionKey, blueprint);
+        } else {
+            dimensionBlueprints.remove(dimensionKey);
+        }
+        // Also update legacy field if this is the overworld
+        if ("overworld".equals(dimensionKey)) {
+            this.blueprintBundle = blueprint;
+        }
+    }
+
+    /**
+     * Get the dimension serialized homes map
+     */
+    public Map<String, Map<String, String>> getDimensionSerializedHomes() {
+        if (dimensionSerializedHomes == null) {
+            dimensionSerializedHomes = new HashMap<>();
+        }
+        // Auto-migrate legacy field if present
+        if (serializedHomes != null && !serializedHomes.isEmpty() &&
+                !dimensionSerializedHomes.containsKey("overworld")) {
+            dimensionSerializedHomes.put("overworld", new HashMap<>(serializedHomes));
+        }
+        return dimensionSerializedHomes;
+    }
+
+    /**
+     * Set the dimension serialized homes map
+     */
+    public void setDimensionSerializedHomes(Map<String, Map<String, String>> dimensionSerializedHomes) {
+        this.dimensionSerializedHomes = dimensionSerializedHomes != null ?
+                dimensionSerializedHomes : new HashMap<>();
+    }
+
+    /**
+     * Get the serialized homes for a specific dimension
+     */
+    public Map<String, String> getDimensionHomes(String dimensionKey) {
+        Map<String, Map<String, String>> allHomes = getDimensionSerializedHomes();
+        Map<String, String> homes = allHomes.get(dimensionKey);
+        return homes != null ? homes : new HashMap<>();
+    }
+
+    /**
+     * Set the serialized homes for a specific dimension
+     */
+    public void setDimensionHomes(String dimensionKey, Map<String, String> homes) {
+        if (dimensionSerializedHomes == null) {
+            dimensionSerializedHomes = new HashMap<>();
+        }
+        if (homes != null && !homes.isEmpty()) {
+            dimensionSerializedHomes.put(dimensionKey, homes);
+        } else {
+            dimensionSerializedHomes.remove(dimensionKey);
+        }
+        // Also update legacy field if this is the overworld
+        if ("overworld".equals(dimensionKey)) {
+            this.serializedHomes = homes;
+        }
+    }
+
+    /**
+     * Check if this slot has any islands in any dimension
+     */
+    public boolean hasAnyIsland() {
+        if (dimensionIslandUUIDs != null && !dimensionIslandUUIDs.isEmpty()) {
+            return dimensionIslandUUIDs.values().stream()
+                    .anyMatch(uuid -> uuid != null && !uuid.isEmpty());
+        }
+        return islandUUID != null && !islandUUID.isEmpty();
+    }
+
+    /**
+     * Migrate legacy single-dimension fields to multi-dimension maps
+     */
+    private void migrateFromLegacy() {
+        if (islandUUID != null && !islandUUID.isEmpty() &&
+                !dimensionIslandUUIDs.containsKey("overworld")) {
+            dimensionIslandUUIDs.put("overworld", islandUUID);
+        }
     }
 
     @Override

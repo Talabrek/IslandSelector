@@ -82,6 +82,9 @@ public class IslandRemovalManager {
                 .buildFuture();
         }
 
+        // Mark this as an admin removal to prevent onIslandDelete from clearing slot data prematurely
+        addon.getIslandCreateListener().markAdminRemoval(playerUUID);
+
         // Run async operations
         Bukkit.getScheduler().runTaskAsynchronously(addon.getPlugin(), () -> {
             try {
@@ -90,6 +93,7 @@ public class IslandRemovalManager {
                 boolean saved = saveIslandToSlotSchematic(playerUUID, activeSlot, island);
                 if (!saved) {
                     Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                        addon.getIslandCreateListener().unmarkAdminRemoval(playerUUID);
                         executor.sendMessage("§cFailed to save island schematic. Aborting removal.");
                         callback.accept(false);
                     });
@@ -109,8 +113,38 @@ public class IslandRemovalManager {
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                     executor.sendMessage("§7Unregistering island from BentoBox...");
 
-                    // Remove island from BentoBox
-                    addon.getIslands().deleteIsland(island, true, playerUUID);
+                    // Get a fresh reference to the island to ensure we're working with current data
+                    Island currentIsland = addon.getIslands().getIsland(bskyblockWorld, playerUUID);
+
+                    if (currentIsland != null) {
+                        // Get all members before we start removing
+                        java.util.Set<UUID> allMembers = new java.util.HashSet<>(currentIsland.getMemberSet());
+                        addon.log("Island has " + allMembers.size() + " members to remove");
+
+                        // Use IslandsManager.removePlayer to properly remove each member
+                        // This clears all internal player-island associations in BentoBox
+                        for (UUID member : allMembers) {
+                            addon.getIslands().removePlayer(bskyblockWorld, member);
+                            addon.log("Removed member " + member + " from island via IslandsManager");
+                        }
+
+                        // Now delete the island - it should be empty of members
+                        addon.getIslands().deleteIsland(currentIsland, false, playerUUID); // false - blocks already cleared
+                        addon.log("Deleted island from BentoBox");
+
+                        // Force remove from cache as well to be absolutely sure
+                        try {
+                            addon.getIslands().getIslandCache().deleteIslandFromCache(currentIsland);
+                            addon.log("Removed island from BentoBox cache");
+                        } catch (Exception e) {
+                            addon.logWarning("Could not remove island from cache: " + e.getMessage());
+                        }
+                    } else {
+                        addon.log("Island already null in BentoBox - may have been deleted");
+                        // Even if island is null, try to remove player association just to be safe
+                        addon.getIslands().removePlayer(bskyblockWorld, playerUUID);
+                        addon.log("Called removePlayer just in case");
+                    }
 
                     // Step 4: Clear grid location
                     if (coord != null) {
@@ -120,6 +154,9 @@ public class IslandRemovalManager {
                     // Step 5: Update slot data to mark as homeless
                     markPlayerAsHomeless(playerUUID, activeSlot);
 
+                    // Unmark the admin removal now that we're done
+                    addon.getIslandCreateListener().unmarkAdminRemoval(playerUUID);
+
                     addon.log("Removed island for " + playerUUID + " at " + coord);
 
                     callback.accept(true);
@@ -128,7 +165,10 @@ public class IslandRemovalManager {
             } catch (Exception e) {
                 addon.logError("Failed to remove island for " + playerUUID + ": " + e.getMessage());
                 e.printStackTrace();
-                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> callback.accept(false));
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                    addon.getIslandCreateListener().unmarkAdminRemoval(playerUUID);
+                    callback.accept(false);
+                });
             }
         });
     }
@@ -198,20 +238,23 @@ public class IslandRemovalManager {
 
     /**
      * Mark a player as homeless but with saved slot data.
-     * This updates the slot data to indicate they need to select a new location.
+     * This updates ALL slot data to indicate they need to select a new location.
+     * We clear all slots (not just active) to prevent stale data from causing issues.
      */
     private void markPlayerAsHomeless(UUID playerUUID, SlotData activeSlot) {
-        // Clear the grid coordinate - they no longer have a location
-        activeSlot.setGridCoordinate(null);
-        // Mark the slot as not having an island in the world, but data is still saved
-        activeSlot.setHasIsland(false);
-        // Clear island UUID since we deleted it from BentoBox
-        activeSlot.setIslandUUID((String) null);
-        // Keep the slot active - it still has saved data
+        // Clear ALL slots for this player to prevent stale data issues
+        for (SlotData slot : addon.getSlotManager().getPlayerSlots(playerUUID)) {
+            // Clear the grid coordinate - they no longer have a location
+            slot.setGridCoordinate(null);
+            // Mark the slot as not having an island in the world, but schematic data is still saved
+            slot.setHasIsland(false);
+            // Clear island UUID since we deleted it from BentoBox
+            slot.setIslandUUID((String) null);
+            // Save each slot
+            addon.getSlotManager().saveSlot(slot);
+        }
 
-        addon.getSlotManager().saveSlot(activeSlot);
-
-        addon.log("Marked player " + playerUUID + " as homeless (slot data preserved)");
+        addon.log("Marked player " + playerUUID + " as homeless (all slots cleared, schematic data preserved)");
     }
 
     /**

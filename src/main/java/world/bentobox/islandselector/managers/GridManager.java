@@ -3,6 +3,7 @@ package world.bentobox.islandselector.managers;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -21,6 +22,7 @@ import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.bentobox.managers.IslandsManager;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.GridLocationData;
+import world.bentobox.islandselector.models.DimensionConfig;
 import world.bentobox.islandselector.models.GridLocation;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
@@ -34,10 +36,13 @@ public class GridManager {
     private final Map<UUID, GridCoordinate> islandToCoord; // Maps island UUIDs to their coordinates
     private final Map<UUID, GridCoordinate> playerToCoord; // Maps player UUIDs to their coordinates
 
+    // Multi-dimension support: Maps dimension key -> (island UUID -> grid coordinate)
+    private final Map<String, Map<UUID, GridCoordinate>> dimensionIslandToCoord;
+
     // Database handler for persistence
     private final Database<GridLocationData> database;
 
-    // BSkyBlock world reference
+    // BSkyBlock world reference (primary/overworld dimension)
     private World bskyblockWorld;
 
     public GridManager(IslandSelector addon) {
@@ -45,6 +50,7 @@ public class GridManager {
         this.gridLocations = new HashMap<>();
         this.islandToCoord = new HashMap<>();
         this.playerToCoord = new HashMap<>();
+        this.dimensionIslandToCoord = new HashMap<>();
 
         // Initialize database
         this.database = new Database<>(addon, GridLocationData.class);
@@ -78,11 +84,35 @@ public class GridManager {
                     location.setOwnerName(data.getOwnerName());
                     location.setIslandUUID(data.getIslandUUIDAsUUID());
 
-                    // Update lookup maps
+                    // Update legacy lookup maps
                     if (data.getIslandUUIDAsUUID() != null) {
                         islandToCoord.put(data.getIslandUUIDAsUUID(), coord);
                     }
                     playerToCoord.put(data.getOwnerUUIDAsUUID(), coord);
+
+                    // Load dimension island UUIDs
+                    Map<String, String> dimIslands = data.getDimensionIslandUUIDs();
+                    if (dimIslands != null && !dimIslands.isEmpty()) {
+                        Map<String, UUID> dimensionUUIDs = new HashMap<>();
+                        for (Map.Entry<String, String> entry : dimIslands.entrySet()) {
+                            String dimensionKey = entry.getKey();
+                            String uuidStr = entry.getValue();
+                            if (uuidStr != null && !uuidStr.isEmpty()) {
+                                try {
+                                    UUID islandUUID = UUID.fromString(uuidStr);
+                                    dimensionUUIDs.put(dimensionKey, islandUUID);
+
+                                    // Update dimension lookup map
+                                    dimensionIslandToCoord
+                                            .computeIfAbsent(dimensionKey, k -> new HashMap<>())
+                                            .put(islandUUID, coord);
+                                } catch (IllegalArgumentException ignored) {
+                                    // Invalid UUID format, skip
+                                }
+                            }
+                        }
+                        location.setDimensionIslandUUIDs(dimensionUUIDs);
+                    }
                 }
 
                 // Set reserved status
@@ -117,6 +147,18 @@ public class GridManager {
         }
         if (location.getIslandUUID() != null) {
             data.setIslandUUID(location.getIslandUUID());
+        }
+
+        // Save dimension island UUIDs
+        Map<String, UUID> dimIslands = location.getDimensionIslandUUIDs();
+        if (dimIslands != null && !dimIslands.isEmpty()) {
+            Map<String, String> dimIslandStrings = new HashMap<>();
+            for (Map.Entry<String, UUID> entry : dimIslands.entrySet()) {
+                if (entry.getValue() != null) {
+                    dimIslandStrings.put(entry.getKey(), entry.getValue().toString());
+                }
+            }
+            data.setDimensionIslandUUIDs(dimIslandStrings);
         }
 
         data.setReserved(location.isReserved());
@@ -382,7 +424,7 @@ public class GridManager {
     }
 
     /**
-     * Occupy a location with an island
+     * Occupy a location with an island (legacy single-dimension)
      */
     public void occupyLocation(GridCoordinate coord, UUID ownerUUID, String ownerName, UUID islandUUID) {
         GridLocation location = getOrCreateGridLocation(coord);
@@ -391,7 +433,48 @@ public class GridManager {
         // Update lookup maps
         if (islandUUID != null) {
             islandToCoord.put(islandUUID, coord);
+            // Also add to overworld dimension map for consistency
+            dimensionIslandToCoord
+                    .computeIfAbsent("overworld", k -> new HashMap<>())
+                    .put(islandUUID, coord);
         }
+        if (ownerUUID != null) {
+            playerToCoord.put(ownerUUID, coord);
+        }
+
+        // Save to database
+        saveGridLocation(coord);
+    }
+
+    /**
+     * Occupy a location with islands in multiple dimensions
+     * @param coord The grid coordinate
+     * @param ownerUUID The owner's UUID
+     * @param ownerName The owner's name
+     * @param dimensionIslands Map of dimension key to island UUID
+     */
+    public void occupyLocation(GridCoordinate coord, UUID ownerUUID, String ownerName,
+                               Map<String, UUID> dimensionIslands) {
+        GridLocation location = getOrCreateGridLocation(coord);
+        location.occupy(ownerUUID, ownerName, dimensionIslands);
+
+        // Update dimension lookup maps
+        if (dimensionIslands != null) {
+            for (Map.Entry<String, UUID> entry : dimensionIslands.entrySet()) {
+                String dimensionKey = entry.getKey();
+                UUID islandUUID = entry.getValue();
+                if (islandUUID != null) {
+                    dimensionIslandToCoord
+                            .computeIfAbsent(dimensionKey, k -> new HashMap<>())
+                            .put(islandUUID, coord);
+                    // Also add to legacy map if this is overworld
+                    if ("overworld".equals(dimensionKey)) {
+                        islandToCoord.put(islandUUID, coord);
+                    }
+                }
+            }
+        }
+
         if (ownerUUID != null) {
             playerToCoord.put(ownerUUID, coord);
         }
@@ -406,12 +489,27 @@ public class GridManager {
     public void clearLocation(GridCoordinate coord) {
         GridLocation location = getGridLocation(coord);
         if (location != null) {
-            // Remove from lookup maps
+            // Remove from legacy lookup maps
             if (location.getIslandUUID() != null) {
                 islandToCoord.remove(location.getIslandUUID());
             }
             if (location.getOwnerUUID() != null) {
                 playerToCoord.remove(location.getOwnerUUID());
+            }
+
+            // Remove from dimension lookup maps
+            Map<String, UUID> dimIslands = location.getDimensionIslandUUIDs();
+            if (dimIslands != null) {
+                for (Map.Entry<String, UUID> entry : dimIslands.entrySet()) {
+                    String dimensionKey = entry.getKey();
+                    UUID islandUUID = entry.getValue();
+                    if (islandUUID != null) {
+                        Map<UUID, GridCoordinate> dimMap = dimensionIslandToCoord.get(dimensionKey);
+                        if (dimMap != null) {
+                            dimMap.remove(islandUUID);
+                        }
+                    }
+                }
             }
 
             location.clear();
@@ -538,5 +636,177 @@ public class GridManager {
      */
     public Collection<GridLocation> getAllLocations() {
         return gridLocations.values();
+    }
+
+    // ========== Multi-Dimension Support Methods ==========
+
+    /**
+     * Get the island coordinate for a specific dimension
+     * @param dimensionKey The dimension key
+     * @param islandUUID The island UUID
+     * @return The grid coordinate, or null if not found
+     */
+    public GridCoordinate getIslandCoordinate(String dimensionKey, UUID islandUUID) {
+        Map<UUID, GridCoordinate> dimMap = dimensionIslandToCoord.get(dimensionKey);
+        if (dimMap != null) {
+            return dimMap.get(islandUUID);
+        }
+        // Fallback to legacy map for overworld
+        if ("overworld".equals(dimensionKey)) {
+            return islandToCoord.get(islandUUID);
+        }
+        return null;
+    }
+
+    /**
+     * Get all island UUIDs for a grid coordinate across all dimensions
+     * @param coord The grid coordinate
+     * @return Map of dimension key to island UUID
+     */
+    public Map<String, UUID> getDimensionIslands(GridCoordinate coord) {
+        GridLocation location = getGridLocation(coord);
+        if (location != null) {
+            return location.getDimensionIslandUUIDs();
+        }
+        return new HashMap<>();
+    }
+
+    /**
+     * Get the island UUID for a specific dimension at a grid coordinate
+     * @param coord The grid coordinate
+     * @param dimensionKey The dimension key
+     * @return The island UUID, or null if not found
+     */
+    public UUID getIslandUUID(GridCoordinate coord, String dimensionKey) {
+        GridLocation location = getGridLocation(coord);
+        if (location != null) {
+            return location.getIslandUUID(dimensionKey);
+        }
+        return null;
+    }
+
+    /**
+     * Set the island UUID for a specific dimension at a grid coordinate
+     * @param coord The grid coordinate
+     * @param dimensionKey The dimension key
+     * @param islandUUID The island UUID
+     */
+    public void setDimensionIsland(GridCoordinate coord, String dimensionKey, UUID islandUUID) {
+        GridLocation location = getOrCreateGridLocation(coord);
+        location.setIslandUUID(dimensionKey, islandUUID);
+
+        // Update dimension lookup map
+        if (islandUUID != null) {
+            dimensionIslandToCoord
+                    .computeIfAbsent(dimensionKey, k -> new HashMap<>())
+                    .put(islandUUID, coord);
+        } else {
+            Map<UUID, GridCoordinate> dimMap = dimensionIslandToCoord.get(dimensionKey);
+            if (dimMap != null) {
+                // Find and remove the old island UUID
+                dimMap.values().removeIf(c -> c.equals(coord));
+            }
+        }
+
+        saveGridLocation(coord);
+    }
+
+    /**
+     * Clear the island for a specific dimension at a grid coordinate
+     * @param coord The grid coordinate
+     * @param dimensionKey The dimension key
+     */
+    public void clearDimensionIsland(GridCoordinate coord, String dimensionKey) {
+        GridLocation location = getGridLocation(coord);
+        if (location != null) {
+            UUID oldUUID = location.getIslandUUID(dimensionKey);
+            if (oldUUID != null) {
+                Map<UUID, GridCoordinate> dimMap = dimensionIslandToCoord.get(dimensionKey);
+                if (dimMap != null) {
+                    dimMap.remove(oldUUID);
+                }
+                if ("overworld".equals(dimensionKey)) {
+                    islandToCoord.remove(oldUUID);
+                }
+            }
+            location.clearDimensionIsland(dimensionKey);
+            saveGridLocation(coord);
+        }
+    }
+
+    /**
+     * Check if multi-dimension mode is enabled
+     * @return true if multi-dimension is enabled
+     */
+    public boolean isMultiDimensionEnabled() {
+        DimensionManager dimManager = addon.getDimensionManager();
+        return dimManager != null && dimManager.isEnabled();
+    }
+
+    /**
+     * Sync islands from all dimension worlds (if multi-dimension is enabled)
+     */
+    public void syncAllDimensionWorlds() {
+        if (!isMultiDimensionEnabled()) {
+            return;
+        }
+
+        DimensionManager dimManager = addon.getDimensionManager();
+        List<DimensionConfig> dimensions = dimManager.getEnabledDimensions();
+
+        BentoBox bentoBox = BentoBox.getInstance();
+        if (bentoBox == null) {
+            return;
+        }
+
+        IslandsManager islandsManager = bentoBox.getIslandsManager();
+
+        addon.log("Syncing grid with all dimension worlds...");
+
+        for (DimensionConfig config : dimensions) {
+            World world = dimManager.getWorld(config.getDimensionKey());
+            if (world == null) {
+                continue;
+            }
+
+            int synced = 0;
+            for (Island island : islandsManager.getIslands(world)) {
+                if (island == null || island.getCenter() == null || island.getOwner() == null) {
+                    continue;
+                }
+
+                Location center = island.getCenter();
+                GridCoordinate coord = worldToGrid(center.getBlockX(), center.getBlockZ());
+
+                if (coord == null || !isWithinBounds(coord)) {
+                    continue;
+                }
+
+                // Get existing location or check if we need to track this island
+                GridLocation location = getGridLocation(coord);
+                if (location != null && location.getIslandUUID(config.getDimensionKey()) != null) {
+                    continue; // Already tracked
+                }
+
+                // Parse island UUID
+                UUID islandUUID = null;
+                String islandIdStr = island.getUniqueId();
+                if (islandIdStr != null && !islandIdStr.isEmpty()) {
+                    try {
+                        islandUUID = UUID.fromString(islandIdStr);
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+
+                if (islandUUID != null) {
+                    setDimensionIsland(coord, config.getDimensionKey(), islandUUID);
+                    synced++;
+                }
+            }
+
+            if (synced > 0) {
+                addon.log("  - " + config.getDimensionKey() + ": " + synced + " islands synced");
+            }
+        }
     }
 }

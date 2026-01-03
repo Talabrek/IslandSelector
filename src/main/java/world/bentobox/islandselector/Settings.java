@@ -4,9 +4,13 @@ import world.bentobox.bentobox.api.configuration.ConfigComment;
 import world.bentobox.bentobox.api.configuration.ConfigEntry;
 import world.bentobox.bentobox.api.configuration.ConfigObject;
 import world.bentobox.bentobox.api.configuration.StoreAt;
+import world.bentobox.islandselector.models.DimensionConfig;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Settings class for IslandSelector
@@ -200,6 +204,30 @@ public class Settings implements ConfigObject {
     @ConfigComment("Log GUI interactions")
     @ConfigEntry(path = "debug.log-gui")
     private boolean logGUI = false;
+
+    // Multi-Dimension Settings
+    @ConfigComment("")
+    @ConfigComment("==========================================")
+    @ConfigComment("MULTI-DIMENSION SETTINGS")
+    @ConfigComment("==========================================")
+    @ConfigComment("Enable multi-dimension island support.")
+    @ConfigComment("When enabled, players can have islands in multiple dimensions")
+    @ConfigComment("(e.g., overworld, nether, end, custom worlds) all at the same grid location.")
+    @ConfigEntry(path = "dimensions.enabled")
+    private boolean multiDimensionEnabled = false;
+
+    @ConfigComment("")
+    @ConfigComment("Dimension configurations.")
+    @ConfigComment("Each dimension must be configured with its world name and settings.")
+    @ConfigComment("The dimension key (e.g., 'overworld', 'nether') is used as an identifier.")
+    @ConfigEntry(path = "dimensions.worlds")
+    private Map<String, DimensionConfig> dimensionConfigs = new HashMap<>();
+
+    @ConfigComment("")
+    @ConfigComment("Primary dimension key - the main world dimension.")
+    @ConfigComment("This is the dimension used for grid selection GUI and as the 'home' dimension.")
+    @ConfigEntry(path = "dimensions.primary-dimension")
+    private String primaryDimension = "overworld";
 
     // Getters and Setters
 
@@ -564,5 +592,134 @@ public class Settings implements ConfigObject {
 
     public void setSlotSwitchCommandScope(String slotSwitchCommandScope) {
         this.slotSwitchCommandScope = slotSwitchCommandScope;
+    }
+
+    // Multi-Dimension Getters and Setters
+
+    public boolean isMultiDimensionEnabled() {
+        return multiDimensionEnabled;
+    }
+
+    public void setMultiDimensionEnabled(boolean multiDimensionEnabled) {
+        this.multiDimensionEnabled = multiDimensionEnabled;
+    }
+
+    public Map<String, DimensionConfig> getDimensionConfigs() {
+        return dimensionConfigs;
+    }
+
+    public void setDimensionConfigs(Map<String, DimensionConfig> dimensionConfigs) {
+        this.dimensionConfigs = dimensionConfigs;
+    }
+
+    public String getPrimaryDimension() {
+        return primaryDimension;
+    }
+
+    public void setPrimaryDimension(String primaryDimension) {
+        this.primaryDimension = primaryDimension;
+    }
+
+    /**
+     * Get a specific dimension configuration by key
+     * @param dimensionKey The dimension key (e.g., "overworld", "nether")
+     * @return The dimension config, or null if not found
+     */
+    public DimensionConfig getDimensionConfig(String dimensionKey) {
+        return dimensionConfigs.get(dimensionKey);
+    }
+
+    /**
+     * Get all enabled dimension configurations
+     * @return List of enabled dimension configs
+     */
+    public List<DimensionConfig> getEnabledDimensions() {
+        if (dimensionConfigs == null || dimensionConfigs.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return dimensionConfigs.values().stream()
+                .filter(DimensionConfig::isEnabled)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get the primary dimension configuration
+     * @return The primary dimension config, or null if not configured
+     */
+    public DimensionConfig getPrimaryDimensionConfig() {
+        return getDimensionConfig(primaryDimension);
+    }
+
+    /**
+     * Check if a dimension key exists in the configuration
+     * @param dimensionKey The dimension key to check
+     * @return true if the dimension is configured
+     */
+    public boolean hasDimension(String dimensionKey) {
+        return dimensionConfigs != null && dimensionConfigs.containsKey(dimensionKey);
+    }
+
+    /**
+     * Check if a dimension is enabled
+     * @param dimensionKey The dimension key to check
+     * @return true if the dimension is configured and enabled
+     */
+    public boolean isDimensionEnabled(String dimensionKey) {
+        DimensionConfig config = getDimensionConfig(dimensionKey);
+        return config != null && config.isEnabled();
+    }
+
+    /**
+     * Get the world name for a dimension
+     * @param dimensionKey The dimension key
+     * @return The Bukkit world name, or null if dimension not configured
+     */
+    public String getDimensionWorldName(String dimensionKey) {
+        DimensionConfig config = getDimensionConfig(dimensionKey);
+        return config != null ? config.getWorldName() : null;
+    }
+
+    /**
+     * Get the default blueprint for a dimension
+     * @param dimensionKey The dimension key
+     * @return The blueprint bundle name, or "default" if not configured
+     */
+    public String getDimensionBlueprint(String dimensionKey) {
+        DimensionConfig config = getDimensionConfig(dimensionKey);
+        return config != null ? config.getDefaultBlueprint() : "default";
+    }
+
+    /**
+     * Initialize default dimension configurations if none exist.
+     * Called during setup to provide sensible defaults.
+     */
+    public void initializeDefaultDimensions() {
+        if (dimensionConfigs == null) {
+            dimensionConfigs = new HashMap<>();
+        }
+        if (dimensionConfigs.isEmpty()) {
+            // Add default overworld dimension
+            DimensionConfig overworld = new DimensionConfig("overworld", "bskyblock_world");
+            overworld.setDisplayName("Overworld");
+            overworld.setIconMaterial("GRASS_BLOCK");
+            overworld.setDefaultBlueprint("default");
+            dimensionConfigs.put("overworld", overworld);
+
+            // Add default nether dimension (disabled by default)
+            DimensionConfig nether = new DimensionConfig("nether", "bskyblock_world_nether");
+            nether.setEnabled(false);
+            nether.setDisplayName("Nether");
+            nether.setIconMaterial("NETHERRACK");
+            nether.setDefaultBlueprint("default_nether");
+            dimensionConfigs.put("nether", nether);
+
+            // Add default end dimension (disabled by default)
+            DimensionConfig theEnd = new DimensionConfig("the_end", "bskyblock_world_the_end");
+            theEnd.setEnabled(false);
+            theEnd.setDisplayName("The End");
+            theEnd.setIconMaterial("END_STONE");
+            theEnd.setDefaultBlueprint("default_end");
+            dimensionConfigs.put("the_end", theEnd);
+        }
     }
 }

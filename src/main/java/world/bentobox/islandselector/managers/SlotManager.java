@@ -171,6 +171,35 @@ public class SlotManager {
     }
 
     /**
+     * Initialize slots for a new player with multi-dimension island IDs
+     * Creates slot 1 as active when player creates their first islands across dimensions
+     * @param playerUUID The player's UUID
+     * @param dimensionIslandIds Map of dimension key to BentoBox island ID
+     * @param gridCoordinate The grid coordinate string
+     */
+    public void initializePlayerSlotsMultiDimension(UUID playerUUID, Map<String, String> dimensionIslandIds,
+                                                     String gridCoordinate) {
+        SlotData slot1 = createOrGetSlot(playerUUID, 1);
+        slot1.setGridCoordinate(gridCoordinate);
+        slot1.setHasIsland(true);
+        slot1.setActive(true);
+
+        // Set all dimension island IDs
+        if (dimensionIslandIds != null) {
+            for (Map.Entry<String, String> entry : dimensionIslandIds.entrySet()) {
+                slot1.setIslandUUID(entry.getKey(), entry.getValue());
+            }
+            // Set legacy field from overworld
+            String overworldId = dimensionIslandIds.get("overworld");
+            if (overworldId != null) {
+                slot1.setIslandUUID(overworldId);
+            }
+        }
+
+        saveSlot(slot1);
+    }
+
+    /**
      * Check if a player has any islands
      */
     public boolean hasAnyIsland(UUID playerUUID) {
@@ -202,15 +231,17 @@ public class SlotManager {
     }
 
     /**
-     * Get the grid coordinate for a player's islands (all slots share same location)
+     * Get the grid coordinate for a player's islands (from active slot only).
+     * Only returns a coordinate if the active slot has an island in the world.
+     * This prevents stale data from inactive slots causing issues.
      */
     public String getPlayerGridCoordinate(UUID playerUUID) {
-        return slotCache.values().stream()
-                .filter(slot -> playerUUID.equals(slot.getPlayerUUIDAsUUID()))
-                .filter(SlotData::hasIsland)
-                .map(SlotData::getGridCoordinate)
-                .findFirst()
-                .orElse(null);
+        // Only check the active slot - inactive slots may have stale data
+        SlotData activeSlot = getActiveSlot(playerUUID);
+        if (activeSlot != null && activeSlot.hasIsland()) {
+            return activeSlot.getGridCoordinate();
+        }
+        return null;
     }
 
     /**
@@ -335,10 +366,54 @@ public class SlotManager {
     }
 
     /**
-     * Get slot schematic file path
+     * Get slot schematic file path (legacy single-dimension)
      */
     public String getSlotSchematicPath(UUID playerUUID, int slotNumber) {
         return addon.getDataFolder().getAbsolutePath() + "/slots/" + playerUUID.toString() + "/slot-" + slotNumber + ".schem";
+    }
+
+    /**
+     * Get slot schematic file path for a specific dimension.
+     * For multi-dimension support, each dimension has its own schematic file.
+     * Format: slots/{uuid}/slot-{num}-{dimension}.schem
+     *
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number
+     * @param dimensionKey The dimension key (e.g., "overworld", "nether")
+     * @return The schematic file path
+     */
+    public String getSlotSchematicPath(UUID playerUUID, int slotNumber, String dimensionKey) {
+        if (dimensionKey == null || dimensionKey.isEmpty() || "overworld".equals(dimensionKey)) {
+            // Use legacy path for overworld for backwards compatibility
+            return getSlotSchematicPath(playerUUID, slotNumber);
+        }
+        return addon.getDataFolder().getAbsolutePath() + "/slots/" + playerUUID.toString() +
+                "/slot-" + slotNumber + "-" + dimensionKey + ".schem";
+    }
+
+    /**
+     * Get all schematic files for a slot across all dimensions.
+     * Returns a map of dimension key to schematic file path.
+     *
+     * @param playerUUID The player's UUID
+     * @param slotNumber The slot number
+     * @return Map of dimension key to schematic file path
+     */
+    public java.util.Map<String, String> getAllDimensionSchematicPaths(UUID playerUUID, int slotNumber) {
+        java.util.Map<String, String> paths = new java.util.HashMap<>();
+
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager != null && dimManager.isEnabled()) {
+            for (world.bentobox.islandselector.models.DimensionConfig config : dimManager.getEnabledDimensions()) {
+                String dimensionKey = config.getDimensionKey();
+                paths.put(dimensionKey, getSlotSchematicPath(playerUUID, slotNumber, dimensionKey));
+            }
+        } else {
+            // Single dimension mode
+            paths.put("overworld", getSlotSchematicPath(playerUUID, slotNumber));
+        }
+
+        return paths;
     }
 
     /**

@@ -4,6 +4,8 @@ import com.google.gson.annotations.Expose;
 import world.bentobox.bentobox.database.objects.DataObject;
 import world.bentobox.bentobox.database.objects.Table;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -50,10 +52,18 @@ public class GridLocationData implements DataObject {
     private String ownerName;
 
     /**
-     * UUID of the BSkyBlock island at this location
+     * UUID of the BSkyBlock island at this location (legacy single-dimension field)
+     * For backwards compatibility - new code should use dimensionIslandUUIDs
      */
     @Expose
     private String islandUUID;
+
+    /**
+     * Island UUIDs per dimension (dimension key -> island UUID string)
+     * Used for multi-dimension support where each dimension has its own island
+     */
+    @Expose
+    private Map<String, String> dimensionIslandUUIDs = new HashMap<>();
 
     /**
      * Whether this location is reserved by admin
@@ -177,6 +187,124 @@ public class GridLocationData implements DataObject {
         this.islandUUID = islandUUID != null ? islandUUID.toString() : null;
     }
 
+    // Multi-dimension island UUID methods
+
+    /**
+     * Get the map of dimension island UUIDs
+     * @return Map of dimension key to island UUID string
+     */
+    public Map<String, String> getDimensionIslandUUIDs() {
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        // Auto-migrate legacy field if present
+        migrateFromLegacy();
+        return dimensionIslandUUIDs;
+    }
+
+    /**
+     * Set the dimension island UUIDs map
+     * @param dimensionIslandUUIDs Map of dimension key to island UUID string
+     */
+    public void setDimensionIslandUUIDs(Map<String, String> dimensionIslandUUIDs) {
+        this.dimensionIslandUUIDs = dimensionIslandUUIDs != null ? dimensionIslandUUIDs : new HashMap<>();
+    }
+
+    /**
+     * Get the island UUID for a specific dimension
+     * @param dimensionKey The dimension key (e.g., "overworld", "nether")
+     * @return The island UUID string, or null if not set
+     */
+    public String getIslandUUID(String dimensionKey) {
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        migrateFromLegacy();
+        return dimensionIslandUUIDs.get(dimensionKey);
+    }
+
+    /**
+     * Set the island UUID for a specific dimension
+     * @param dimensionKey The dimension key
+     * @param islandUUID The island UUID string
+     */
+    public void setIslandUUID(String dimensionKey, String islandUUID) {
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        if (islandUUID != null) {
+            dimensionIslandUUIDs.put(dimensionKey, islandUUID);
+        } else {
+            dimensionIslandUUIDs.remove(dimensionKey);
+        }
+        // Also update legacy field if this is the overworld
+        if ("overworld".equals(dimensionKey)) {
+            this.islandUUID = islandUUID;
+        }
+    }
+
+    /**
+     * Set the island UUID for a specific dimension using UUID object
+     * @param dimensionKey The dimension key
+     * @param islandUUID The island UUID
+     */
+    public void setIslandUUID(String dimensionKey, UUID islandUUID) {
+        setIslandUUID(dimensionKey, islandUUID != null ? islandUUID.toString() : null);
+    }
+
+    /**
+     * Get the island UUID for a specific dimension as UUID object
+     * @param dimensionKey The dimension key
+     * @return The island UUID, or null if not set or invalid
+     */
+    public UUID getIslandUUIDAsUUID(String dimensionKey) {
+        String uuid = getIslandUUID(dimensionKey);
+        if (uuid == null || uuid.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(uuid);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Clear the island UUID for a specific dimension
+     * @param dimensionKey The dimension key
+     */
+    public void clearIslandUUID(String dimensionKey) {
+        if (dimensionIslandUUIDs != null) {
+            dimensionIslandUUIDs.remove(dimensionKey);
+        }
+        if ("overworld".equals(dimensionKey)) {
+            this.islandUUID = null;
+        }
+    }
+
+    /**
+     * Check if this location has an island in any dimension
+     * @return true if at least one dimension has an island
+     */
+    public boolean hasAnyIsland() {
+        if (dimensionIslandUUIDs != null && !dimensionIslandUUIDs.isEmpty()) {
+            return dimensionIslandUUIDs.values().stream()
+                    .anyMatch(uuid -> uuid != null && !uuid.isEmpty());
+        }
+        return islandUUID != null && !islandUUID.isEmpty();
+    }
+
+    /**
+     * Migrate legacy single islandUUID to dimension map
+     * Called automatically when accessing dimension methods
+     */
+    private void migrateFromLegacy() {
+        if (islandUUID != null && !islandUUID.isEmpty() &&
+                !dimensionIslandUUIDs.containsKey("overworld")) {
+            dimensionIslandUUIDs.put("overworld", islandUUID);
+        }
+    }
+
     public boolean isReserved() {
         return reserved;
     }
@@ -216,12 +344,52 @@ public class GridLocationData implements DataObject {
     }
 
     /**
-     * Mark this location as occupied
+     * Mark this location as occupied (legacy single-dimension)
      */
     public void occupy(UUID ownerUUID, String ownerName, UUID islandUUID) {
         this.ownerUUID = ownerUUID != null ? ownerUUID.toString() : null;
         this.ownerName = ownerName;
         this.islandUUID = islandUUID != null ? islandUUID.toString() : null;
+        // Also set in dimension map for overworld
+        if (islandUUID != null) {
+            if (dimensionIslandUUIDs == null) {
+                dimensionIslandUUIDs = new HashMap<>();
+            }
+            dimensionIslandUUIDs.put("overworld", islandUUID.toString());
+        }
+        this.status = "OCCUPIED";
+        this.reserved = false;
+        this.blocked = false;
+        this.purchasePrice = 0;
+    }
+
+    /**
+     * Mark this location as occupied with multi-dimension support
+     * @param ownerUUID The owner's UUID
+     * @param ownerName The owner's name
+     * @param dimensionIslands Map of dimension key to island UUID
+     */
+    public void occupy(UUID ownerUUID, String ownerName, Map<String, UUID> dimensionIslands) {
+        this.ownerUUID = ownerUUID != null ? ownerUUID.toString() : null;
+        this.ownerName = ownerName;
+
+        // Set all dimension island UUIDs
+        if (dimensionIslandUUIDs == null) {
+            dimensionIslandUUIDs = new HashMap<>();
+        }
+        dimensionIslandUUIDs.clear();
+
+        if (dimensionIslands != null) {
+            for (Map.Entry<String, UUID> entry : dimensionIslands.entrySet()) {
+                if (entry.getValue() != null) {
+                    dimensionIslandUUIDs.put(entry.getKey(), entry.getValue().toString());
+                }
+            }
+            // Set legacy field from overworld
+            UUID overworldIsland = dimensionIslands.get("overworld");
+            this.islandUUID = overworldIsland != null ? overworldIsland.toString() : null;
+        }
+
         this.status = "OCCUPIED";
         this.reserved = false;
         this.blocked = false;
@@ -235,6 +403,9 @@ public class GridLocationData implements DataObject {
         this.ownerUUID = null;
         this.ownerName = null;
         this.islandUUID = null;
+        if (dimensionIslandUUIDs != null) {
+            dimensionIslandUUIDs.clear();
+        }
         this.status = "AVAILABLE";
     }
 

@@ -14,10 +14,15 @@ import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.bentobox.util.teleport.SafeSpotTeleport;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.RelocationData;
+import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.events.IslandRelocateEvent;
+import world.bentobox.islandselector.models.DimensionConfig;
 import world.bentobox.islandselector.utils.CustomCommandExecutor;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -409,13 +414,23 @@ public class RelocationManager {
 
                 // Update grid tracking
                 addon.getGridManager().clearLocation(fromCoord);
-                UUID islandUUID = null;
-                try {
-                    islandUUID = UUID.fromString(island.getUniqueId());
-                } catch (IllegalArgumentException e) {
-                    // Not a UUID
+
+                // Check if multi-dimension is enabled
+                DimensionManager dimManager = addon.getDimensionManager();
+                if (dimManager != null && dimManager.isEnabled()) {
+                    // Get all dimension islands for this player and update grid with multi-dimension data
+                    Map<String, UUID> dimensionIslands = collectDimensionIslands(targetUUID, dimManager);
+                    addon.getGridManager().occupyLocation(toCoord, targetUUID, targetName, dimensionIslands);
+                } else {
+                    // Single dimension mode
+                    UUID islandUUID = null;
+                    try {
+                        islandUUID = UUID.fromString(island.getUniqueId());
+                    } catch (IllegalArgumentException e) {
+                        // Not a UUID
+                    }
+                    addon.getGridManager().occupyLocation(toCoord, targetUUID, targetName, islandUUID);
                 }
-                addon.getGridManager().occupyLocation(toCoord, targetUUID, targetName, islandUUID);
 
                 // Update ALL slot data with new grid coordinate (all slots share the same physical location)
                 var allSlots = addon.getSlotManager().getPlayerSlots(targetUUID);
@@ -702,14 +717,22 @@ public class RelocationManager {
             // Update our grid location tracking
             addon.getGridManager().clearLocation(fromCoord);
 
-            UUID islandUUID = null;
-            try {
-                islandUUID = UUID.fromString(island.getUniqueId());
-            } catch (IllegalArgumentException e) {
-                // Island ID is not a UUID
+            // Check if multi-dimension is enabled
+            DimensionManager dimManager = addon.getDimensionManager();
+            if (dimManager != null && dimManager.isEnabled()) {
+                // Get all dimension islands for this player and update grid with multi-dimension data
+                Map<String, UUID> dimensionIslands = collectDimensionIslands(playerUUID, dimManager);
+                addon.getGridManager().occupyLocation(toCoord, playerUUID, player.getName(), dimensionIslands);
+            } else {
+                // Single dimension mode
+                UUID islandUUID = null;
+                try {
+                    islandUUID = UUID.fromString(island.getUniqueId());
+                } catch (IllegalArgumentException e) {
+                    // Island ID is not a UUID
+                }
+                addon.getGridManager().occupyLocation(toCoord, playerUUID, player.getName(), islandUUID);
             }
-
-            addon.getGridManager().occupyLocation(toCoord, playerUUID, player.getName(), islandUUID);
 
             // Update ALL slot data with new grid coordinate (all slots share the same physical location)
             var allSlots = addon.getSlotManager().getPlayerSlots(playerUUID);
@@ -1259,5 +1282,68 @@ public class RelocationManager {
     private static class RelativeHome {
         double relX, relY, relZ;
         float yaw, pitch;
+    }
+
+    // ==================== MULTI-DIMENSION SUPPORT ====================
+
+    /**
+     * Collect all dimension island UUIDs for a player.
+     * Used when updating grid location with multi-dimension data.
+     *
+     * @param playerUUID The player's UUID
+     * @param dimManager The DimensionManager instance
+     * @return Map of dimension key to island UUID
+     */
+    private Map<String, UUID> collectDimensionIslands(UUID playerUUID, DimensionManager dimManager) {
+        Map<String, UUID> dimensionIslands = new HashMap<>();
+
+        for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+            String dimensionKey = config.getDimensionKey();
+            World world = dimManager.getWorld(dimensionKey);
+
+            if (world != null) {
+                Island island = addon.getIslands().getIsland(world, playerUUID);
+                if (island != null) {
+                    String islandIdStr = island.getUniqueId();
+                    UUID islandUUID = parseIslandUUID(islandIdStr);
+                    if (islandUUID != null) {
+                        dimensionIslands.put(dimensionKey, islandUUID);
+                    }
+                }
+            }
+        }
+
+        return dimensionIslands;
+    }
+
+    /**
+     * Parse an island ID string to a UUID.
+     * Handles both plain UUIDs and prefixed BentoBox IDs (like "BSkyBlock6d68f389-...")
+     *
+     * @param islandIdStr The island ID string
+     * @return The UUID, or null if not parseable
+     */
+    private UUID parseIslandUUID(String islandIdStr) {
+        if (islandIdStr == null || islandIdStr.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(islandIdStr);
+        } catch (IllegalArgumentException e) {
+            // Island ID has a prefix (like "BSkyBlock"), try to extract the UUID part
+            if (islandIdStr.contains("-")) {
+                int uuidStart = islandIdStr.indexOf('-') - 8; // UUID format: 8-4-4-4-12
+                if (uuidStart > 0) {
+                    String uuidPart = islandIdStr.substring(uuidStart);
+                    try {
+                        return UUID.fromString(uuidPart);
+                    } catch (IllegalArgumentException e2) {
+                        // Still not a valid UUID
+                    }
+                }
+            }
+        }
+        return null;
     }
 }

@@ -21,13 +21,17 @@ import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.events.GridLocationClaimEvent;
 import world.bentobox.islandselector.gui.IslandClaimGUI;
+import world.bentobox.islandselector.managers.DimensionManager;
 import world.bentobox.islandselector.managers.GridLocationStrategy;
 import world.bentobox.islandselector.managers.GridManager;
+import world.bentobox.islandselector.managers.MultiDimensionIslandCreator;
 import world.bentobox.islandselector.managers.SlotManager;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -51,6 +55,9 @@ public class IslandCreateListener implements Listener {
 
     // Track old island IDs that need to be deleted after reset completes
     private final Map<UUID, String> pendingOldIslandDeletions = new HashMap<>();
+
+    // Track players whose islands are being removed by admin (skip slot data clearing in onIslandDelete)
+    private final Set<UUID> pendingAdminRemovals = new HashSet<>();
 
     public IslandCreateListener(IslandSelector addon) {
         this.addon = addon;
@@ -193,6 +200,18 @@ public class IslandCreateListener implements Listener {
     public void onIslandCreated(IslandCreatedEvent event) {
         UUID playerUUID = event.getPlayerUUID();
         Player player = Bukkit.getPlayer(playerUUID);
+        Island island = event.getIsland();
+        World islandWorld = island != null && island.getCenter() != null ? island.getCenter().getWorld() : null;
+
+        // Check if this is part of a multi-dimension creation
+        MultiDimensionIslandCreator multiDimCreator = addon.getMultiDimensionIslandCreator();
+        if (multiDimCreator != null && multiDimCreator.hasPendingCreation(playerUUID)) {
+            boolean handled = multiDimCreator.onIslandCreated(playerUUID, island, islandWorld);
+            if (handled) {
+                addon.log("Island creation handled by MultiDimensionIslandCreator");
+                return;
+            }
+        }
 
         // Check if this was a grid-based claim
         GridCoordinate coord = pendingClaims.remove(playerUUID);
@@ -202,7 +221,6 @@ public class IslandCreateListener implements Listener {
         boolean isReset = pendingResets.remove(playerUUID) != null;
 
         if (coord != null) {
-            Island island = event.getIsland();
             String ownerName = player != null ? player.getName() : "Unknown";
 
             // Calculate the world coordinates for this grid position
@@ -497,9 +515,16 @@ public class IslandCreateListener implements Listener {
             addon.log("Cleared grid location " + coord + " due to island deletion");
         }
 
-        // Also clear slot data for the island owner so they can create a fresh island
+        // Clear slot data for the island owner so they can create a fresh island
+        // Skip this for admin removals - markPlayerAsHomeless handles it more thoroughly
         UUID ownerUUID = island.getOwner();
         if (ownerUUID != null) {
+            // Skip if this is an admin removal - the IslandRemovalManager will handle slot data
+            if (pendingAdminRemovals.contains(ownerUUID)) {
+                addon.log("Skipping slot data clearing for " + ownerUUID + " - admin removal in progress");
+                return;
+            }
+
             SlotData activeSlot = slotManager.getActiveSlot(ownerUUID);
             if (activeSlot != null && activeSlot.hasIsland()) {
                 // Check if this slot's island UUID matches the deleted island
@@ -543,12 +568,24 @@ public class IslandCreateListener implements Listener {
             return;
         }
 
-        // Store the pending claim - needed for IslandCreatedEvent handler
-        pendingClaims.put(playerUUID, coord);
-        confirmedBlueprints.put(playerUUID, blueprintBundleKey);
-
         addon.log("Player " + player.getName() + " confirmed claim at " + coord +
                  " with blueprint " + blueprintBundleKey);
+
+        // Check if multi-dimension mode is enabled
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager != null && dimManager.isEnabled()) {
+            // Use multi-dimension island creator
+            addon.log("Using multi-dimension island creation");
+            addon.getMultiDimensionIslandCreator().createIslandsForAllDimensions(
+                    player, coord, blueprintBundleKey, (createdIslands) -> {
+                        addon.log("Multi-dimension island creation completed: " + createdIslands.size() + " islands");
+                    });
+            return;
+        }
+
+        // Single dimension mode - store the pending claim
+        pendingClaims.put(playerUUID, coord);
+        confirmedBlueprints.put(playerUUID, blueprintBundleKey);
 
         // Create island at the selected grid location using NewIsland.builder()
         createIslandAtLocation(player, coord, blueprintBundleKey);
@@ -579,10 +616,22 @@ public class IslandCreateListener implements Listener {
             return;
         }
 
-        // Store the pending claim - needed for IslandCreatedEvent handler
-        pendingClaims.put(playerUUID, coord);
-
         addon.log("Player " + player.getName() + " confirmed claim at " + coord);
+
+        // Check if multi-dimension mode is enabled
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager != null && dimManager.isEnabled()) {
+            // Use multi-dimension island creator
+            addon.log("Using multi-dimension island creation");
+            addon.getMultiDimensionIslandCreator().createIslandsForAllDimensions(
+                    player, coord, null, (createdIslands) -> {
+                        addon.log("Multi-dimension island creation completed: " + createdIslands.size() + " islands");
+                    });
+            return;
+        }
+
+        // Single dimension mode - store the pending claim
+        pendingClaims.put(playerUUID, coord);
 
         // Create island at the selected grid location using NewIsland.builder()
         createIslandAtLocation(player, coord, null);
@@ -664,5 +713,27 @@ public class IslandCreateListener implements Listener {
      */
     public GridCoordinate getPendingClaim(UUID playerUUID) {
         return pendingClaims.get(playerUUID);
+    }
+
+    /**
+     * Mark a player as having an admin removal in progress.
+     * This prevents onIslandDelete from clearing slot data (markPlayerAsHomeless handles it).
+     */
+    public void markAdminRemoval(UUID playerUUID) {
+        pendingAdminRemovals.add(playerUUID);
+    }
+
+    /**
+     * Unmark a player's admin removal (called after removal completes).
+     */
+    public void unmarkAdminRemoval(UUID playerUUID) {
+        pendingAdminRemovals.remove(playerUUID);
+    }
+
+    /**
+     * Check if a player has an admin removal in progress.
+     */
+    public boolean hasAdminRemoval(UUID playerUUID) {
+        return pendingAdminRemovals.contains(playerUUID);
     }
 }

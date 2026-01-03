@@ -16,9 +16,11 @@ import world.bentobox.islandselector.managers.AutoBackupManager;
 import world.bentobox.islandselector.managers.BackupManager;
 import world.bentobox.islandselector.managers.BlueprintChallengesManager;
 import world.bentobox.islandselector.managers.ChallengesIntegration;
+import world.bentobox.islandselector.managers.DimensionManager;
 import world.bentobox.islandselector.managers.GridManager;
 import world.bentobox.islandselector.managers.IslandRemovalManager;
 import world.bentobox.islandselector.managers.LevelIntegration;
+import world.bentobox.islandselector.managers.MultiDimensionIslandCreator;
 import world.bentobox.islandselector.managers.RelocationManager;
 import world.bentobox.islandselector.managers.SlotManager;
 import world.bentobox.islandselector.managers.SlotSwitchManager;
@@ -44,6 +46,8 @@ public class IslandSelector extends Addon {
     private AutoBackupManager autoBackupManager;
     private RelocationManager relocationManager;
     private IslandRemovalManager islandRemovalManager;
+    private DimensionManager dimensionManager;
+    private MultiDimensionIslandCreator multiDimensionIslandCreator;
     private ChallengesIntegration challengesIntegration;
     private LevelIntegration levelIntegration;
     private BlueprintChallengesManager blueprintChallengesManager;
@@ -72,6 +76,15 @@ public class IslandSelector extends Addon {
             logError("Failed to load config.yml - using defaults");
         }
 
+        // Initialize default dimension configs if not present
+        boolean dimensionsWereEmpty = settings.getDimensionConfigs().isEmpty();
+        settings.initializeDefaultDimensions();
+        if (dimensionsWereEmpty) {
+            // Save the config so the default dimensions are written to file
+            new Config<>(this, Settings.class).saveConfigObject(settings);
+            log("Initialized default dimension configurations in config.yml");
+        }
+
         log("IslandSelector loading...");
     }
 
@@ -92,6 +105,13 @@ public class IslandSelector extends Addon {
 
         // Initialize Nova integration for custom block support
         novaIntegration = new NovaIntegration(this);
+
+        // Initialize dimension manager (before other managers that may use it)
+        dimensionManager = new DimensionManager(this);
+        dimensionManager.initialize();
+
+        // Initialize multi-dimension island creator
+        multiDimensionIslandCreator = new MultiDimensionIslandCreator(this);
 
         // Initialize managers
         gridManager = new GridManager(this);
@@ -222,6 +242,15 @@ public class IslandSelector extends Addon {
             settings = new Settings();
             logError("Failed to reload config.yml");
         }
+
+        // Initialize default dimension configs if not present
+        settings.initializeDefaultDimensions();
+
+        // Reload dimension manager
+        if (dimensionManager != null) {
+            dimensionManager.reload();
+        }
+
         log("Configuration reloaded.");
     }
 
@@ -403,6 +432,20 @@ public class IslandSelector extends Addon {
      */
     public IslandRemovalManager getIslandRemovalManager() {
         return islandRemovalManager;
+    }
+
+    /**
+     * Get the dimension manager for multi-dimension support
+     */
+    public DimensionManager getDimensionManager() {
+        return dimensionManager;
+    }
+
+    /**
+     * Get the multi-dimension island creator
+     */
+    public MultiDimensionIslandCreator getMultiDimensionIslandCreator() {
+        return multiDimensionIslandCreator;
     }
 
     /**

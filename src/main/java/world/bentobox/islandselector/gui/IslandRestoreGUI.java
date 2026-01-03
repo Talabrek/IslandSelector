@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -27,6 +28,9 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.profile.PlayerProfile;
+import org.bukkit.profile.PlayerTextures;
 
 import world.bentobox.bentobox.api.events.island.IslandEvent;
 import world.bentobox.bentobox.api.user.User;
@@ -43,16 +47,14 @@ import world.bentobox.islandselector.models.GridLocation;
 import world.bentobox.islandselector.utils.GridCoordinate;
 
 import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 /**
  * GUI for homeless players to select a location to restore their saved island.
- *
- * Similar to IslandClaimGUI but:
- * - Shows a message explaining they're restoring their island
- * - After selecting a location, pastes their saved schematic instead of using a blueprint
+ * Uses the same styling as IslandClaimGUI for consistency.
  */
 public class IslandRestoreGUI implements InventoryHolder, Listener {
 
@@ -63,13 +65,21 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
     private static final int GRID_COLS = 7;
     private static final int GRID_ROWS = 4;
 
+    // Navigation arrow positions
     private static final int[] ARROW_UP_SLOTS = {0, 1, 7, 8};
     private static final int[] ARROW_DOWN_SLOTS = {45, 46, 52, 53};
     private static final int[] ARROW_LEFT_SLOTS = {9, 18, 27, 36};
     private static final int[] ARROW_RIGHT_SLOTS = {17, 26, 35, 44};
 
+    // Control slots
     private static final int TITLE_SLOT = 4;
     private static final int CANCEL_SLOT = 49;
+
+    // Arrow head textures (same as IslandClaimGUI)
+    private static final String ARROW_UP_URL = "http://textures.minecraft.net/texture/3040fe836a6c2fbd2c7a9c8ec6be5174fddf1ac20f55e366156fa5f712e10";
+    private static final String ARROW_DOWN_URL = "http://textures.minecraft.net/texture/7437346d8bda78d525d19f540a95e4e79daeda795cbc5a13256236312cf";
+    private static final String ARROW_LEFT_URL = "http://textures.minecraft.net/texture/bd69e06e5dadfd84e5f3d1c21063f2553b2fa945ee1d4d7152fdc5425bc12a9";
+    private static final String ARROW_RIGHT_URL = "http://textures.minecraft.net/texture/19bf3292e126a105b54eba713aa1b152d541a1d8938829c56364d178ed22bf";
 
     private final IslandSelector addon;
     private final Player player;
@@ -101,142 +111,360 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
     }
 
     public void open() {
-        inventory = Bukkit.createInventory(this, SIZE, "§6§lRestore Island - Select Location");
+        inventory = Bukkit.createInventory(this, SIZE, "Restore Island - Select Location");
         populateInventory();
         Bukkit.getPluginManager().registerEvents(this, addon.getPlugin());
         player.openInventory(inventory);
     }
 
     private void populateInventory() {
-        // Fill with background
-        ItemStack filler = createItem(Material.BLACK_STAINED_GLASS_PANE, " ", null);
-        for (int i = 0; i < SIZE; i++) {
-            inventory.setItem(i, filler);
-        }
-
-        // Title
-        inventory.setItem(TITLE_SLOT, createItem(Material.COMPASS, "§e§lSelect New Location",
-            List.of(
-                "§7Choose where to place your",
-                "§7restored island.",
-                "",
-                "§fRestoring: §e" + slotData.getSlotName(),
-                "",
-                "§aGreen = Available"
-            )));
-
-        // Navigation arrows
-        populateArrows();
-
-        // Grid
+        inventory.clear();
+        populateNavigationArrows();
         populateGrid();
-
-        // Cancel button
-        inventory.setItem(CANCEL_SLOT, createItem(Material.BARRIER, "§c§lCancel",
-            List.of("§7Close this menu")));
+        populateControls();
+        fillEmptySlots();
     }
 
-    private void populateArrows() {
+    private void populateNavigationArrows() {
         boolean canScrollUp = viewportZ > settings.getGridMinZ();
-        boolean canScrollDown = viewportZ + GRID_ROWS <= settings.getGridMaxZ();
+        boolean canScrollDown = viewportZ + GRID_ROWS - 1 < settings.getGridMaxZ();
         boolean canScrollLeft = viewportX > settings.getGridMinX();
-        boolean canScrollRight = viewportX + GRID_COLS <= settings.getGridMaxX();
+        boolean canScrollRight = viewportX + GRID_COLS - 1 < settings.getGridMaxX();
 
+        // Up arrows
         ItemStack upArrow = canScrollUp ?
-            createItem(Material.ARROW, "§a▲ Scroll Up", List.of("§7Click to scroll up")) :
-            createItem(Material.BARRIER, "§7▲ Top Edge", null);
+            createArrowHead(ARROW_UP_URL, "&eScroll Up (North)", "&7Click: Scroll 1", "&7Shift+Click: Jump 5") :
+            createDisabledArrow("&7Can't scroll further north");
+        for (int slot : ARROW_UP_SLOTS) {
+            inventory.setItem(slot, upArrow);
+        }
 
+        // Down arrows
         ItemStack downArrow = canScrollDown ?
-            createItem(Material.ARROW, "§a▼ Scroll Down", List.of("§7Click to scroll down")) :
-            createItem(Material.BARRIER, "§7▼ Bottom Edge", null);
+            createArrowHead(ARROW_DOWN_URL, "&eScroll Down (South)", "&7Click: Scroll 1", "&7Shift+Click: Jump 5") :
+            createDisabledArrow("&7Can't scroll further south");
+        for (int slot : ARROW_DOWN_SLOTS) {
+            inventory.setItem(slot, downArrow);
+        }
 
+        // Left arrows
         ItemStack leftArrow = canScrollLeft ?
-            createItem(Material.ARROW, "§a◄ Scroll Left", List.of("§7Click to scroll left")) :
-            createItem(Material.BARRIER, "§7◄ Left Edge", null);
+            createArrowHead(ARROW_LEFT_URL, "&eScroll Left (West)", "&7Click: Scroll 1", "&7Shift+Click: Jump 5") :
+            createDisabledArrow("&7Can't scroll further west");
+        for (int slot : ARROW_LEFT_SLOTS) {
+            inventory.setItem(slot, leftArrow);
+        }
 
+        // Right arrows
         ItemStack rightArrow = canScrollRight ?
-            createItem(Material.ARROW, "§a► Scroll Right", List.of("§7Click to scroll right")) :
-            createItem(Material.BARRIER, "§7► Right Edge", null);
+            createArrowHead(ARROW_RIGHT_URL, "&eScroll Right (East)", "&7Click: Scroll 1", "&7Shift+Click: Jump 5") :
+            createDisabledArrow("&7Can't scroll further east");
+        for (int slot : ARROW_RIGHT_SLOTS) {
+            inventory.setItem(slot, rightArrow);
+        }
+    }
 
-        for (int slot : ARROW_UP_SLOTS) inventory.setItem(slot, upArrow);
-        for (int slot : ARROW_DOWN_SLOTS) inventory.setItem(slot, downArrow);
-        for (int slot : ARROW_LEFT_SLOTS) inventory.setItem(slot, leftArrow);
-        for (int slot : ARROW_RIGHT_SLOTS) inventory.setItem(slot, rightArrow);
+    private ItemStack createArrowHead(String textureUrl, String name, String... loreLines) {
+        ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+
+        try {
+            PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
+            PlayerTextures textures = profile.getTextures();
+            textures.setSkin(new URL(textureUrl));
+            profile.setTextures(textures);
+            meta.setOwnerProfile(profile);
+        } catch (Exception e) {
+            // Fallback - just use a regular head
+        }
+
+        meta.setDisplayName(colorize(name));
+        List<String> lore = new ArrayList<>();
+        for (String line : loreLines) {
+            lore.add(colorize(line));
+        }
+        meta.setLore(lore);
+        head.setItemMeta(meta);
+        return head;
+    }
+
+    private ItemStack createDisabledArrow(String tooltip) {
+        ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(colorize(tooltip));
+        item.setItemMeta(meta);
+        return item;
     }
 
     private void populateGrid() {
-        for (int row = 0; row < GRID_ROWS; row++) {
-            for (int col = 0; col < GRID_COLS; col++) {
-                int gridX = viewportX + col;
-                int gridZ = viewportZ + row;
-                GridCoordinate coord = new GridCoordinate(gridX, gridZ);
+        for (int gridRow = 0; gridRow < GRID_ROWS; gridRow++) {
+            for (int gridCol = 0; gridCol < GRID_COLS; gridCol++) {
+                int coordX = viewportX + gridCol;
+                int coordZ = viewportZ + gridRow;
+                GridCoordinate coord = new GridCoordinate(coordX, coordZ);
+                int slot = getGridSlot(gridRow, gridCol);
 
-                int invSlot = (row + 1) * 9 + col + 1;
-                ItemStack item = createGridItem(coord);
-                inventory.setItem(invSlot, item);
+                if (slot >= 0 && slot < SIZE) {
+                    ItemStack item = createGridItem(coord);
+                    inventory.setItem(slot, item);
+                }
             }
+        }
+    }
+
+    private int getGridSlot(int gridRow, int gridCol) {
+        switch (gridRow) {
+            case 0: return 10 + gridCol;
+            case 1: return 19 + gridCol;
+            case 2: return 28 + gridCol;
+            case 3: return 37 + gridCol;
+            default: return -1;
         }
     }
 
     private ItemStack createGridItem(GridCoordinate coord) {
         if (!gridManager.isWithinBounds(coord)) {
-            return createItem(Material.BLACK_STAINED_GLASS_PANE, "§8Out of bounds", null);
+            return createLockedItem(coord);
         }
 
         GridLocation.Status status = gridManager.getLocationStatus(coord);
         GridLocation location = gridManager.getGridLocation(coord);
 
-        Material material;
-        String name;
-        List<String> lore = new ArrayList<>();
-
         switch (status) {
             case AVAILABLE:
-                material = Material.GREEN_STAINED_GLASS_PANE;
-                name = "§a§lAvailable";
-                lore.add("§7Coordinate: §f" + coord.toString());
-                lore.add("");
-                lore.add("§e▶ Click to select this location");
-                break;
-
+                return createAvailableItem(coord);
             case OCCUPIED:
-                material = Material.RED_STAINED_GLASS_PANE;
-                name = "§c§lOccupied";
-                lore.add("§7Coordinate: §f" + coord.toString());
-                if (location != null && location.getOwnerName() != null) {
-                    lore.add("§7Owner: §f" + location.getOwnerName());
-                }
-                break;
-
+                return createOccupiedItem(coord, location);
             case RESERVED:
-                material = Material.YELLOW_STAINED_GLASS_PANE;
-                name = "§6§lReserved";
-                lore.add("§7Coordinate: §f" + coord.toString());
-                break;
-
+                return createBlockedItem(coord);
             case LOCKED:
             default:
-                material = Material.GRAY_STAINED_GLASS_PANE;
-                name = "§8§lLocked";
-                lore.add("§7Coordinate: §f" + coord.toString());
-                break;
+                return createLockedItem(coord);
         }
-
-        return createItem(material, name, lore);
     }
 
-    private ItemStack createItem(Material material, String name, List<String> lore) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            if (lore != null) {
-                meta.setLore(lore);
-            }
-            meta.addItemFlags(ItemFlag.values());
-            item.setItemMeta(meta);
+    private Material parseMaterial(String name, Material fallback) {
+        try {
+            return Material.valueOf(name.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return fallback;
         }
+    }
+
+    private String getWorldCoordsString(GridCoordinate coord) {
+        int worldX = gridManager.getWorldX(coord);
+        int worldZ = gridManager.getWorldZ(coord);
+        return "X: " + worldX + ", Z: " + worldZ;
+    }
+
+    private ItemStack createAvailableItem(GridCoordinate coord) {
+        Material mat = parseMaterial(settings.getItemAvailable(), Material.GREEN_STAINED_GLASS_PANE);
+        ItemStack item = new ItemStack(mat);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(colorize("&a" + coord.toString() + " - Available"));
+
+        List<String> lore = new ArrayList<>();
+        lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
+        lore.add("");
+        lore.add(colorize("&e&lClick to select this location!"));
+
+        // Check if this is the currently selected coord
+        if (selectedCoord != null && selectedCoord.equals(coord)) {
+            meta.setDisplayName(colorize("&a&l" + coord.toString() + " - SELECTED"));
+            addGlow(item, meta);
+            lore.add("");
+            lore.add(colorize("&a✓ Selected for restoration"));
+            lore.add(colorize("&eClick again to confirm"));
+        }
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
         return item;
+    }
+
+    private ItemStack createOccupiedItem(GridCoordinate coord, GridLocation location) {
+        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+        SkullMeta meta = (SkullMeta) item.getItemMeta();
+
+        if (location != null && location.getOwnerUUID() != null) {
+            org.bukkit.OfflinePlayer owner = Bukkit.getOfflinePlayer(location.getOwnerUUID());
+            meta.setOwningPlayer(owner);
+        }
+
+        String ownerName = location != null && location.getOwnerName() != null ?
+            location.getOwnerName() : "Unknown";
+        meta.setDisplayName(colorize("&c" + coord.toString() + " - " + ownerName));
+
+        List<String> lore = new ArrayList<>();
+        lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
+        lore.add(colorize("&7Owner: &f" + ownerName));
+        lore.add("");
+        lore.add(colorize("&cThis location is taken"));
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createBlockedItem(GridCoordinate coord) {
+        Material mat = parseMaterial(settings.getItemReservedBlocked(), Material.GRAY_STAINED_GLASS_PANE);
+        ItemStack item = new ItemStack(mat);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(colorize("&7" + coord.toString() + " - Reserved"));
+
+        List<String> lore = new ArrayList<>();
+        lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
+        lore.add("");
+        lore.add(colorize("&cThis location is reserved"));
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createLockedItem(GridCoordinate coord) {
+        Material mat = parseMaterial(settings.getItemLockedArea(), Material.BLACK_STAINED_GLASS_PANE);
+        ItemStack item = new ItemStack(mat);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(colorize("&8" + coord.toString() + " - Locked"));
+
+        List<String> lore = new ArrayList<>();
+        lore.add(colorize("&7Location: &f" + getWorldCoordsString(coord)));
+        lore.add(colorize("&8Outside grid boundaries"));
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private void populateControls() {
+        // Title/info in top center - use NETHER_STAR like IslandClaimGUI
+        ItemStack title = new ItemStack(Material.NETHER_STAR);
+        ItemMeta titleMeta = title.getItemMeta();
+        titleMeta.setDisplayName(colorize("&a&lRestore Island - Select Location"));
+
+        List<String> titleLore = new ArrayList<>();
+        titleLore.add("");
+        titleLore.add(colorize("&7Click on a &agreen &7location"));
+        titleLore.add(colorize("&7to place your restored island!"));
+        titleLore.add("");
+        titleLore.add(colorize("&fRestoring: &e" + slotData.getSlotName()));
+        titleLore.add("");
+        if (selectedCoord != null) {
+            titleLore.add(colorize("&eSelected: &f" + selectedCoord.toString()));
+            titleLore.add(colorize("&aClick again to confirm"));
+        } else {
+            titleLore.add(colorize("&7No location selected yet"));
+        }
+
+        titleMeta.setLore(titleLore);
+        title.setItemMeta(titleMeta);
+        inventory.setItem(TITLE_SLOT, title);
+
+        // Cancel button at bottom
+        ItemStack cancel = new ItemStack(Material.BARRIER);
+        ItemMeta cancelMeta = cancel.getItemMeta();
+        cancelMeta.setDisplayName(colorize("&c&lCancel"));
+
+        List<String> cancelLore = new ArrayList<>();
+        cancelLore.add(colorize("&7Click to cancel restoration"));
+        cancelMeta.setLore(cancelLore);
+        cancel.setItemMeta(cancelMeta);
+        inventory.setItem(CANCEL_SLOT, cancel);
+    }
+
+    private void fillEmptySlots() {
+        Material mat = parseMaterial(settings.getItemFiller(), Material.BLACK_STAINED_GLASS_PANE);
+        ItemStack filler = new ItemStack(mat);
+        ItemMeta meta = filler.getItemMeta();
+        meta.setDisplayName(" ");
+        filler.setItemMeta(meta);
+
+        for (int i = 0; i < SIZE; i++) {
+            if (inventory.getItem(i) == null) {
+                inventory.setItem(i, filler);
+            }
+        }
+    }
+
+    private void addGlow(ItemStack item, ItemMeta meta) {
+        Enchantment glow = org.bukkit.Registry.ENCHANTMENT.get(org.bukkit.NamespacedKey.minecraft("unbreaking"));
+        if (glow != null) {
+            meta.addEnchant(glow, 1, true);
+        }
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+    }
+
+    private String colorize(String text) {
+        return text.replace("&", "\u00A7");
+    }
+
+    // Navigation methods with shift support
+    public void scrollUp(boolean shift) {
+        int amount = shift ? settings.getScrollAmountShift() : settings.getScrollAmount();
+        viewportZ = Math.max(settings.getGridMinZ(), viewportZ - amount);
+        refresh();
+    }
+
+    public void scrollDown(boolean shift) {
+        int amount = shift ? settings.getScrollAmountShift() : settings.getScrollAmount();
+        int maxZ = settings.getGridMaxZ() - GRID_ROWS + 1;
+        viewportZ = Math.min(maxZ, viewportZ + amount);
+        refresh();
+    }
+
+    public void scrollLeft(boolean shift) {
+        int amount = shift ? settings.getScrollAmountShift() : settings.getScrollAmount();
+        viewportX = Math.max(settings.getGridMinX(), viewportX - amount);
+        refresh();
+    }
+
+    public void scrollRight(boolean shift) {
+        int amount = shift ? settings.getScrollAmountShift() : settings.getScrollAmount();
+        int maxX = settings.getGridMaxX() - GRID_COLS + 1;
+        viewportX = Math.min(maxX, viewportX + amount);
+        refresh();
+    }
+
+    private void refresh() {
+        populateInventory();
+        player.updateInventory();
+    }
+
+    // Slot checking methods
+    private boolean isScrollUpSlot(int slot) {
+        for (int s : ARROW_UP_SLOTS) if (s == slot) return true;
+        return false;
+    }
+
+    private boolean isScrollDownSlot(int slot) {
+        for (int s : ARROW_DOWN_SLOTS) if (s == slot) return true;
+        return false;
+    }
+
+    private boolean isScrollLeftSlot(int slot) {
+        for (int s : ARROW_LEFT_SLOTS) if (s == slot) return true;
+        return false;
+    }
+
+    private boolean isScrollRightSlot(int slot) {
+        for (int s : ARROW_RIGHT_SLOTS) if (s == slot) return true;
+        return false;
+    }
+
+    private GridCoordinate getCoordinateForSlot(int slot) {
+        int gridRow = -1;
+        int gridCol = -1;
+
+        if (slot >= 10 && slot <= 16) { gridRow = 0; gridCol = slot - 10; }
+        else if (slot >= 19 && slot <= 25) { gridRow = 1; gridCol = slot - 19; }
+        else if (slot >= 28 && slot <= 34) { gridRow = 2; gridCol = slot - 28; }
+        else if (slot >= 37 && slot <= 43) { gridRow = 3; gridCol = slot - 37; }
+
+        if (gridRow >= 0 && gridCol >= 0) {
+            return new GridCoordinate(viewportX + gridCol, viewportZ + gridRow);
+        }
+        return null;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -251,69 +479,27 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
         int slot = event.getRawSlot();
         if (slot < 0 || slot >= SIZE) return;
 
-        // Handle navigation
-        if (containsSlot(ARROW_UP_SLOTS, slot)) {
-            scroll(0, -1);
-            return;
-        }
-        if (containsSlot(ARROW_DOWN_SLOTS, slot)) {
-            scroll(0, 1);
-            return;
-        }
-        if (containsSlot(ARROW_LEFT_SLOTS, slot)) {
-            scroll(-1, 0);
-            return;
-        }
-        if (containsSlot(ARROW_RIGHT_SLOTS, slot)) {
-            scroll(1, 0);
-            return;
-        }
+        boolean shift = event.isShiftClick();
+
+        // Navigation
+        if (isScrollUpSlot(slot)) { scrollUp(shift); return; }
+        if (isScrollDownSlot(slot)) { scrollDown(shift); return; }
+        if (isScrollLeftSlot(slot)) { scrollLeft(shift); return; }
+        if (isScrollRightSlot(slot)) { scrollRight(shift); return; }
 
         // Handle cancel
         if (slot == CANCEL_SLOT) {
             player.closeInventory();
-            player.sendMessage("§7Island restoration cancelled.");
+            player.sendMessage(colorize("&cIsland restoration cancelled."));
             addon.getSlotManager().clearPendingSlotRestoration(player.getUniqueId());
             return;
         }
 
         // Handle grid click
-        GridCoordinate coord = getCoordFromSlot(slot);
+        GridCoordinate coord = getCoordinateForSlot(slot);
         if (coord != null) {
             handleGridClick(coord);
         }
-    }
-
-    private void scroll(int dx, int dz) {
-        int newX = viewportX + dx;
-        int newZ = viewportZ + dz;
-
-        if (newX >= settings.getGridMinX() && newX + GRID_COLS - 1 <= settings.getGridMaxX()) {
-            viewportX = newX;
-        }
-        if (newZ >= settings.getGridMinZ() && newZ + GRID_ROWS - 1 <= settings.getGridMaxZ()) {
-            viewportZ = newZ;
-        }
-
-        populateInventory();
-    }
-
-    private GridCoordinate getCoordFromSlot(int slot) {
-        int row = slot / 9 - 1;
-        int col = slot % 9 - 1;
-
-        if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
-            return null;
-        }
-
-        return new GridCoordinate(viewportX + col, viewportZ + row);
-    }
-
-    private boolean containsSlot(int[] slots, int slot) {
-        for (int s : slots) {
-            if (s == slot) return true;
-        }
-        return false;
     }
 
     private void handleGridClick(GridCoordinate coord) {
@@ -323,18 +509,31 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
 
         GridLocation.Status status = gridManager.getLocationStatus(coord);
         if (status != GridLocation.Status.AVAILABLE) {
-            player.sendMessage("§cThis location is not available.");
+            player.sendMessage(colorize("&cThis location is not available."));
             return;
         }
 
-        // Location is available - confirm and restore
-        confirmRestoration(coord);
+        // Double-click to confirm (like IslandClaimGUI)
+        if (selectedCoord != null && selectedCoord.equals(coord)) {
+            // Second click - confirm restoration
+            confirmRestoration(coord);
+        } else {
+            // First click - select
+            selectedCoord = coord;
+            player.sendMessage(colorize("&aSelected location " + coord.toString() + ". Click again to confirm!"));
+            refresh();
+        }
     }
 
     private void confirmRestoration(GridCoordinate coord) {
         player.closeInventory();
-        player.sendMessage("§a§lRestoring your island to " + coord.toString() + "...");
-        player.sendMessage("§7Please wait while your island is being placed.");
+        player.sendMessage(colorize("&a&lRestoring your island to " + coord.toString() + "..."));
+        player.sendMessage(colorize("&7Please wait while your island is being placed."));
+
+        // IMPORTANT: Teleport player to spawn FIRST to prevent BentoBox's teleport from conflicting
+        Location spawn = Bukkit.getWorlds().get(0).getSpawnLocation();
+        player.teleport(spawn);
+        player.sendMessage(colorize("&7Preparing your island..."));
 
         // Perform restoration async
         Bukkit.getScheduler().runTaskAsynchronously(addon.getPlugin(), () -> {
@@ -344,7 +543,7 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                 addon.logError("Failed to restore island: " + e.getMessage());
                 e.printStackTrace();
                 Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                    player.sendMessage("§cFailed to restore your island. Please contact an administrator.");
+                    player.sendMessage(colorize("&cFailed to restore your island. Please contact an administrator."));
                 });
             }
         });
@@ -375,8 +574,7 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
 
                 addon.log("Starting island creation for restoration at " + coord + " for player " + playerUUID);
 
-                // Build island with a minimal blueprint (we'll paste our own data)
-                // NewIsland.builder().build() is ASYNC - we need to wait for completion
+                // Build island with a minimal blueprint - noPaste prevents BentoBox from pasting AND teleporting
                 NewIsland.builder()
                     .player(user)
                     .addon(addon.getBSkyBlockAddon())
@@ -386,30 +584,27 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                     .build();
 
                 // Poll for island creation with increasing delays
-                // BentoBox's NewIsland.build() is async, so we need to wait for it
                 pollForIslandCreation(playerUUID, bskyblockWorld, coord, schematicFile, 0);
 
             } catch (Exception e) {
                 addon.logError("Failed to create island for restoration: " + e.getMessage());
                 e.printStackTrace();
-                player.sendMessage("§cFailed to create island. Please try again.");
+                player.sendMessage(colorize("&cFailed to create island. Please try again."));
             }
         });
     }
 
     /**
      * Poll for island creation with increasing delays.
-     * BentoBox's NewIsland.build() is async and may take several ticks to complete.
      */
     private void pollForIslandCreation(UUID playerUUID, World bskyblockWorld, GridCoordinate coord,
                                         File schematicFile, int attempt) {
-        // Maximum attempts: 10 (total wait: ~10 seconds)
         int maxAttempts = 10;
-        int delayTicks = 20; // 1 second between attempts
+        int delayTicks = 20;
 
         if (attempt >= maxAttempts) {
             addon.logError("Island creation timed out after " + maxAttempts + " attempts for player " + playerUUID);
-            player.sendMessage("§cIsland creation timed out. Please try again or contact an administrator.");
+            player.sendMessage(colorize("&cIsland creation timed out. Please try again or contact an administrator."));
             return;
         }
 
@@ -418,7 +613,6 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
 
             if (island == null) {
                 addon.log("Island not yet created, attempt " + (attempt + 1) + "/" + maxAttempts);
-                // Retry
                 pollForIslandCreation(playerUUID, bskyblockWorld, coord, schematicFile, attempt + 1);
                 return;
             }
@@ -430,7 +624,7 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                 try {
                     pasteSchematic(schematicFile, island.getCenter());
 
-                    // Update slot data on main thread
+                    // Update slot data and teleport on main thread
                     Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                         finishRestoration(playerUUID, island, coord);
                     });
@@ -439,7 +633,7 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                     addon.logError("Failed to paste schematic: " + e.getMessage());
                     e.printStackTrace();
                     Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                        player.sendMessage("§cFailed to paste your island data.");
+                        player.sendMessage(colorize("&cFailed to paste your island data."));
                     });
                 }
             });
@@ -461,19 +655,21 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
             addon.getSlotManager().restoreSlot(playerUUID, slotData.getSlotNumber(), islandUUID, coord.toString());
             gridManager.occupyLocation(coord, playerUUID, player.getName(), islandUUID);
 
+            // IMPORTANT: Clear the pending restoration state so future /island commands work correctly
+            addon.getSlotManager().clearPendingSlotRestoration(playerUUID);
+
             // Get teleport location
             Location spawn = island.getSpawnPoint(World.Environment.NORMAL);
             if (spawn == null) spawn = island.getCenter();
             Location finalSpawn = spawn.clone();
 
-            // Force load chunks around the island center to ensure blocks are rendered
+            // Force load chunks around the island center
             Location center = island.getCenter();
             if (center != null && center.getWorld() != null) {
                 World world = center.getWorld();
                 int chunkX = center.getBlockX() >> 4;
                 int chunkZ = center.getBlockZ() >> 4;
 
-                // Load chunks in a 3x3 area
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
                         world.getChunkAt(chunkX + dx, chunkZ + dz).load(true);
@@ -481,28 +677,32 @@ public class IslandRestoreGUI implements InventoryHolder, Listener {
                 }
             }
 
-            // Wait longer (3 seconds) for chunks to fully load and FAWE to finish
-            player.sendMessage("§7Preparing island... please wait.");
+            addon.log("Restored slot " + slotData.getSlotNumber() + " for " + playerUUID + " at " + coord);
+
+            // Wait for chunks to load and FAWE to finish pasting, then teleport
+            player.sendMessage(colorize("&7Finalizing island... teleporting in 3 seconds."));
             Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
                 // Use BentoBox SafeSpotTeleport for safe async teleportation
                 new SafeSpotTeleport.Builder(addon.getPlugin())
                     .entity(player)
                     .location(finalSpawn)
                     .thenRun(() -> {
-                        player.sendMessage("§a§lIsland Restored!");
-                        player.sendMessage("§7Your island has been placed at " + coord.toString());
+                        player.sendMessage(colorize("&a&lIsland Restored!"));
+                        player.sendMessage(colorize("&7Your island has been placed at " + coord.toString()));
                     })
                     .ifFail(() -> {
-                        player.sendMessage("§eIsland restored but couldn't find safe spot - teleporting to spawn.");
-                        player.sendMessage("§7Your island has been placed at " + coord.toString());
+                        // Fallback - teleport directly to center
+                        player.teleport(island.getCenter().add(0.5, 1, 0.5));
+                        player.sendMessage(colorize("&a&lIsland Restored!"));
+                        player.sendMessage(colorize("&7Your island has been placed at " + coord.toString()));
                     })
                     .buildFuture();
-            }, 60L); // 3 seconds
+            }, 60L); // 3 seconds delay
 
         } catch (Exception e) {
             addon.logError("Failed to finish restoration: " + e.getMessage());
             e.printStackTrace();
-            player.sendMessage("§cFailed to complete restoration.");
+            player.sendMessage(colorize("&cFailed to complete restoration."));
         }
     }
 
