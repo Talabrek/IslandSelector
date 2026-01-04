@@ -111,6 +111,13 @@ public class IslandCreateListener implements Listener {
             return;
         }
 
+        // Check if this is part of a multi-dimension creation (addon-initiated)
+        MultiDimensionIslandCreator multiDimCreator = addon.getMultiDimensionIslandCreator();
+        if (multiDimCreator != null && multiDimCreator.hasPendingCreation(playerUUID)) {
+            addon.log("Allowing IslandPreCreateEvent for " + player.getName() + " - part of multi-dimension creation");
+            return;
+        }
+
         // Check if player already has an island at a grid location (this is a reset, not a new creation)
         // This handles /island restart - player should keep the same location
         String existingGridCoord = slotManager.getPlayerGridCoordinate(playerUUID);
@@ -590,19 +597,26 @@ public class IslandCreateListener implements Listener {
         addon.log("Player " + player.getName() + " confirmed claim at " + coord +
                  " with blueprint " + blueprintBundleKey);
 
-        // Check if multi-dimension mode is enabled
+        // Check if multi-dimension mode is enabled AND has custom dimensions
+        // If only BSkyBlock-native dimensions (overworld/nether/end), use single-dimension flow
+        // because BSkyBlock handles nether/end automatically via blueprint bundles
         DimensionManager dimManager = addon.getDimensionManager();
-        if (dimManager != null && dimManager.isEnabled()) {
-            // Use multi-dimension island creator
-            addon.log("Using multi-dimension island creation");
-            addon.getMultiDimensionIslandCreator().createIslandsForAllDimensions(
+        MultiDimensionIslandCreator multiDimCreator = addon.getMultiDimensionIslandCreator();
+
+        if (dimManager != null && dimManager.isEnabled() &&
+                multiDimCreator != null && multiDimCreator.hasCustomDimensions()) {
+            // Use multi-dimension island creator for custom dimensions
+            addon.log("Using multi-dimension island creation (has custom dimensions)");
+            multiDimCreator.createIslandsForAllDimensions(
                     player, coord, blueprintBundleKey, (createdIslands) -> {
                         addon.log("Multi-dimension island creation completed: " + createdIslands.size() + " islands");
                     });
             return;
         }
 
-        // Single dimension mode - store the pending claim
+        // Single dimension mode OR only BSkyBlock-native dimensions
+        // BSkyBlock handles overworld/nether/end automatically via blueprint bundle
+        addon.log("Using single-dimension flow (BSkyBlock handles nether/end via blueprint bundle)");
         pendingClaims.put(playerUUID, coord);
         confirmedBlueprints.put(playerUUID, blueprintBundleKey);
 
@@ -640,19 +654,26 @@ public class IslandCreateListener implements Listener {
 
         addon.log("Player " + player.getName() + " confirmed claim at " + coord);
 
-        // Check if multi-dimension mode is enabled
+        // Check if multi-dimension mode is enabled AND has custom dimensions
+        // If only BSkyBlock-native dimensions (overworld/nether/end), use single-dimension flow
+        // because BSkyBlock handles nether/end automatically via blueprint bundles
         DimensionManager dimManager = addon.getDimensionManager();
-        if (dimManager != null && dimManager.isEnabled()) {
-            // Use multi-dimension island creator
-            addon.log("Using multi-dimension island creation");
-            addon.getMultiDimensionIslandCreator().createIslandsForAllDimensions(
+        MultiDimensionIslandCreator multiDimCreator = addon.getMultiDimensionIslandCreator();
+
+        if (dimManager != null && dimManager.isEnabled() &&
+                multiDimCreator != null && multiDimCreator.hasCustomDimensions()) {
+            // Use multi-dimension island creator for custom dimensions
+            addon.log("Using multi-dimension island creation (has custom dimensions)");
+            multiDimCreator.createIslandsForAllDimensions(
                     player, coord, null, (createdIslands) -> {
                         addon.log("Multi-dimension island creation completed: " + createdIslands.size() + " islands");
                     });
             return;
         }
 
-        // Single dimension mode - store the pending claim
+        // Single dimension mode OR only BSkyBlock-native dimensions
+        // BSkyBlock handles overworld/nether/end automatically via blueprint bundle
+        addon.log("Using single-dimension flow (BSkyBlock handles nether/end via blueprint bundle)");
         pendingClaims.put(playerUUID, coord);
 
         // Create island at the selected grid location using NewIsland.builder()

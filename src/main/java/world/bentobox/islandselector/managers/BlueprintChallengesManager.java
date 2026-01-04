@@ -132,7 +132,8 @@ public class BlueprintChallengesManager {
 
         // Also scan and remove any lingering blueprint permissions
         // (in case they were granted by other means)
-        Set<PermissionAttachmentInfo> perms = player.getEffectivePermissions();
+        // Copy to avoid ConcurrentModificationException when modifying permissions during iteration
+        Set<PermissionAttachmentInfo> perms = new java.util.HashSet<>(player.getEffectivePermissions());
         for (PermissionAttachmentInfo info : perms) {
             if (info.getPermission().startsWith(PERMISSION_PREFIX) && info.getAttachment() != null) {
                 try {

@@ -218,10 +218,10 @@ public class Settings implements ConfigObject {
 
     @ConfigComment("")
     @ConfigComment("Dimension configurations.")
-    @ConfigComment("Each dimension must be configured with its world name and settings.")
-    @ConfigComment("The dimension key (e.g., 'overworld', 'nether') is used as an identifier.")
+    @ConfigComment("Each dimension is stored as a serialized string with format:")
+    @ConfigComment("world-name;enabled;default-blueprint;create-on-claim;display-name;icon-material;generator-type;environment;create-if-missing;world-seed")
     @ConfigEntry(path = "dimensions.worlds")
-    private Map<String, DimensionConfig> dimensionConfigs = new HashMap<>();
+    private Map<String, String> dimensionConfigsRaw = new HashMap<>();
 
     @ConfigComment("")
     @ConfigComment("Primary dimension key - the main world dimension.")
@@ -293,7 +293,8 @@ public class Settings implements ConfigObject {
     }
 
     public void setDefaultSlots(int defaultSlots) {
-        this.defaultSlots = defaultSlots;
+        // Ensure at least 1 default slot
+        this.defaultSlots = Math.max(1, defaultSlots);
     }
 
     public int getMaxSlots() {
@@ -406,7 +407,8 @@ public class Settings implements ConfigObject {
     }
 
     public void setScrollAmount(int scrollAmount) {
-        this.scrollAmount = scrollAmount;
+        // Ensure at least 1 for scroll amount
+        this.scrollAmount = Math.max(1, scrollAmount);
     }
 
     public int getScrollAmountShift() {
@@ -414,7 +416,8 @@ public class Settings implements ConfigObject {
     }
 
     public void setScrollAmountShift(int scrollAmountShift) {
-        this.scrollAmountShift = scrollAmountShift;
+        // Ensure at least 1 for shift scroll amount
+        this.scrollAmountShift = Math.max(1, scrollAmountShift);
     }
 
     public boolean isActiveSlotGlow() {
@@ -615,12 +618,103 @@ public class Settings implements ConfigObject {
         this.multiDimensionEnabled = multiDimensionEnabled;
     }
 
-    public Map<String, DimensionConfig> getDimensionConfigs() {
-        return dimensionConfigs;
+    /**
+     * Serialize a DimensionConfig to a semicolon-delimited string.
+     * Format: world-name;enabled;default-blueprint;create-on-claim;display-name;icon-material;generator-type;environment;create-if-missing;world-seed
+     */
+    private String serializeDimensionConfig(DimensionConfig config) {
+        return String.join(";",
+            nullSafe(config.getWorldName()),
+            String.valueOf(config.isEnabled()),
+            nullSafe(config.getDefaultBlueprint()),
+            String.valueOf(config.isCreateOnClaim()),
+            nullSafe(config.getDisplayName()),
+            nullSafe(config.getIconMaterial()),
+            nullSafe(config.getGeneratorType()),
+            nullSafe(config.getEnvironment()),
+            String.valueOf(config.isCreateIfMissing()),
+            config.getWorldSeed() != null ? String.valueOf(config.getWorldSeed()) : ""
+        );
     }
 
+    private String nullSafe(String value) {
+        return value != null ? value : "";
+    }
+
+    /**
+     * Deserialize a semicolon-delimited string to a DimensionConfig.
+     */
+    private DimensionConfig deserializeDimensionConfig(String key, String serialized) {
+        if (serialized == null || serialized.isEmpty()) {
+            return null;
+        }
+        String[] parts = serialized.split(";", -1); // -1 to keep trailing empty strings
+        if (parts.length < 9) {
+            return null; // Invalid format
+        }
+        DimensionConfig config = new DimensionConfig();
+        config.setDimensionKey(key);
+        config.setWorldName(parts[0].isEmpty() ? null : parts[0]);
+        config.setEnabled(Boolean.parseBoolean(parts[1]));
+        config.setDefaultBlueprint(parts[2].isEmpty() ? "default" : parts[2]);
+        config.setCreateOnClaim(Boolean.parseBoolean(parts[3]));
+        config.setDisplayName(parts[4].isEmpty() ? null : parts[4]);
+        config.setIconMaterial(parts[5].isEmpty() ? "GRASS_BLOCK" : parts[5]);
+        config.setGeneratorType(parts[6].isEmpty() ? "void" : parts[6]);
+        config.setEnvironment(parts[7].isEmpty() ? "normal" : parts[7]);
+        config.setCreateIfMissing(Boolean.parseBoolean(parts[8]));
+        if (parts.length > 9 && !parts[9].isEmpty()) {
+            try {
+                config.setWorldSeed(Long.parseLong(parts[9]));
+            } catch (NumberFormatException e) {
+                // Leave as null
+            }
+        }
+        return config;
+    }
+
+    /**
+     * Get the raw dimension configuration strings (for BentoBox YAML serialization).
+     * Use getDimensionConfigs() for code that needs DimensionConfig objects.
+     */
+    public Map<String, String> getDimensionConfigsRaw() {
+        return dimensionConfigsRaw;
+    }
+
+    /**
+     * Set the raw dimension configuration strings (for BentoBox YAML deserialization).
+     * Use setDimensionConfigs() for code that has DimensionConfig objects.
+     */
+    public void setDimensionConfigsRaw(Map<String, String> dimensionConfigsRaw) {
+        this.dimensionConfigsRaw = dimensionConfigsRaw;
+    }
+
+    /**
+     * Get dimension configurations converted from serialized strings.
+     */
+    public Map<String, DimensionConfig> getDimensionConfigs() {
+        Map<String, DimensionConfig> result = new HashMap<>();
+        if (dimensionConfigsRaw != null) {
+            for (Map.Entry<String, String> entry : dimensionConfigsRaw.entrySet()) {
+                DimensionConfig config = deserializeDimensionConfig(entry.getKey(), entry.getValue());
+                if (config != null) {
+                    result.put(entry.getKey(), config);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Set dimension configurations, serializing to strings for YAML.
+     */
     public void setDimensionConfigs(Map<String, DimensionConfig> dimensionConfigs) {
-        this.dimensionConfigs = dimensionConfigs;
+        this.dimensionConfigsRaw = new HashMap<>();
+        if (dimensionConfigs != null) {
+            for (Map.Entry<String, DimensionConfig> entry : dimensionConfigs.entrySet()) {
+                this.dimensionConfigsRaw.put(entry.getKey(), serializeDimensionConfig(entry.getValue()));
+            }
+        }
     }
 
     public String getPrimaryDimension() {
@@ -637,7 +731,11 @@ public class Settings implements ConfigObject {
      * @return The dimension config, or null if not found
      */
     public DimensionConfig getDimensionConfig(String dimensionKey) {
-        return dimensionConfigs.get(dimensionKey);
+        if (dimensionConfigsRaw == null || dimensionKey == null) {
+            return null;
+        }
+        String serialized = dimensionConfigsRaw.get(dimensionKey);
+        return deserializeDimensionConfig(dimensionKey, serialized);
     }
 
     /**
@@ -645,10 +743,10 @@ public class Settings implements ConfigObject {
      * @return List of enabled dimension configs
      */
     public List<DimensionConfig> getEnabledDimensions() {
-        if (dimensionConfigs == null || dimensionConfigs.isEmpty()) {
+        if (dimensionConfigsRaw == null || dimensionConfigsRaw.isEmpty()) {
             return new ArrayList<>();
         }
-        return dimensionConfigs.values().stream()
+        return getDimensionConfigs().values().stream()
                 .filter(DimensionConfig::isEnabled)
                 .collect(Collectors.toList());
     }
@@ -667,7 +765,7 @@ public class Settings implements ConfigObject {
      * @return true if the dimension is configured
      */
     public boolean hasDimension(String dimensionKey) {
-        return dimensionConfigs != null && dimensionConfigs.containsKey(dimensionKey);
+        return dimensionConfigsRaw != null && dimensionConfigsRaw.containsKey(dimensionKey);
     }
 
     /**
@@ -705,10 +803,12 @@ public class Settings implements ConfigObject {
      * Called during setup to provide sensible defaults.
      */
     public void initializeDefaultDimensions() {
-        if (dimensionConfigs == null) {
-            dimensionConfigs = new HashMap<>();
+        if (dimensionConfigsRaw == null) {
+            dimensionConfigsRaw = new HashMap<>();
         }
-        if (dimensionConfigs.isEmpty()) {
+        if (dimensionConfigsRaw.isEmpty()) {
+            Map<String, DimensionConfig> defaults = new HashMap<>();
+
             // Add default overworld dimension
             DimensionConfig overworld = new DimensionConfig("overworld", "bskyblock_world");
             overworld.setDisplayName("Overworld");
@@ -717,7 +817,7 @@ public class Settings implements ConfigObject {
             overworld.setGeneratorType("void");
             overworld.setEnvironment("normal");
             overworld.setCreateIfMissing(true);
-            dimensionConfigs.put("overworld", overworld);
+            defaults.put("overworld", overworld);
 
             // Add default nether dimension (disabled by default)
             DimensionConfig nether = new DimensionConfig("nether", "bskyblock_world_nether");
@@ -728,7 +828,7 @@ public class Settings implements ConfigObject {
             nether.setGeneratorType("void");
             nether.setEnvironment("nether");
             nether.setCreateIfMissing(true);
-            dimensionConfigs.put("nether", nether);
+            defaults.put("nether", nether);
 
             // Add default end dimension (disabled by default)
             DimensionConfig theEnd = new DimensionConfig("the_end", "bskyblock_world_the_end");
@@ -739,7 +839,10 @@ public class Settings implements ConfigObject {
             theEnd.setGeneratorType("void");
             theEnd.setEnvironment("the_end");
             theEnd.setCreateIfMissing(true);
-            dimensionConfigs.put("the_end", theEnd);
+            defaults.put("the_end", theEnd);
+
+            // Use setter to convert to raw maps
+            setDimensionConfigs(defaults);
         }
     }
 }

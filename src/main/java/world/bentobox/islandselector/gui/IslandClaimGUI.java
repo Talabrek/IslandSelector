@@ -383,25 +383,24 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
         // Title/info in top center
         ItemStack title = new ItemStack(Material.NETHER_STAR);
         ItemMeta titleMeta = title.getItemMeta();
-        if (titleMeta == null) {
-            return;
-        }
-        titleMeta.setDisplayName(colorize("&a&lSelect Your Island Location"));
+        if (titleMeta != null) {
+            titleMeta.setDisplayName(colorize("&a&lSelect Your Island Location"));
 
-        List<String> titleLore = new ArrayList<>();
-        titleLore.add("");
-        titleLore.add(colorize("&7Click on a &agreen &7location"));
-        titleLore.add(colorize("&7to place your new island there!"));
-        titleLore.add("");
-        if (selectedCoord != null) {
-            titleLore.add(colorize("&eSelected: &f" + selectedCoord.toString()));
-            titleLore.add(colorize("&aClick again to confirm"));
-        } else {
-            titleLore.add(colorize("&7No location selected yet"));
-        }
+            List<String> titleLore = new ArrayList<>();
+            titleLore.add("");
+            titleLore.add(colorize("&7Click on a &agreen &7location"));
+            titleLore.add(colorize("&7to place your new island there!"));
+            titleLore.add("");
+            if (selectedCoord != null) {
+                titleLore.add(colorize("&eSelected: &f" + selectedCoord.toString()));
+                titleLore.add(colorize("&aClick again to confirm"));
+            } else {
+                titleLore.add(colorize("&7No location selected yet"));
+            }
 
-        titleMeta.setLore(titleLore);
-        title.setItemMeta(titleMeta);
+            titleMeta.setLore(titleLore);
+            title.setItemMeta(titleMeta);
+        }
         inventory.setItem(TITLE_SLOT, title);
 
         // Cancel button at bottom
@@ -591,6 +590,11 @@ public class IslandClaimGUI implements InventoryHolder, Listener {
     }
 
     private void handlePurchasableClick(GridCoordinate coord, GridLocation location) {
+        // Safety check for null location
+        if (location == null) {
+            player.sendMessage(colorize("&cError: Location data unavailable."));
+            return;
+        }
         if (selectedCoord != null && selectedCoord.equals(coord)) {
             // Second click - confirm purchase
             player.closeInventory();

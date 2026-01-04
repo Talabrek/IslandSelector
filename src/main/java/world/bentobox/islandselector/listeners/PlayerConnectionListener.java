@@ -36,8 +36,11 @@ public class PlayerConnectionListener implements Listener {
         // Apply blueprint permissions for the active slot
         String blueprintName = activeSlot.getBlueprintBundle();
         if (blueprintName != null && !blueprintName.isEmpty()) {
-            addon.getBlueprintChallengesManager().updateBlueprintPermissions(player, blueprintName);
-            addon.log("Applied blueprint permissions '" + blueprintName + "' for " + player.getName());
+            var manager = addon.getBlueprintChallengesManager();
+            if (manager != null) {
+                manager.updateBlueprintPermissions(player, blueprintName);
+                addon.log("Applied blueprint permissions '" + blueprintName + "' for " + player.getName());
+            }
         }
     }
 
@@ -46,7 +49,10 @@ public class PlayerConnectionListener implements Listener {
         Player player = event.getPlayer();
 
         // Clean up permission attachments
-        addon.getBlueprintChallengesManager().onPlayerQuit(player);
+        var manager = addon.getBlueprintChallengesManager();
+        if (manager != null) {
+            manager.onPlayerQuit(player);
+        }
 
         // Clean up pending slot operations to prevent memory leaks
         addon.getSlotManager().cleanupPlayer(player.getUniqueId());

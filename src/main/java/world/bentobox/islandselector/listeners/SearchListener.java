@@ -66,10 +66,10 @@ public class SearchListener implements Listener {
 
         String input = event.getMessage().trim();
 
-        // Check for admin price set
-        if (pendingAdminPriceSet.containsKey(playerId)) {
+        // Check for admin price set (atomic remove-then-check pattern)
+        GridCoordinate coord = pendingAdminPriceSet.remove(playerId);
+        if (coord != null) {
             event.setCancelled(true);
-            GridCoordinate coord = pendingAdminPriceSet.remove(playerId);
 
             if (input.equalsIgnoreCase("cancel")) {
                 player.sendMessage("§cPrice setting cancelled.");
@@ -86,49 +86,48 @@ public class SearchListener implements Listener {
             return;
         }
 
-        // Check for admin search
-        if (pendingAdminSearch.containsKey(playerId)) {
+        // Check for admin search (atomic remove-then-check pattern)
+        AdminGridGUI adminGui = pendingAdminSearch.remove(playerId);
+        if (adminGui != null) {
             event.setCancelled(true);
-            AdminGridGUI gui = pendingAdminSearch.remove(playerId);
 
             if (input.equalsIgnoreCase("cancel")) {
                 player.sendMessage("§cSearch cancelled.");
-                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> gui.reopen());
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> adminGui.reopen());
                 return;
             }
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                performAdminSearch(player, input, gui);
+                performAdminSearch(player, input, adminGui);
             });
             return;
         }
 
-        // Check for admin jump
-        if (pendingAdminJump.containsKey(playerId)) {
+        // Check for admin jump (atomic remove-then-check pattern)
+        AdminGridGUI jumpGui = pendingAdminJump.remove(playerId);
+        if (jumpGui != null) {
             event.setCancelled(true);
-            AdminGridGUI gui = pendingAdminJump.remove(playerId);
 
             if (input.equalsIgnoreCase("cancel")) {
                 player.sendMessage("§cJump cancelled.");
-                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> gui.reopen());
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> jumpGui.reopen());
                 return;
             }
 
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                handleAdminJump(player, input, gui);
+                handleAdminJump(player, input, jumpGui);
             });
             return;
         }
 
-        // Check if player has an active search session (regular GUI)
-        if (!activeSessions.containsKey(playerId)) {
+        // Check for active search session (atomic remove-then-check pattern)
+        SearchSession session = activeSessions.remove(playerId);
+        if (session == null) {
             return;
         }
 
         // Cancel the chat event (don't broadcast search input)
         event.setCancelled(true);
-
-        SearchSession session = activeSessions.remove(playerId);
 
         // Handle cancellation
         if (input.equalsIgnoreCase("cancel")) {
@@ -150,6 +149,14 @@ public class SearchListener implements Listener {
         try {
             // Remove any non-numeric characters except decimal point
             String cleanInput = input.replaceAll("[^0-9.]", "");
+
+            // Validate cleaned input is not empty or just a decimal point
+            if (cleanInput.isEmpty() || cleanInput.equals(".")) {
+                player.sendMessage("§cInvalid price format. Please enter a valid number.");
+                new AdminGridGUI(addon, player).open();
+                return;
+            }
+
             double price = Double.parseDouble(cleanInput);
 
             if (price <= 0) {

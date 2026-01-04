@@ -399,15 +399,26 @@ public class MainGridGUI implements InventoryHolder {
         if (isOwnerOnline) {
             item = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
-            if (skullMeta != null && ownerUUID != null) {
-                OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerUUID);
-                skullMeta.setOwningPlayer(owner);
+            if (skullMeta != null) {
+                if (ownerUUID != null) {
+                    OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerUUID);
+                    skullMeta.setOwningPlayer(owner);
+                }
+                meta = skullMeta;
+            } else {
+                // Fallback if skull meta is null
+                item = new ItemStack(Material.ORANGE_STAINED_GLASS_PANE);
+                meta = item.getItemMeta();
             }
-            meta = skullMeta;
         } else {
             // Offline player - use red stained glass
             item = new ItemStack(Material.RED_STAINED_GLASS_PANE);
             meta = item.getItemMeta();
+        }
+
+        // Final null check for meta
+        if (meta == null) {
+            return item;
         }
 
         if (isOwnIsland) {

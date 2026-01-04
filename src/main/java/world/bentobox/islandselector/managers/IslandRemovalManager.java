@@ -97,13 +97,19 @@ public class IslandRemovalManager {
                 return;
             }
             Location spawn = spawnWorld.getSpawnLocation();
+            // Capture UUID to safely re-fetch player in callback
+            final UUID teleportedPlayerUUID = playerUUID;
             new SafeSpotTeleport.Builder(addon.getPlugin())
                 .entity(player)
                 .location(spawn)
                 .thenRun(() -> {
-                    player.sendMessage("§6§l[Admin Notice]");
-                    player.sendMessage("§eYour island has been removed by an administrator.");
-                    player.sendMessage("§7Your island data has been saved. Use §f/island §7to place it at a new location.");
+                    // Re-fetch player - they may have disconnected during teleport
+                    Player currentPlayer = Bukkit.getPlayer(teleportedPlayerUUID);
+                    if (currentPlayer != null && currentPlayer.isOnline()) {
+                        currentPlayer.sendMessage("§6§l[Admin Notice]");
+                        currentPlayer.sendMessage("§eYour island has been removed by an administrator.");
+                        currentPlayer.sendMessage("§7Your island data has been saved. Use §f/island §7to place it at a new location.");
+                    }
                 })
                 .buildFuture();
         }
@@ -239,8 +245,13 @@ public class IslandRemovalManager {
     private boolean saveIslandToSlotSchematic(UUID playerUUID, SlotData slotData, Island island) {
         try {
             Location center = island.getCenter();
+            if (center == null) {
+                addon.logError("Island center is null for player: " + playerUUID);
+                return false;
+            }
             World world = center.getWorld();
             if (world == null) {
+                addon.logError("Island world is null for player: " + playerUUID);
                 return false;
             }
 
@@ -275,8 +286,13 @@ public class IslandRemovalManager {
     private void clearIslandBlocks(Island island) {
         try {
             Location center = island.getCenter();
+            if (center == null) {
+                addon.logWarning("Cannot clear island blocks - center is null");
+                return;
+            }
             World world = center.getWorld();
             if (world == null) {
+                addon.logWarning("Cannot clear island blocks - world is null");
                 return;
             }
 

@@ -82,6 +82,10 @@ public class FindCommand extends CompositeCommand {
 
         // Open grid GUI centered on the target player's island
         Player player = user.getPlayer();
+        if (player == null) {
+            user.sendMessage("commands.islandselector.find.error");
+            return false;
+        }
         MainGridGUI gui = new MainGridGUI(addon, player);
         gui.open();
 

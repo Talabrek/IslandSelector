@@ -73,6 +73,10 @@ public class BackupManager {
 
             // Get island bounds
             Location center = island.getCenter();
+            if (center == null) {
+                addon.logError("Island center is null for slot: " + slotData.getUniqueId());
+                return false;
+            }
             World world = center.getWorld();
             if (world == null) {
                 addon.logError("Island world is null for slot: " + slotData.getUniqueId());
@@ -114,6 +118,11 @@ public class BackupManager {
     private File getBackupFile(UUID playerUUID, int slotNumber) {
         File playerDir = new File(backupDir, playerUUID.toString());
 
+        // Ensure player directory exists
+        if (!playerDir.exists()) {
+            playerDir.mkdirs();
+        }
+
         // Create timestamp for unique filename
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd-HHmmss");
         String timestamp = dateFormat.format(new Date());
@@ -129,6 +138,10 @@ public class BackupManager {
      */
     private File getAutoBackupFile(UUID playerUUID, int slotNumber) {
         File playerDir = new File(backupDir, playerUUID.toString());
+        // Ensure player directory exists
+        if (!playerDir.exists()) {
+            playerDir.mkdirs();
+        }
         String filename = "slot-" + slotNumber + "-auto.schem";
         return new File(playerDir, filename);
     }
@@ -143,6 +156,11 @@ public class BackupManager {
      */
     private File getBackupFile(UUID playerUUID, int slotNumber, String dimensionKey) {
         File playerDir = new File(backupDir, playerUUID.toString());
+
+        // Ensure player directory exists
+        if (!playerDir.exists()) {
+            playerDir.mkdirs();
+        }
 
         // Create timestamp for unique filename
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd-HHmmss");
@@ -162,6 +180,10 @@ public class BackupManager {
      */
     private File getAutoBackupFile(UUID playerUUID, int slotNumber, String dimensionKey) {
         File playerDir = new File(backupDir, playerUUID.toString());
+        // Ensure player directory exists
+        if (!playerDir.exists()) {
+            playerDir.mkdirs();
+        }
         String filename = "slot-" + slotNumber + "-" + dimensionKey + "-auto.schem";
         return new File(playerDir, filename);
     }

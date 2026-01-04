@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Orchestrates island creation across multiple dimensions.
@@ -119,6 +120,28 @@ public class MultiDimensionIslandCreator {
     }
 
     /**
+     * Check if there are any custom (non-BSkyBlock-native) dimensions configured.
+     * Custom dimensions are worlds beyond BSkyBlock's overworld/nether/end that
+     * require manual island creation.
+     *
+     * @return true if there are custom dimensions that need manual island creation
+     */
+    public boolean hasCustomDimensions() {
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager == null || !dimManager.isEnabled()) {
+            return false;
+        }
+
+        List<DimensionConfig> allDimensions = dimManager.getDimensionsForCreation();
+        for (DimensionConfig dim : allDimensions) {
+            if (!isBSkyBlockNativeDimension(dim)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Get the creation context for a player
      */
     public CreationContext getCreationContext(UUID playerUUID) {
@@ -162,8 +185,8 @@ public class MultiDimensionIslandCreator {
         }
 
         // Get dimensions that should be created on claim
-        List<DimensionConfig> dimensions = dimManager.getDimensionsForCreation();
-        if (dimensions.isEmpty()) {
+        List<DimensionConfig> allDimensions = dimManager.getDimensionsForCreation();
+        if (allDimensions.isEmpty()) {
             addon.logWarning("No dimensions configured for creation on claim");
             if (onComplete != null) {
                 onComplete.accept(new HashMap<>());
@@ -171,15 +194,34 @@ public class MultiDimensionIslandCreator {
             return;
         }
 
-        addon.log("Starting multi-dimension island creation for " + player.getName() +
-                " at " + coord + " across " + dimensions.size() + " dimensions");
+        // Filter out BSkyBlock-native dimensions (overworld, nether, end)
+        // BSkyBlock handles these automatically via blueprint bundles
+        List<DimensionConfig> customDimensions = allDimensions.stream()
+                .filter(dim -> !isBSkyBlockNativeDimension(dim))
+                .collect(Collectors.toList());
 
-        // Create the context
-        CreationContext context = new CreationContext(coord, blueprintBundleKey, dimensions, onComplete);
+        addon.log("Multi-dimension check: " + allDimensions.size() + " total dimensions, " +
+                customDimensions.size() + " custom dimensions (non-BSkyBlock)");
+
+        // If no custom dimensions, don't use multi-dimension creator
+        // BSkyBlock will handle nether/end via the blueprint bundle automatically
+        if (customDimensions.isEmpty()) {
+            addon.log("No custom dimensions - BSkyBlock will handle all dimensions via blueprint bundle");
+            if (onComplete != null) {
+                onComplete.accept(new HashMap<>());
+            }
+            return;
+        }
+
+        addon.log("Starting multi-dimension island creation for " + player.getName() +
+                " at " + coord + " across " + customDimensions.size() + " custom dimensions");
+
+        // Create the context with only custom dimensions
+        CreationContext context = new CreationContext(coord, blueprintBundleKey, customDimensions, onComplete);
         context.setReset(isReset);
         pendingCreations.put(playerUUID, context);
 
-        // Start with the first dimension
+        // Start with the first custom dimension
         createNextDimension(player);
     }
 
@@ -215,10 +257,17 @@ public class MultiDimensionIslandCreator {
             return;
         }
 
-        // Determine blueprint - use dimension-specific or fallback to selected
-        String blueprint = nextDim.getDefaultBlueprint();
-        if (blueprint == null || blueprint.isEmpty() || "default".equals(blueprint)) {
-            blueprint = context.getBlueprintBundleKey();
+        // Determine blueprint - use dimension-specific if it exists, otherwise fallback to selected
+        String blueprint = context.getBlueprintBundleKey(); // Default to user-selected blueprint
+        String dimBlueprint = nextDim.getDefaultBlueprint();
+
+        // Only use dimension-specific blueprint if it exists in BSkyBlock
+        if (dimBlueprint != null && !dimBlueprint.isEmpty() && !dimBlueprint.equals("default")) {
+            var blueprintsManager = addon.getPlugin().getBlueprintsManager();
+            var bskyblock = addon.getBSkyBlockAddon();
+            if (bskyblock != null && blueprintsManager.getBlueprintBundles(bskyblock).containsKey(dimBlueprint)) {
+                blueprint = dimBlueprint;
+            }
         }
 
         addon.log("Creating island in dimension " + nextDim.getDimensionKey() +
@@ -400,6 +449,65 @@ public class MultiDimensionIslandCreator {
         if (context != null) {
             addon.log("Cancelled multi-dimension creation for " + playerUUID);
         }
+    }
+
+    /**
+     * Check if a world is one of BSkyBlock's native worlds (overworld, nether, end).
+     * BSkyBlock handles these automatically via blueprint bundles - we should not
+     * manually create separate islands in these worlds.
+     *
+     * @param world The world to check
+     * @return true if this is a BSkyBlock-managed native world
+     */
+    private boolean isBSkyBlockNativeWorld(World world) {
+        if (world == null) {
+            return false;
+        }
+
+        var bskyblock = addon.getBSkyBlockAddon();
+        if (bskyblock == null) {
+            return false;
+        }
+
+        // Check by world object reference
+        World overworld = bskyblock.getOverWorld();
+        World nether = bskyblock.getNetherWorld();
+        World end = bskyblock.getEndWorld();
+
+        if (world.equals(overworld) || world.equals(nether) || world.equals(end)) {
+            return true;
+        }
+
+        // Fallback: Check by world name pattern
+        // getNetherWorld() or getEndWorld() may return null if those dimensions are
+        // disabled in BSkyBlock config, but the world might still exist with the
+        // standard naming convention: bskyblock_world, bskyblock_world_nether, bskyblock_world_the_end
+        if (overworld != null) {
+            String baseName = overworld.getName();
+            String worldName = world.getName();
+            if (worldName.equals(baseName) ||
+                worldName.equals(baseName + "_nether") ||
+                worldName.equals(baseName + "_the_end")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if a dimension config refers to a BSkyBlock native world
+     *
+     * @param dimConfig The dimension config
+     * @return true if this dimension is BSkyBlock-managed
+     */
+    private boolean isBSkyBlockNativeDimension(DimensionConfig dimConfig) {
+        DimensionManager dimManager = addon.getDimensionManager();
+        if (dimManager == null) {
+            return false;
+        }
+        World world = dimManager.getWorld(dimConfig.getDimensionKey());
+        return isBSkyBlockNativeWorld(world);
     }
 
     /**

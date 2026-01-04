@@ -247,33 +247,47 @@ public class RelocationManager {
             0 // No cost for admin relocations
         );
 
+        // Capture admin UUID for safe access in async callbacks
+        final UUID adminUUID = adminPlayer.getUniqueId();
+
         Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
             Bukkit.getPluginManager().callEvent(event);
 
+            // Re-fetch admin player - they may have disconnected
+            Player currentAdmin = Bukkit.getPlayer(adminUUID);
+
             if (event.isCancelled()) {
                 addon.log("Admin IslandRelocateEvent cancelled for " + targetName);
-                if (event.getCancellationReason() != null) {
-                    adminPlayer.sendMessage("§c" + event.getCancellationReason());
-                } else {
-                    adminPlayer.sendMessage("§cIsland relocation cancelled by another plugin.");
+                if (currentAdmin != null && currentAdmin.isOnline()) {
+                    if (event.getCancellationReason() != null) {
+                        currentAdmin.sendMessage("§c" + event.getCancellationReason());
+                    } else {
+                        currentAdmin.sendMessage("§cIsland relocation cancelled by another plugin.");
+                    }
                 }
                 return;
             }
 
-            // Perform relocation asynchronously
-            performAdminRelocationAsync(adminPlayer, targetUUID, targetName, fromCoord, toCoord);
+            // Perform relocation asynchronously (pass UUID instead of player reference)
+            performAdminRelocationAsync(adminUUID, targetUUID, targetName, fromCoord, toCoord);
         });
     }
 
     /**
      * Internal method to perform admin relocation asynchronously
      */
-    private void performAdminRelocationAsync(Player adminPlayer, UUID targetUUID, String targetName,
+    private void performAdminRelocationAsync(UUID adminUUID, UUID targetUUID, String targetName,
                                               GridCoordinate fromCoord, GridCoordinate toCoord) {
         // If target player is online, teleport them to safety first
         Player targetPlayer = Bukkit.getPlayer(targetUUID);
         if (targetPlayer != null && targetPlayer.isOnline()) {
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                // Re-fetch in case they logged off
+                Player currentTarget = Bukkit.getPlayer(targetUUID);
+                if (currentTarget == null || !currentTarget.isOnline()) {
+                    return;
+                }
+
                 World spawnWorld = Bukkit.getWorld("world");
                 if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
                     spawnWorld = Bukkit.getWorlds().get(0);
@@ -285,44 +299,44 @@ public class RelocationManager {
                 Location serverSpawn = spawnWorld.getSpawnLocation();
                 // Use safe teleport for server spawn
                 new SafeSpotTeleport.Builder(addon.getPlugin())
-                    .entity(targetPlayer)
+                    .entity(currentTarget)
                     .location(serverSpawn)
                     .buildFuture();
-                targetPlayer.sendMessage(colorize("&6&l[Admin Notice]"));
-                targetPlayer.sendMessage(colorize("&eYour island is being relocated by an administrator."));
-                targetPlayer.sendMessage(colorize("&7Please wait while your island is moved..."));
+                currentTarget.sendMessage(colorize("&6&l[Admin Notice]"));
+                currentTarget.sendMessage(colorize("&eYour island is being relocated by an administrator."));
+                currentTarget.sendMessage(colorize("&7Please wait while your island is moved..."));
             });
         }
 
         // Run relocation async
         Bukkit.getScheduler().runTaskAsynchronously(addon.getPlugin(), () -> {
-            performAdminRelocationWork(adminPlayer, targetUUID, targetName, fromCoord, toCoord);
+            performAdminRelocationWork(adminUUID, targetUUID, targetName, fromCoord, toCoord);
         });
     }
 
     /**
      * The actual admin relocation work (runs asynchronously)
      */
-    private void performAdminRelocationWork(Player adminPlayer, UUID targetUUID, String targetName,
+    private void performAdminRelocationWork(UUID adminUUID, UUID targetUUID, String targetName,
                                              GridCoordinate fromCoord, GridCoordinate toCoord) {
         try {
-            sendProgress(adminPlayer, "&eStarting island relocation for " + targetName + "...");
+            sendProgressToAdmin(adminUUID, "&eStarting island relocation for " + targetName + "...");
 
             World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
             if (bskyblockWorld == null) {
-                sendError(adminPlayer, "&cBSkyBlock world not available!");
+                sendErrorToAdmin(adminUUID, "&cBSkyBlock world not available!");
                 return;
             }
 
             Island island = addon.getIslands().getIsland(bskyblockWorld, targetUUID);
             if (island == null) {
-                sendError(adminPlayer, "&cCould not find island for " + targetName + "!");
+                sendErrorToAdmin(adminUUID, "&cCould not find island for " + targetName + "!");
                 return;
             }
 
             Location oldCenter = island.getCenter();
             if (oldCenter == null || oldCenter.getWorld() == null) {
-                sendError(adminPlayer, "&cInvalid island location!");
+                sendErrorToAdmin(adminUUID, "&cInvalid island location!");
                 return;
             }
 
@@ -331,10 +345,10 @@ public class RelocationManager {
             addon.log("Admin relocation: Captured " + capturedHomes.size() + " island homes");
 
             // Save island as schematic
-            sendProgress(adminPlayer, "&eSaving island...");
+            sendProgressToAdmin(adminUUID, "&eSaving island...");
             Object clipboard = saveIslandToClipboard(island, oldCenter);
             if (clipboard == null) {
-                sendError(adminPlayer, "&cFailed to save island!");
+                sendErrorToAdmin(adminUUID, "&cFailed to save island!");
                 return;
             }
 
@@ -351,12 +365,12 @@ public class RelocationManager {
             );
 
             // Clear old location
-            sendProgress(adminPlayer, "&eClearing old location...");
+            sendProgressToAdmin(adminUUID, "&eClearing old location...");
             clearIslandBlocks(island, oldCenter);
             Thread.sleep(1000);
 
             // Paste island at new location
-            sendProgress(adminPlayer, "&ePasting island at new location...");
+            sendProgressToAdmin(adminUUID, "&ePasting island at new location...");
             pasteIslandFromClipboard(clipboard, newCenter);
             Thread.sleep(1000);
 
@@ -368,7 +382,7 @@ public class RelocationManager {
             // If reflection fails (e.g., due to BentoBox version change), warnings are logged
             // but the island data is still saved. Cache will refresh on server restart.
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                sendProgress(adminPlayer, "&eUpdating island data...");
+                sendProgressToAdmin(adminUUID, "&eUpdating island data...");
 
                 var islandsManager = BentoBox.getInstance().getIslandsManager();
 
@@ -463,10 +477,13 @@ public class RelocationManager {
 
                 // Final success message
                 Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
-                    sendSuccess(adminPlayer, "&a&lIsland relocated successfully!");
-                    adminPlayer.sendMessage(colorize("&7Player: &f" + targetName));
-                    adminPlayer.sendMessage(colorize("&7From: &f" + fromCoord + " &7→ &f" + toCoord));
-                    adminPlayer.sendMessage(colorize("&7New coordinates: &fX: " + finalNewWorldX + ", Z: " + finalNewWorldZ));
+                    Player currentAdmin = Bukkit.getPlayer(adminUUID);
+                    if (currentAdmin != null && currentAdmin.isOnline()) {
+                        sendSuccess(currentAdmin, "&a&lIsland relocated successfully!");
+                        currentAdmin.sendMessage(colorize("&7Player: &f" + targetName));
+                        currentAdmin.sendMessage(colorize("&7From: &f" + fromCoord + " &7→ &f" + toCoord));
+                        currentAdmin.sendMessage(colorize("&7New coordinates: &fX: " + finalNewWorldX + ", Z: " + finalNewWorldZ));
+                    }
 
                     // Notify target if online
                     Player target = Bukkit.getPlayer(targetUUID);
@@ -483,7 +500,7 @@ public class RelocationManager {
         } catch (Exception e) {
             addon.logError("Error during admin island relocation for " + targetName + ": " + e.getMessage());
             e.printStackTrace();
-            sendError(adminPlayer, "&cAn error occurred during relocation.");
+            sendErrorToAdmin(adminUUID, "&cAn error occurred during relocation.");
         }
     }
 
@@ -505,8 +522,21 @@ public class RelocationManager {
             world.loadChunk(chunkX, chunkZ - 1, true);
 
             Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
-                // Get the default home location (same as /island home)
-                Location homeLocation = island.getHome("");
+                // CRITICAL: Find a home that is in the TARGET world, not just any default home.
+                // getHome("") returns the default home which could be in ANY dimension (nether, end).
+                Location homeLocation = null;
+                java.util.Map<String, Location> allHomes = island.getHomes();
+                if (allHomes != null && !allHomes.isEmpty()) {
+                    for (Location homeLoc : allHomes.values()) {
+                        if (homeLoc != null && homeLoc.getWorld() != null
+                            && homeLoc.getWorld().equals(world)) {
+                            homeLocation = homeLoc;
+                            break; // Use first home found in target world
+                        }
+                    }
+                }
+
+                // Fallback to spawn point
                 if (homeLocation == null) {
                     homeLocation = island.getSpawnPoint(org.bukkit.World.Environment.NORMAL);
                 }
@@ -515,9 +545,9 @@ public class RelocationManager {
                 }
 
                 // Use BentoBox SafeSpotTeleport for safe async teleportation to home
+                // IMPORTANT: Do NOT use .island() as it searches across ALL dimensions
                 new SafeSpotTeleport.Builder(addon.getPlugin())
                     .entity(targetPlayer)
-                    .island(island)
                     .location(homeLocation)
                     .thenRun(() -> addon.log("Teleported " + targetPlayer.getName() + " to relocated island home"))
                     .ifFail(() -> targetPlayer.sendMessage(colorize("&eCouldn't find safe spot - use /island go")))
@@ -534,6 +564,10 @@ public class RelocationManager {
      */
     private void performRelocationAsync(Player player, GridCoordinate fromCoord, GridCoordinate toCoord) {
         UUID playerUUID = player.getUniqueId();
+
+        // Capture player's origin world BEFORE teleporting to spawn
+        // This allows us to return them to the same dimension after relocation
+        final World originWorld = player.getWorld();
 
         // Step 0: Teleport player to SERVER spawn BEFORE starting relocation (on main thread)
         // This prevents the player from falling into the void during the move
@@ -555,9 +589,9 @@ public class RelocationManager {
                 .buildFuture();
             sendProgress(player, "&eTeleported to spawn for safety during relocation...");
 
-            // Now run the rest asynchronously
+            // Now run the rest asynchronously, passing origin world
             Bukkit.getScheduler().runTaskAsynchronously(addon.getPlugin(), () -> {
-                performRelocationWork(player, playerUUID, fromCoord, toCoord);
+                performRelocationWork(player, playerUUID, fromCoord, toCoord, originWorld);
             });
         });
     }
@@ -565,8 +599,10 @@ public class RelocationManager {
     /**
      * The actual relocation work (runs asynchronously after player is teleported to spawn)
      * Uses callback-based async operations to prevent server freezes.
+     *
+     * @param originWorld The world the player was in before relocation (to return them there)
      */
-    private void performRelocationWork(Player player, UUID playerUUID, GridCoordinate fromCoord, GridCoordinate toCoord) {
+    private void performRelocationWork(Player player, UUID playerUUID, GridCoordinate fromCoord, GridCoordinate toCoord, World originWorld) {
         // Step 1: Get the island (on main thread for BentoBox API access)
         Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
             sendProgress(player, "&eStarting island relocation...");
@@ -615,9 +651,13 @@ public class RelocationManager {
             // This captures villager professions, trades, health, tameable status, etc.
             final java.util.List<Object> capturedEntities = addon.getEntityStorage().captureEntitiesInMemory(oldCenter.getWorld(), oldCenter, entityRange);
 
-            // Capture island homes relative to old center (so we can restore them at new location)
-            final java.util.Map<String, RelativeHome> capturedHomes = captureHomesRelativeToCenter(island, oldCenter);
-            addon.log("Captured " + capturedHomes.size() + " island homes for relocation");
+            // Capture island homes from ALL dimensions (main + enabled dimensions)
+            final Map<String, Map<String, RelativeHome>> allCapturedHomes = captureAllDimensionHomes(playerUUID, oldCenter);
+            addon.log("Captured homes from " + allCapturedHomes.size() + " dimensions for relocation");
+
+            // Capture spawn points (used by /island command)
+            final CapturedSpawnPoints capturedSpawnPoints = captureSpawnPoints(island, oldCenter);
+            addon.log("Captured " + capturedSpawnPoints.spawnPoints.size() + " spawn points for relocation");
 
             saveIslandToClipboardAsync(island, oldCenter, clipboard -> {
                 if (clipboard == null) {
@@ -654,8 +694,14 @@ public class RelocationManager {
                                 int restoredCount = addon.getEntityStorage().restoreEntitiesInMemory(capturedEntities, newCenter);
                                 addon.log("Restored " + restoredCount + " entities at new location");
 
-                                // Step 5: Update BSkyBlock island data (still on main thread)
-                                finishRelocation(player, playerUUID, island, oldCenter, newCenter, fromCoord, toCoord, newWorldX, newWorldZ, capturedHomes);
+                                // Step 5: Relocate dimension blocks (nether/end)
+                                sendProgress(player, "&eRelocating dimension islands...");
+                                relocateDimensionBlocksAsync(oldCenter, newCenter, finalEntityRange, dimSuccess -> {
+                                    // Step 6: Update BSkyBlock island data (on main thread)
+                                    Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                                        finishRelocation(player, playerUUID, island, oldCenter, newCenter, fromCoord, toCoord, newWorldX, newWorldZ, allCapturedHomes, capturedSpawnPoints, originWorld);
+                                    });
+                                });
                             });
                         });
                     });
@@ -666,10 +712,15 @@ public class RelocationManager {
 
     /**
      * Finish the relocation process - update BentoBox data and teleport player
+     *
+     * @param allCapturedHomes Map of dimension key to captured homes for all dimensions
+     * @param capturedSpawnPoints Captured spawn points for all environments
+     * @param originWorld The world the player was in before relocation (to return them there)
      */
     private void finishRelocation(Player player, UUID playerUUID, Island island, Location oldCenter,
                                    Location newCenter, GridCoordinate fromCoord, GridCoordinate toCoord,
-                                   int newWorldX, int newWorldZ, java.util.Map<String, RelativeHome> capturedHomes) {
+                                   int newWorldX, int newWorldZ, Map<String, Map<String, RelativeHome>> allCapturedHomes,
+                                   CapturedSpawnPoints capturedSpawnPoints, World originWorld) {
         try {
             sendProgress(player, "&eUpdating island data...");
 
@@ -710,20 +761,20 @@ public class RelocationManager {
                 addon.logWarning("Could not reset protection center: " + e.getMessage());
             }
 
-            // Update spawn point and restore homes at new location
-            island.setSpawnPoint(org.bukkit.World.Environment.NORMAL, newCenter);
-
-            // Restore island homes at their relative positions to the new center
-            if (capturedHomes != null && !capturedHomes.isEmpty()) {
-                int restoredHomes = restoreHomesAtNewCenter(island, newCenter, capturedHomes);
-                addon.log("Restored " + restoredHomes + " island homes at new location");
+            // Restore spawn points at their relative positions to the new center
+            // This is critical for /island command to work correctly
+            if (capturedSpawnPoints != null && !capturedSpawnPoints.spawnPoints.isEmpty()) {
+                restoreSpawnPoints(island, newCenter, capturedSpawnPoints);
+                addon.log("Restored " + capturedSpawnPoints.spawnPoints.size() + " spawn points at new location");
             } else {
-                // No captured homes - just add default home at center
-                island.getHomes().clear();
-                island.addHome("home", newCenter);
+                // No captured spawn points - set default spawn at center
+                island.setSpawnPoint(org.bukkit.World.Environment.NORMAL, newCenter);
+                addon.log("Set default spawn point at island center");
             }
 
-            // Re-add island to BentoBox's location cache at NEW location
+            // CRITICAL: Re-add island to cache BEFORE restoring homes!
+            // restoreAllDimensionHomes() calls getIsland() which needs to return our modified island.
+            // If we don't re-add first, getIsland() loads a stale copy from the database with OLD data.
             try {
                 java.lang.reflect.Field cacheField = islandsManager.getClass().getDeclaredField("islandCache");
                 cacheField.setAccessible(true);
@@ -736,6 +787,16 @@ public class RelocationManager {
                 }
             } catch (Exception e) {
                 addon.logWarning("Could not re-add island to cache: " + e.getMessage());
+            }
+
+            // Restore island homes at their relative positions to the new center (ALL dimensions)
+            // Note: This calls getIsland() internally, which now returns our cached modified island
+            if (allCapturedHomes != null && !allCapturedHomes.isEmpty()) {
+                restoreAllDimensionHomes(playerUUID, newCenter, allCapturedHomes);
+            } else {
+                // No captured homes - just add default home at center for main island
+                island.getHomes().clear();
+                island.addHome("home", newCenter);
             }
 
             // Save to database
@@ -776,9 +837,9 @@ public class RelocationManager {
             data.recordRelocation(fromCoord.toString(), toCoord.toString());
             database.saveObjectAsync(data);
 
-            // Load chunks and teleport players safely
+            // Load chunks and teleport players safely (to their origin dimension if multi-dimension)
             sendProgress(player, "&eLoading chunks and teleporting...");
-            teleportPlayersSafely(island, player, newCenter);
+            teleportPlayersSafely(island, player, newCenter, originWorld);
 
             // Complete (sent after teleport delay)
             final int finalNewWorldX = newWorldX;
@@ -964,46 +1025,304 @@ public class RelocationManager {
         }
     }
 
+    // ==================== DIMENSION BLOCK RELOCATION ====================
+
+    /**
+     * Relocate blocks in BSkyBlock's native sub-dimensions (nether and end).
+     * This is needed because BSkyBlock stores dimension islands at specific coordinates:
+     * - Nether: X/8, Z/8 (1:8 scaling with overworld)
+     * - End: Same X,Z as overworld (1:1)
+     *
+     * @param oldCenter The old island center in overworld
+     * @param newCenter The new island center in overworld
+     * @param range The island range for block operations
+     * @param callback Called when all dimensions are relocated
+     */
+    private void relocateDimensionBlocksAsync(Location oldCenter, Location newCenter, int range,
+                                               java.util.function.Consumer<Boolean> callback) {
+        var bskyblock = addon.getBSkyBlockAddon();
+        if (bskyblock == null) {
+            addon.log("No BSkyBlock addon - skipping dimension block relocation");
+            callback.accept(true);
+            return;
+        }
+
+        World netherWorld = bskyblock.getNetherWorld();
+        World endWorld = bskyblock.getEndWorld();
+
+        // If no dimension worlds, nothing to do
+        if (netherWorld == null && endWorld == null) {
+            addon.log("No nether/end worlds - skipping dimension block relocation");
+            callback.accept(true);
+            return;
+        }
+
+        addon.log("Starting dimension block relocation for nether/end");
+
+        // Chain: relocate nether first, then end
+        Runnable relocateEnd = () -> {
+            if (endWorld != null) {
+                sendProgressToAllOnline("&eRelocating End dimension...");
+                // End uses 1:1 scaling
+                Location oldEndCenter = new Location(endWorld,
+                    oldCenter.getX(), oldCenter.getY(), oldCenter.getZ());
+                Location newEndCenter = new Location(endWorld,
+                    newCenter.getX(), newCenter.getY(), newCenter.getZ());
+
+                relocateSingleDimensionAsync(oldEndCenter, newEndCenter, range, success -> {
+                    if (success) {
+                        addon.log("End dimension blocks relocated successfully");
+                    } else {
+                        addon.logWarning("Failed to relocate End dimension blocks");
+                    }
+                    callback.accept(true); // Continue even if dimension relocation fails
+                });
+            } else {
+                callback.accept(true);
+            }
+        };
+
+        if (netherWorld != null) {
+            sendProgressToAllOnline("&eRelocating Nether dimension...");
+            // BSkyBlock places islands at the SAME coordinates in all dimensions
+            // The 1:8 nether scaling only applies to vanilla portal mechanics, NOT island placement
+            Location oldNetherCenter = new Location(netherWorld,
+                oldCenter.getX(), oldCenter.getY(), oldCenter.getZ());
+            Location newNetherCenter = new Location(netherWorld,
+                newCenter.getX(), newCenter.getY(), newCenter.getZ());
+
+            // Use same range as overworld (BSkyBlock uses same island size in all dimensions)
+            relocateSingleDimensionAsync(oldNetherCenter, newNetherCenter, range, success -> {
+                if (success) {
+                    addon.log("Nether dimension blocks relocated successfully");
+                } else {
+                    addon.logWarning("Failed to relocate Nether dimension blocks");
+                }
+                // Continue to End regardless of nether success
+                relocateEnd.run();
+            });
+        } else {
+            relocateEnd.run();
+        }
+    }
+
+    /**
+     * Relocate blocks in a single dimension (copy -> clear -> paste).
+     *
+     * @param oldCenter The old center location in this dimension
+     * @param newCenter The new center location in this dimension
+     * @param range The range for block operations
+     * @param callback Called when relocation is complete
+     */
+    private void relocateSingleDimensionAsync(Location oldCenter, Location newCenter, int range,
+                                               java.util.function.Consumer<Boolean> callback) {
+        World world = oldCenter.getWorld();
+        if (world == null || newCenter.getWorld() == null) {
+            addon.logWarning("Invalid world for dimension relocation");
+            callback.accept(false);
+            return;
+        }
+
+        addon.log("Relocating blocks in " + world.getName() + " from " +
+                oldCenter.getBlockX() + "," + oldCenter.getBlockZ() + " to " +
+                newCenter.getBlockX() + "," + newCenter.getBlockZ());
+
+        // Capture entities in this dimension
+        final java.util.List<Object> capturedEntities = addon.getEntityStorage().captureEntitiesInMemory(world, oldCenter, range);
+        addon.log("Captured " + capturedEntities.size() + " entities in " + world.getName());
+
+        // Step 1: Copy blocks to clipboard
+        addon.getSchematicUtils().copyToClipboardAsync(oldCenter, range, true, clipboard -> {
+            if (clipboard == null) {
+                addon.logWarning("Failed to copy blocks in " + world.getName());
+                callback.accept(false);
+                return;
+            }
+
+            // Step 2: Remove entities from old location
+            Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                addon.getEntityStorage().removeEntities(world, oldCenter, range);
+
+                // Step 3: Clear old blocks
+                addon.getSchematicUtils().clearRegionAsync(oldCenter, range, clearSuccess -> {
+                    if (!clearSuccess) {
+                        addon.logWarning("Failed to clear old blocks in " + world.getName());
+                        // Continue anyway to paste at new location
+                    }
+
+                    // Step 4: Paste at new location
+                    addon.getSchematicUtils().pasteFromClipboardAsync(clipboard, newCenter, pasteSuccess -> {
+                        if (!pasteSuccess) {
+                            addon.logWarning("Failed to paste blocks in " + world.getName());
+                            callback.accept(false);
+                            return;
+                        }
+
+                        // Step 5: Restore entities at new location
+                        Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                            int restoredCount = addon.getEntityStorage().restoreEntitiesInMemory(capturedEntities, newCenter);
+                            addon.log("Restored " + restoredCount + " entities in " + world.getName());
+                            callback.accept(true);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /**
+     * Send a progress message to the relocating player (if we have reference).
+     * This is a best-effort message since we may not have the player reference in all contexts.
+     */
+    private void sendProgressToAllOnline(String message) {
+        // This is called during async dimension relocation where we don't have player reference
+        // We just log instead
+        addon.log(message.replace("&e", "").replace("&a", ""));
+    }
+
+    /**
+     * Check if a world is one of BSkyBlock's native worlds (overworld, nether, end).
+     * BSkyBlock handles these as sub-worlds of the same island - we should not
+     * treat them as separate dimensions for teleportation purposes.
+     *
+     * @param world The world to check
+     * @return true if this is a BSkyBlock-managed native world
+     */
+    private boolean isBSkyBlockNativeWorld(World world) {
+        if (world == null) {
+            return false;
+        }
+
+        var bskyblock = addon.getBSkyBlockAddon();
+        if (bskyblock == null) {
+            return false;
+        }
+
+        // Check by world object reference
+        World overworld = bskyblock.getOverWorld();
+        World nether = bskyblock.getNetherWorld();
+        World end = bskyblock.getEndWorld();
+
+        if (world.equals(overworld) || world.equals(nether) || world.equals(end)) {
+            return true;
+        }
+
+        // Fallback: Check by world name pattern
+        // getNetherWorld() or getEndWorld() may return null if those dimensions are
+        // disabled in BSkyBlock config, but the world might still exist with the
+        // standard naming convention: bskyblock_world, bskyblock_world_nether, bskyblock_world_the_end
+        if (overworld != null) {
+            String baseName = overworld.getName();
+            String worldName = world.getName();
+            if (worldName.equals(baseName) ||
+                worldName.equals(baseName + "_nether") ||
+                worldName.equals(baseName + "_the_end")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Safely teleport player and team members to new island location.
      * This method loads the chunk first to prevent falling through blocks.
+     *
+     * @param island The main dimension island
+     * @param owner The island owner
+     * @param newCenter The new center location in main dimension
+     * @param originWorld The world the player was in before relocation (to return them there)
      */
-    private void teleportPlayersSafely(Island island, Player owner, Location newCenter) {
+    private void teleportPlayersSafely(Island island, Player owner, Location newCenter, World originWorld) {
         try {
-            World world = newCenter.getWorld();
-            if (world == null) {
+            // Determine target world and island based on origin dimension
+            World targetWorld = newCenter.getWorld();
+            Island targetIsland = island;
+            Location targetHome = null;
+
+            // Check if player was in a CUSTOM dimension world (not BSkyBlock's native worlds)
+            // BSkyBlock's native worlds (overworld, nether, end) are sub-worlds of the same island
+            // and should always teleport to the main island home, not dimension-specific teleportation
+            if (originWorld != null && addon.getSettings().isMultiDimensionEnabled() && addon.getDimensionManager() != null) {
+                // Skip dimension-based teleportation for BSkyBlock's native worlds
+                if (!isBSkyBlockNativeWorld(originWorld)) {
+                    DimensionManager dimManager = addon.getDimensionManager();
+                    String originDimKey = dimManager.getDimensionKey(originWorld);
+
+                    if (originDimKey != null) {
+                        // Player was in a custom dimension world - use that dimension's island
+                        Island dimIsland = addon.getIslands().getIsland(originWorld, owner.getUniqueId());
+                        if (dimIsland != null) {
+                            targetIsland = dimIsland;
+                            targetWorld = originWorld;
+                            targetHome = dimIsland.getHome("");
+                            addon.log("Player was in custom dimension '" + originDimKey + "' - teleporting back there");
+                        }
+                    }
+                } else {
+                    addon.log("Player was in BSkyBlock native world - teleporting to main island home");
+                }
+            }
+
+            if (targetWorld == null) {
+                targetWorld = newCenter.getWorld();
+            }
+            if (targetWorld == null) {
                 addon.logError("Cannot teleport - world is null");
                 return;
             }
 
-            // First, load the chunk at the new center synchronously
-            int chunkX = newCenter.getBlockX() >> 4;
-            int chunkZ = newCenter.getBlockZ() >> 4;
+            // First, load the chunk at the target location synchronously
+            Location chunkLoadLocation = targetHome != null ? targetHome : newCenter;
+            int chunkX = chunkLoadLocation.getBlockX() >> 4;
+            int chunkZ = chunkLoadLocation.getBlockZ() >> 4;
 
             // Force load the chunk and surrounding chunks
-            world.loadChunk(chunkX, chunkZ, true);
-            world.loadChunk(chunkX + 1, chunkZ, true);
-            world.loadChunk(chunkX - 1, chunkZ, true);
-            world.loadChunk(chunkX, chunkZ + 1, true);
-            world.loadChunk(chunkX, chunkZ - 1, true);
+            targetWorld.loadChunk(chunkX, chunkZ, true);
+            targetWorld.loadChunk(chunkX + 1, chunkZ, true);
+            targetWorld.loadChunk(chunkX - 1, chunkZ, true);
+            targetWorld.loadChunk(chunkX, chunkZ + 1, true);
+            targetWorld.loadChunk(chunkX, chunkZ - 1, true);
+
+            // Final variables for lambda
+            final Island finalTargetIsland = targetIsland;
+            final World finalTargetWorld = targetWorld;
 
             // Wait a bit for chunks to fully generate, then teleport
             Bukkit.getScheduler().runTaskLater(addon.getPlugin(), () -> {
-                // Get the default home location (same as /island home)
-                Location homeLocation = island.getHome("");
-                if (homeLocation == null) {
-                    homeLocation = island.getSpawnPoint(org.bukkit.World.Environment.NORMAL);
+                // CRITICAL: Find a home that is in the TARGET world, not just any default home.
+                // getHome("") returns the default home which could be in ANY dimension (nether, end).
+                // We must filter to find a home in the target world (typically overworld).
+                Location homeLocation = null;
+                java.util.Map<String, Location> allHomes = finalTargetIsland.getHomes();
+                if (allHomes != null && !allHomes.isEmpty()) {
+                    for (Location homeLoc : allHomes.values()) {
+                        if (homeLoc != null && homeLoc.getWorld() != null
+                            && homeLoc.getWorld().equals(finalTargetWorld)) {
+                            homeLocation = homeLoc;
+                            break; // Use first home found in target world
+                        }
+                    }
                 }
+
+                // Fallback to spawn point in target world
                 if (homeLocation == null) {
-                    homeLocation = newCenter;
+                    homeLocation = finalTargetIsland.getSpawnPoint(finalTargetWorld.getEnvironment());
+                }
+
+                // Final fallback to island center or newCenter
+                if (homeLocation == null) {
+                    Location dimCenter = finalTargetIsland.getCenter();
+                    homeLocation = dimCenter != null ? dimCenter : newCenter;
                 }
 
                 // Use BentoBox SafeSpotTeleport for owner, targeting home location
+                // IMPORTANT: Do NOT use .island() as it searches across ALL dimensions (nether, end)
+                // and may teleport to End if it finds a "safer" spot there
                 new SafeSpotTeleport.Builder(addon.getPlugin())
                     .entity(owner)
-                    .island(island)
                     .location(homeLocation)
-                    .thenRun(() -> addon.log("Teleported " + owner.getName() + " to relocated island home"))
+                    .thenRun(() -> addon.log("Teleported " + owner.getName() + " to relocated island home in " + finalTargetWorld.getName()))
                     .ifFail(() -> owner.sendMessage(colorize("&eCouldn't find safe spot - use /island go")))
                     .buildFuture();
 
@@ -1015,7 +1334,6 @@ public class RelocationManager {
                         if (member != null && member.isOnline()) {
                             new SafeSpotTeleport.Builder(addon.getPlugin())
                                 .entity(member)
-                                .island(island)
                                 .location(finalHomeLocation)
                                 .thenRun(() -> member.sendMessage(colorize("&eYour island has been relocated to a new location!")))
                                 .buildFuture();
@@ -1105,13 +1423,6 @@ public class RelocationManager {
     }
 
     /**
-     * Legacy method - kept for compatibility but redirects to safe version
-     */
-    private void teleportPlayers(Island island, Player owner, Location newCenter) {
-        teleportPlayersSafely(island, owner, newCenter);
-    }
-
-    /**
      * Calculate world X coordinate from grid coordinate
      */
     private int calculateWorldX(GridCoordinate coord) {
@@ -1185,6 +1496,25 @@ public class RelocationManager {
         );
     }
 
+    // Helper methods for sending messages to admin by UUID (safe for async use)
+    private void sendProgressToAdmin(UUID adminUUID, String message) {
+        Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+            Player admin = Bukkit.getPlayer(adminUUID);
+            if (admin != null && admin.isOnline()) {
+                admin.sendMessage(colorize(message));
+            }
+        });
+    }
+
+    private void sendErrorToAdmin(UUID adminUUID, String message) {
+        Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+            Player admin = Bukkit.getPlayer(adminUUID);
+            if (admin != null && admin.isOnline()) {
+                admin.sendMessage(colorize(message));
+            }
+        });
+    }
+
     private String colorize(String text) {
         return text.replace("&", "\u00A7");
     }
@@ -1222,17 +1552,23 @@ public class RelocationManager {
      * Homes are stored with their offset from the center, so they can be
      * restored at the same relative position after relocation.
      *
+     * IMPORTANT: Only captures homes that are in the SAME world as the center.
+     * This is critical because BSkyBlock shares one Island object across all dimensions
+     * (overworld, nether, end), and island.getHomes() returns ALL homes from ALL dimensions.
+     * We must filter to only capture homes in the current dimension's world.
+     *
      * @param island The island to capture homes from
      * @param center The island center location
-     * @return Map of home names to relative positions
+     * @return Map of home names to relative positions (only homes in center's world)
      */
     private java.util.Map<String, RelativeHome> captureHomesRelativeToCenter(Island island, Location center) {
         java.util.Map<String, RelativeHome> captured = new java.util.HashMap<>();
 
-        if (island == null || center == null) {
+        if (island == null || center == null || center.getWorld() == null) {
             return captured;
         }
 
+        World centerWorld = center.getWorld();
         java.util.Map<String, Location> homes = island.getHomes();
         if (homes == null || homes.isEmpty()) {
             return captured;
@@ -1240,7 +1576,10 @@ public class RelocationManager {
 
         for (java.util.Map.Entry<String, Location> entry : homes.entrySet()) {
             Location homeLoc = entry.getValue();
-            if (homeLoc != null && homeLoc.getWorld() != null) {
+            // CRITICAL: Only capture homes that are in the SAME world as the center
+            // This prevents cross-world coordinate corruption when BSkyBlock shares one Island object
+            if (homeLoc != null && homeLoc.getWorld() != null
+                && homeLoc.getWorld().equals(centerWorld)) {
                 RelativeHome relHome = new RelativeHome();
                 relHome.relX = homeLoc.getX() - center.getX();
                 relHome.relY = homeLoc.getY() - center.getY();
@@ -1259,6 +1598,11 @@ public class RelocationManager {
      * Restore captured homes at the new island center.
      * Each home is placed at its original relative position to the new center.
      *
+     * IMPORTANT: Only removes/replaces homes that are in the SAME world as newCenter.
+     * This is critical because BSkyBlock shares one Island object across all dimensions
+     * (overworld, nether, end). If we clear ALL homes, we would delete homes from other
+     * dimensions that we're not currently restoring.
+     *
      * @param island The island to restore homes to
      * @param newCenter The new island center location
      * @param capturedHomes Map of home names to relative positions
@@ -1274,11 +1618,21 @@ public class RelocationManager {
             return 0;
         }
 
-        // Clear all existing homes first
+        // CRITICAL: Only remove homes that are in THIS world
+        // BSkyBlock shares one Island object across all dimensions, so we must NOT
+        // delete homes from other dimensions (nether, end) when restoring overworld homes
         java.util.Map<String, Location> existingHomes = island.getHomes();
         if (existingHomes != null && !existingHomes.isEmpty()) {
-            java.util.List<String> homeNames = new java.util.ArrayList<>(existingHomes.keySet());
-            for (String homeName : homeNames) {
+            java.util.List<String> homesToRemove = new java.util.ArrayList<>();
+            for (java.util.Map.Entry<String, Location> entry : existingHomes.entrySet()) {
+                Location homeLoc = entry.getValue();
+                // Only remove homes in the SAME world we're restoring to
+                if (homeLoc != null && homeLoc.getWorld() != null
+                    && homeLoc.getWorld().equals(world)) {
+                    homesToRemove.add(entry.getKey());
+                }
+            }
+            for (String homeName : homesToRemove) {
                 island.removeHome(homeName);
             }
         }
@@ -1311,6 +1665,288 @@ public class RelocationManager {
     private static class RelativeHome {
         double relX, relY, relZ;
         float yaw, pitch;
+    }
+
+    /**
+     * Data class to hold all captured spawn points for relocation.
+     * BentoBox's /island command uses spawn points, not homes.
+     */
+    private static class CapturedSpawnPoints {
+        final Map<World.Environment, RelativeHome> spawnPoints = new HashMap<>();
+    }
+
+    /**
+     * Capture spawn points for all environments relative to the island center.
+     * This is needed because /island uses getSpawnPoint(), not getHome().
+     *
+     * @param island The island to capture spawn points from
+     * @param center The island center location
+     * @return CapturedSpawnPoints containing relative positions for each environment
+     */
+    private CapturedSpawnPoints captureSpawnPoints(Island island, Location center) {
+        CapturedSpawnPoints captured = new CapturedSpawnPoints();
+
+        if (island == null || center == null) {
+            return captured;
+        }
+
+        for (World.Environment env : World.Environment.values()) {
+            Location spawnPoint = island.getSpawnPoint(env);
+            if (spawnPoint != null && spawnPoint.getWorld() != null) {
+                RelativeHome relSpawn = new RelativeHome();
+                relSpawn.relX = spawnPoint.getX() - center.getX();
+                relSpawn.relY = spawnPoint.getY() - center.getY();
+                relSpawn.relZ = spawnPoint.getZ() - center.getZ();
+                relSpawn.yaw = spawnPoint.getYaw();
+                relSpawn.pitch = spawnPoint.getPitch();
+
+                captured.spawnPoints.put(env, relSpawn);
+                addon.log("Captured spawn point for " + env + " relative to center");
+            }
+        }
+
+        return captured;
+    }
+
+    /**
+     * Restore spawn points at the new center location.
+     *
+     * @param island The island to restore spawn points to
+     * @param newCenter The new island center
+     * @param captured The captured spawn points
+     */
+    private void restoreSpawnPoints(Island island, Location newCenter, CapturedSpawnPoints captured) {
+        if (island == null || newCenter == null || captured == null) {
+            return;
+        }
+
+        World mainWorld = newCenter.getWorld();
+        if (mainWorld == null) {
+            return;
+        }
+
+        for (Map.Entry<World.Environment, RelativeHome> entry : captured.spawnPoints.entrySet()) {
+            World.Environment env = entry.getKey();
+            RelativeHome relSpawn = entry.getValue();
+
+            // Determine the correct world for this environment
+            World targetWorld = mainWorld;
+            var bskyblock = addon.getBSkyBlockAddon();
+            if (bskyblock != null) {
+                if (env == World.Environment.NETHER && bskyblock.getNetherWorld() != null) {
+                    targetWorld = bskyblock.getNetherWorld();
+                } else if (env == World.Environment.THE_END && bskyblock.getEndWorld() != null) {
+                    targetWorld = bskyblock.getEndWorld();
+                }
+            }
+
+            // Calculate new spawn location at relative position
+            // BSkyBlock uses the SAME coordinates in all dimensions (1:1 scaling)
+            // The 1:8 nether scaling only applies to vanilla portal mechanics, NOT island placement
+            double newX = newCenter.getX() + relSpawn.relX;
+            double newY = newCenter.getY() + relSpawn.relY;
+            double newZ = newCenter.getZ() + relSpawn.relZ;
+
+            Location newSpawn = new Location(
+                targetWorld,
+                newX, newY, newZ,
+                relSpawn.yaw, relSpawn.pitch
+            );
+
+            island.setSpawnPoint(env, newSpawn);
+            addon.log("Restored spawn point for " + env + " at " + newSpawn.getBlockX() + "," + newSpawn.getBlockZ());
+        }
+    }
+
+    /**
+     * Capture homes from all dimensions (main + BSkyBlock native + custom dimension islands).
+     * This ensures homes in nether/end/custom dimensions are also relocated.
+     *
+     * CRITICAL: BSkyBlock shares ONE Island object for overworld, nether, and end.
+     * We must capture homes from all three BSkyBlock native worlds, even though they
+     * are NOT in dimManager.getEnabledDimensions(). Otherwise nether/end homes will
+     * still point to old coordinates after relocation.
+     *
+     * @param playerUUID The player's UUID
+     * @param mainCenter The main dimension island center
+     * @return Map of dimension key to captured homes (dimension key -> home name -> RelativeHome)
+     */
+    private Map<String, Map<String, RelativeHome>> captureAllDimensionHomes(UUID playerUUID, Location mainCenter) {
+        Map<String, Map<String, RelativeHome>> allHomes = new HashMap<>();
+
+        // Always capture main dimension
+        World mainWorld = addon.getGridManager().getBSkyBlockWorld();
+        Island mainIsland = null;
+        if (mainWorld != null) {
+            mainIsland = addon.getIslands().getIsland(mainWorld, playerUUID);
+            if (mainIsland != null) {
+                Map<String, RelativeHome> mainHomes = captureHomesRelativeToCenter(mainIsland, mainCenter);
+                if (!mainHomes.isEmpty()) {
+                    allHomes.put("main", mainHomes);
+                    addon.log("Captured " + mainHomes.size() + " homes from main dimension");
+                }
+            }
+        }
+
+        // CRITICAL: Capture BSkyBlock native dimension homes (nether, end)
+        // These are NOT in dimManager.getEnabledDimensions() but share the same Island object.
+        // If we don't capture these, nether/end homes will point to old coordinates after relocation.
+        var bskyblock = addon.getBSkyBlockAddon();
+        if (bskyblock != null && mainIsland != null) {
+            World netherWorld = bskyblock.getNetherWorld();
+            World endWorld = bskyblock.getEndWorld();
+
+            // Capture nether homes (same Island object, different world filter)
+            if (netherWorld != null) {
+                // BSkyBlock uses same coordinates in all dimensions (1:1 scaling)
+                Location netherCenter = new Location(netherWorld,
+                    mainCenter.getX(), mainCenter.getY(), mainCenter.getZ());
+                Map<String, RelativeHome> netherHomes = captureHomesRelativeToCenter(mainIsland, netherCenter);
+                if (!netherHomes.isEmpty()) {
+                    allHomes.put("bskyblock_nether", netherHomes);
+                    addon.log("Captured " + netherHomes.size() + " homes from BSkyBlock nether");
+                }
+            }
+
+            // Capture end homes (same Island object, different world filter)
+            if (endWorld != null) {
+                Location endCenter = new Location(endWorld,
+                    mainCenter.getX(), mainCenter.getY(), mainCenter.getZ());
+                Map<String, RelativeHome> endHomes = captureHomesRelativeToCenter(mainIsland, endCenter);
+                if (!endHomes.isEmpty()) {
+                    allHomes.put("bskyblock_end", endHomes);
+                    addon.log("Captured " + endHomes.size() + " homes from BSkyBlock end");
+                }
+            }
+        }
+
+        // If multi-dimension enabled, capture from each custom dimension
+        // CRITICAL: Skip custom dimensions that are BSkyBlock native worlds - these are already
+        // handled above through "main", "bskyblock_nether", "bskyblock_end" keys.
+        // Processing them twice would cause homes to be captured with wrong relative coordinates.
+        if (addon.getSettings().isMultiDimensionEnabled() && addon.getDimensionManager() != null) {
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                String dimKey = config.getDimensionKey();
+                World dimWorld = dimManager.getWorld(dimKey);
+                if (dimWorld != null) {
+                    // Skip custom dimensions that point to BSkyBlock native worlds
+                    if (isBSkyBlockNativeWorld(dimWorld)) {
+                        addon.log("Skipping custom dimension '" + dimKey + "' - is BSkyBlock native world");
+                        continue;
+                    }
+
+                    Island dimIsland = addon.getIslands().getIsland(dimWorld, playerUUID);
+                    if (dimIsland != null) {
+                        Location dimCenter = dimIsland.getCenter();
+                        if (dimCenter != null) {
+                            Map<String, RelativeHome> dimHomes = captureHomesRelativeToCenter(dimIsland, dimCenter);
+                            if (!dimHomes.isEmpty()) {
+                                allHomes.put(dimKey, dimHomes);
+                                addon.log("Captured " + dimHomes.size() + " homes from dimension: " + dimKey);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return allHomes;
+    }
+
+    /**
+     * Restore captured homes to all dimensions (main + BSkyBlock native + custom dimension islands).
+     * Each dimension's homes are restored at the appropriate relative positions.
+     *
+     * CRITICAL: BSkyBlock shares ONE Island object for overworld, nether, and end.
+     * We must restore homes to all three BSkyBlock native worlds using the same Island object.
+     *
+     * @param playerUUID The player's UUID
+     * @param newMainCenter The new main dimension island center
+     * @param allCapturedHomes Map of dimension key to captured homes
+     */
+    private void restoreAllDimensionHomes(UUID playerUUID, Location newMainCenter,
+                                           Map<String, Map<String, RelativeHome>> allCapturedHomes) {
+        if (allCapturedHomes == null || allCapturedHomes.isEmpty()) {
+            return;
+        }
+
+        // Restore main dimension
+        World mainWorld = addon.getGridManager().getBSkyBlockWorld();
+        Island mainIsland = null;
+        if (mainWorld != null && allCapturedHomes.containsKey("main")) {
+            mainIsland = addon.getIslands().getIsland(mainWorld, playerUUID);
+            if (mainIsland != null) {
+                int restored = restoreHomesAtNewCenter(mainIsland, newMainCenter, allCapturedHomes.get("main"));
+                addon.log("Restored " + restored + " homes in main dimension");
+            }
+        }
+
+        // CRITICAL: Restore BSkyBlock native dimension homes (nether, end)
+        // These use the SAME Island object as the main dimension.
+        var bskyblock = addon.getBSkyBlockAddon();
+        if (bskyblock != null && mainIsland != null) {
+            // Restore nether homes
+            if (allCapturedHomes.containsKey("bskyblock_nether")) {
+                World netherWorld = bskyblock.getNetherWorld();
+                if (netherWorld != null) {
+                    // BSkyBlock uses same coordinates in all dimensions (1:1 scaling)
+                    Location newNetherCenter = new Location(netherWorld,
+                        newMainCenter.getX(), newMainCenter.getY(), newMainCenter.getZ());
+                    int restored = restoreHomesAtNewCenter(mainIsland, newNetherCenter,
+                        allCapturedHomes.get("bskyblock_nether"));
+                    addon.log("Restored " + restored + " homes in BSkyBlock nether");
+                }
+            }
+
+            // Restore end homes
+            if (allCapturedHomes.containsKey("bskyblock_end")) {
+                World endWorld = bskyblock.getEndWorld();
+                if (endWorld != null) {
+                    Location newEndCenter = new Location(endWorld,
+                        newMainCenter.getX(), newMainCenter.getY(), newMainCenter.getZ());
+                    int restored = restoreHomesAtNewCenter(mainIsland, newEndCenter,
+                        allCapturedHomes.get("bskyblock_end"));
+                    addon.log("Restored " + restored + " homes in BSkyBlock end");
+                }
+            }
+        }
+
+        // If multi-dimension enabled, restore to each custom dimension
+        // CRITICAL: Skip custom dimensions that are BSkyBlock native worlds - these are already
+        // handled above. Processing them twice would OVERWRITE the homes we just restored!
+        if (addon.getSettings().isMultiDimensionEnabled() && addon.getDimensionManager() != null) {
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                String dimKey = config.getDimensionKey();
+                if (allCapturedHomes.containsKey(dimKey)) {
+                    World dimWorld = dimManager.getWorld(dimKey);
+                    if (dimWorld != null) {
+                        // Skip custom dimensions that point to BSkyBlock native worlds
+                        if (isBSkyBlockNativeWorld(dimWorld)) {
+                            addon.log("Skipping restore for custom dimension '" + dimKey + "' - is BSkyBlock native world");
+                            continue;
+                        }
+
+                        Island dimIsland = addon.getIslands().getIsland(dimWorld, playerUUID);
+                        if (dimIsland != null) {
+                            // Calculate new center for this dimension (same X/Z as main, keep dimension's Y)
+                            Location dimCenter = dimIsland.getCenter();
+                            if (dimCenter != null) {
+                                Location newDimCenter = new Location(
+                                    dimWorld,
+                                    newMainCenter.getX(),
+                                    dimCenter.getY(),
+                                    newMainCenter.getZ()
+                                );
+                                int restored = restoreHomesAtNewCenter(dimIsland, newDimCenter, allCapturedHomes.get(dimKey));
+                                addon.log("Restored " + restored + " homes in dimension: " + dimKey);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // ==================== MULTI-DIMENSION SUPPORT ====================

@@ -249,8 +249,42 @@ public class NovaIntegration {
             Class<?> novaRegistriesClass = Class.forName("xyz.xenondevs.nova.registry.NovaRegistries");
             Object blockRegistry = novaRegistriesClass.getField("BLOCK").get(null);
 
+            if (blockRegistry == null) {
+                addon.logWarning("Nova block registry is null - cannot restore blocks");
+                return;
+            }
+
             java.lang.reflect.Method getMethod = blockRegistry.getClass().getMethod("get",
                 Class.forName("net.kyori.adventure.key.Key"));
+
+            // Try to get a default Context from Nova
+            Object novaContext = null;
+            try {
+                Class<?> contextClass = Class.forName("xyz.xenondevs.nova.context.Context");
+                // Try to get the EMPTY or DEFAULT context
+                try {
+                    java.lang.reflect.Field emptyField = contextClass.getDeclaredField("EMPTY");
+                    novaContext = emptyField.get(null);
+                } catch (NoSuchFieldException e1) {
+                    // Try alternative approaches
+                    try {
+                        java.lang.reflect.Method emptyMethod = contextClass.getMethod("empty");
+                        novaContext = emptyMethod.invoke(null);
+                    } catch (NoSuchMethodException e2) {
+                        // Context not available - will skip block placement
+                    }
+                }
+            } catch (ClassNotFoundException e) {
+                addon.logWarning("Nova Context class not found - cannot restore blocks");
+                return;
+            }
+
+            if (novaContext == null) {
+                addon.logWarning("Cannot create Nova context - skipping block restoration");
+                return;
+            }
+
+            final Object finalContext = novaContext;
 
             for (NovaBlockData data : novaBlocks) {
                 try {
@@ -268,8 +302,7 @@ public class NovaIntegration {
                     Object novaBlock = getMethod.invoke(blockRegistry, key);
 
                     if (novaBlock != null) {
-                        // Place the block using BlockUtils
-                        // BlockUtils.placeBlock requires a Context - use default/null context for now
+                        // Place the block using BlockUtils with proper context
                         java.lang.reflect.Method placeBlockMethod = blockUtilsClass.getMethod(
                             "placeBlock",
                             Class.forName("xyz.xenondevs.nova.context.Context"),
@@ -278,8 +311,7 @@ public class NovaIntegration {
                             boolean.class
                         );
 
-                        // Create a basic context or use null
-                        placeBlockMethod.invoke(null, null, loc, novaBlock, false);
+                        placeBlockMethod.invoke(null, finalContext, loc, novaBlock, false);
                         restored++;
                     }
                 } catch (Exception e) {
@@ -289,6 +321,8 @@ public class NovaIntegration {
 
             addon.log("Restored " + restored + "/" + novaBlocks.size() + " Nova blocks");
 
+        } catch (NoSuchFieldException e) {
+            addon.logWarning("Nova API changed - field not found: " + e.getMessage());
         } catch (Exception e) {
             addon.logWarning("Failed to restore Nova blocks: " + e.getMessage());
             e.printStackTrace();
