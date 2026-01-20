@@ -18,17 +18,17 @@ This cleanup transforms a cluttered BentoBox addon project into a standard Maven
 ## Phase Details
 
 ### Phase 1: Git Repository Consolidation
-**Goal**: Single clean git repository at project root with preserved history
+**Goal**: Single clean git repository at project root with consolidated import commit
 **Depends on**: Nothing (first phase)
 **Requirements**: GIT-01, GIT-02, GIT-03
 **Success Criteria** (what must be TRUE):
   1. Running `git log` from project root shows the full development history
   2. No `.git` folder exists inside `generations/island_selector/`
   3. `git status` works correctly and shows clean state (or expected pending changes)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: Merge nested repository and clean up
+- [ ] 01-01-PLAN.md - Delete nested .git and commit files to root repository
 
 ### Phase 2: Artifact Removal
 **Goal**: Project contains only essential Java source and resources
@@ -78,7 +78,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Git Repository Consolidation | 0/1 | Not started | - |
+| 1. Git Repository Consolidation | 0/1 | Planned | - |
 | 2. Artifact Removal | 0/2 | Not started | - |
 | 3. Project Restructure | 0/1 | Not started | - |
 | 4. Build Verification | 0/1 | Not started | - |
