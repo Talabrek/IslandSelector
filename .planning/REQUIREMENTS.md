@@ -11,14 +11,14 @@
 - [x] **GIT-03**: Verify all historical commits accessible from root repo
 
 ### File Removal
-- [ ] **REM-01**: Delete all Python files from root (agent.py, client.py, progress.py, prompts.py, test_security.py, autonomous_agent_demo.py)
-- [ ] **REM-02**: Delete requirements.txt from root
-- [ ] **REM-03**: Delete prompts/ folder
-- [ ] **REM-04**: Delete __pycache__/ folder
-- [ ] **REM-05**: Delete Python scripts from generations/island_selector/ (add_method.py, etc.)
-- [ ] **REM-06**: Delete backup Java files (MainGridGUI_backup.java, GridManager_backup.java, NeighborhoodGUI_backup_session44.java)
-- [ ] **REM-07**: Delete shell scripts (init.sh)
-- [ ] **REM-08**: Delete misc files (nul, app_spec.txt, feature_list.json)
+- [x] **REM-01**: Delete all Python files from root (agent.py, client.py, progress.py, prompts.py, test_security.py, autonomous_agent_demo.py)
+- [x] **REM-02**: Delete requirements.txt from root
+- [x] **REM-03**: Delete prompts/ folder
+- [x] **REM-04**: Delete __pycache__/ folder
+- [x] **REM-05**: Delete Python scripts from generations/island_selector/ (add_method.py, etc.)
+- [x] **REM-06**: Delete backup Java files (MainGridGUI_backup.java, GridManager_backup.java, NeighborhoodGUI_backup_session44.java)
+- [x] **REM-07**: Delete shell scripts (init.sh)
+- [x] **REM-08**: Delete misc files (nul, app_spec.txt, feature_list.json)
 
 ### File Movement
 - [ ] **MOV-01**: Move src/ from generations/island_selector/ to project root
@@ -50,14 +50,14 @@
 | GIT-01 | Phase 1 | Complete |
 | GIT-02 | Phase 1 | Complete |
 | GIT-03 | Phase 1 | Complete |
-| REM-01 | Phase 2 | Pending |
-| REM-02 | Phase 2 | Pending |
-| REM-03 | Phase 2 | Pending |
-| REM-04 | Phase 2 | Pending |
-| REM-05 | Phase 2 | Pending |
-| REM-06 | Phase 2 | Pending |
-| REM-07 | Phase 2 | Pending |
-| REM-08 | Phase 2 | Pending |
+| REM-01 | Phase 2 | Complete |
+| REM-02 | Phase 2 | Complete |
+| REM-03 | Phase 2 | Complete |
+| REM-04 | Phase 2 | Complete |
+| REM-05 | Phase 2 | Complete |
+| REM-06 | Phase 2 | Complete |
+| REM-07 | Phase 2 | Complete |
+| REM-08 | Phase 2 | Complete |
 | MOV-01 | Phase 3 | Pending |
 | MOV-02 | Phase 3 | Pending |
 | MOV-03 | Phase 3 | Pending |
@@ -72,4 +72,4 @@
 
 ---
 *Requirements defined: 2026-01-20*
-*Last updated: 2026-01-20 after Phase 1 completion*
+*Last updated: 2026-01-20 after Phase 2 completion*
