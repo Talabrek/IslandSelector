@@ -53,10 +53,10 @@ Plans:
   1. `src/` directory exists directly under project root
   2. `pom.xml` exists directly under project root
   3. `generations/` folder no longer exists (empty after moves)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 03-01: Move essential files and remove empty directories
+- [ ] 03-01-PLAN.md - Move Maven project files to root and clean up empty directories
 
 ### Phase 4: Build Verification
 **Goal**: Confirmed working Maven project ready for development
