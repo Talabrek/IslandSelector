@@ -278,8 +278,15 @@ public class RelocationManager {
      */
     private void performAdminRelocationAsync(UUID adminUUID, UUID targetUUID, String targetName,
                                               GridCoordinate fromCoord, GridCoordinate toCoord) {
-        // If target player is online, teleport them to safety first
+        // Get island to check if target is on it
+        World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+        Island island = bskyblockWorld != null ? addon.getIslands().getIsland(bskyblockWorld, targetUUID) : null;
+
         Player targetPlayer = Bukkit.getPlayer(targetUUID);
+        // Capture whether target is on their island BEFORE any async operations
+        final boolean targetIsOnIsland = targetPlayer != null && island != null && island.onIsland(targetPlayer.getLocation());
+
+        // If target player is online and on their island, teleport them to safety first
         if (targetPlayer != null && targetPlayer.isOnline()) {
             Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
                 // Re-fetch in case they logged off
@@ -288,37 +295,47 @@ public class RelocationManager {
                     return;
                 }
 
-                World spawnWorld = Bukkit.getWorld("world");
-                if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
-                    spawnWorld = Bukkit.getWorlds().get(0);
+                if (targetIsOnIsland) {
+                    // Target IS on island - teleport to safety
+                    World spawnWorld = Bukkit.getWorld("world");
+                    if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+                        spawnWorld = Bukkit.getWorlds().get(0);
+                    }
+                    if (spawnWorld == null) {
+                        addon.logWarning("Cannot teleport player during relocation - no spawn world available");
+                        return;
+                    }
+                    Location serverSpawn = spawnWorld.getSpawnLocation();
+                    // Use safe teleport for server spawn
+                    new SafeSpotTeleport.Builder(addon.getPlugin())
+                        .entity(currentTarget)
+                        .location(serverSpawn)
+                        .buildFuture();
+                    currentTarget.sendMessage(colorize("&6&l[Admin Notice]"));
+                    currentTarget.sendMessage(colorize("&eYour island is being relocated by an administrator."));
+                    currentTarget.sendMessage(colorize("&7Please wait while your island is moved..."));
+                } else {
+                    // Target is online but NOT on island - just notify, don't teleport
+                    addon.log("Skipping pre-relocation teleport for admin relocation - " + currentTarget.getName() + " not on island");
+                    currentTarget.sendMessage(colorize("&6&l[Admin Notice]"));
+                    currentTarget.sendMessage(colorize("&eYour island is being relocated by an administrator."));
                 }
-                if (spawnWorld == null) {
-                    addon.logWarning("Cannot teleport player during relocation - no spawn world available");
-                    return;
-                }
-                Location serverSpawn = spawnWorld.getSpawnLocation();
-                // Use safe teleport for server spawn
-                new SafeSpotTeleport.Builder(addon.getPlugin())
-                    .entity(currentTarget)
-                    .location(serverSpawn)
-                    .buildFuture();
-                currentTarget.sendMessage(colorize("&6&l[Admin Notice]"));
-                currentTarget.sendMessage(colorize("&eYour island is being relocated by an administrator."));
-                currentTarget.sendMessage(colorize("&7Please wait while your island is moved..."));
             });
         }
 
-        // Run relocation async
+        // Run relocation async, passing the on-island flag
         Bukkit.getScheduler().runTaskAsynchronously(addon.getPlugin(), () -> {
-            performAdminRelocationWork(adminUUID, targetUUID, targetName, fromCoord, toCoord);
+            performAdminRelocationWork(adminUUID, targetUUID, targetName, fromCoord, toCoord, targetIsOnIsland);
         });
     }
 
     /**
      * The actual admin relocation work (runs asynchronously)
+     *
+     * @param targetWasOnIsland Whether the target was on their island when relocation started
      */
     private void performAdminRelocationWork(UUID adminUUID, UUID targetUUID, String targetName,
-                                             GridCoordinate fromCoord, GridCoordinate toCoord) {
+                                             GridCoordinate fromCoord, GridCoordinate toCoord, boolean targetWasOnIsland) {
         try {
             sendProgressToAdmin(adminUUID, "&eStarting island relocation for " + targetName + "...");
 
@@ -469,10 +486,10 @@ public class RelocationManager {
                 }
                 addon.log("Updated " + allSlots.size() + " slots with new grid coordinate: " + toCoord);
 
-                // Teleport target player if online
+                // Teleport target player if online and was on island
                 Player targetPlayer = Bukkit.getPlayer(targetUUID);
                 if (targetPlayer != null && targetPlayer.isOnline()) {
-                    teleportPlayersSafelyForAdmin(island, targetPlayer, newCenter);
+                    teleportPlayersSafelyForAdmin(island, targetPlayer, newCenter, targetWasOnIsland);
                 }
 
                 // Final success message
@@ -506,8 +523,16 @@ public class RelocationManager {
 
     /**
      * Teleport player safely for admin relocation (doesn't handle visitors differently)
+     *
+     * @param targetWasOnIsland Whether the target was on their island when relocation started
      */
-    private void teleportPlayersSafelyForAdmin(Island island, Player targetPlayer, Location newCenter) {
+    private void teleportPlayersSafelyForAdmin(Island island, Player targetPlayer, Location newCenter, boolean targetWasOnIsland) {
+        // Only teleport if target was on the island when relocation started
+        if (!targetWasOnIsland) {
+            addon.log("Skipping admin relocation teleport - " + targetPlayer.getName() + " was not on island");
+            return;
+        }
+
         try {
             World world = newCenter.getWorld();
             if (world == null) return;
