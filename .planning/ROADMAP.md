@@ -66,10 +66,10 @@ Plans:
   1. `mvn clean compile` succeeds without errors
   2. All 85 Java source files are present in `src/`
   3. Resource files (addon.yml, config.yml, en-US.yml) are present
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: Verify build and file integrity
+- [ ] 04-01-PLAN.md - Verify build and file integrity
 
 ## Progress
 
@@ -81,7 +81,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Git Repository Consolidation | 1/1 | Complete | 2026-01-20 |
 | 2. Artifact Removal | 2/2 | Complete | 2026-01-20 |
 | 3. Project Restructure | 1/1 | Complete | 2026-01-20 |
-| 4. Build Verification | 0/1 | Not started | - |
+| 4. Build Verification | 0/1 | Ready | - |
 
 ---
 *Roadmap created: 2026-01-20*
