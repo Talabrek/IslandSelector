@@ -6,7 +6,16 @@ A BentoBox addon for Minecraft that provides island selection and management fea
 
 ## Core Value
 
-Clean, organized BentoBox addon ready for development.
+Players can visually select their island location from a grid-based GUI.
+
+## Current Milestone: v1.1 Simplification
+
+**Goal:** Streamline the addon by adding configurability and removing unused features.
+
+**Target features:**
+- Config option to disable slot system (hides GUI button, blocks command)
+- /map command alias for /islandselector
+- Remove neighbors GUI and command entirely
 
 ## Current State
 
@@ -36,12 +45,17 @@ IslandSelector/
 
 ### Active
 
-(None — cleanup complete, project ready for development)
+- [ ] Config option to enable/disable slot system
+- [ ] Block /islandselector slots command when slots disabled
+- [ ] Hide slots button in GUI when slots disabled
+- [ ] Add /map command alias for /islandselector
+- [ ] Remove neighbors GUI button from main GUI
+- [ ] Remove /islandselector neighbors command
 
 ### Out of Scope
 
-- Modifying Java source code logic — cleanup only (v1.0 scope)
-- Adding new features — not part of cleanup project
+- Modifying slot system logic — only adding enable/disable toggle (v1.1 scope)
+- Other GUI changes — only removing neighbors button (v1.1 scope)
 
 ## Key Decisions
 
@@ -57,4 +71,4 @@ IslandSelector/
 See `.planning/MILESTONES.md` for shipped milestones.
 
 ---
-*Last updated: 2026-01-20 after v1.0 milestone*
+*Last updated: 2026-01-20 after v1.1 milestone start*
