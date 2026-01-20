@@ -59,6 +59,15 @@ public class Settings implements ConfigObject {
     @ConfigEntry(path = "slots.default-slot-icon")
     private String defaultSlotIcon = "GRASS_BLOCK";
 
+    @ConfigComment("")
+    @ConfigComment("Enable the multi-slot island system")
+    @ConfigComment("When disabled:")
+    @ConfigComment("  - /islandselector slots command shows disabled message")
+    @ConfigComment("  - Slots button is hidden from the main grid GUI")
+    @ConfigComment("  - Existing slot data is preserved but inaccessible")
+    @ConfigEntry(path = "slots.enabled")
+    private boolean slotsEnabled = true;
+
     // Relocation Settings
     @ConfigComment("Relocation cooldown in seconds")
     @ConfigEntry(path = "relocation.cooldown")
@@ -328,6 +337,14 @@ public class Settings implements ConfigObject {
 
     public void setDefaultSlotIcon(String defaultSlotIcon) {
         this.defaultSlotIcon = defaultSlotIcon;
+    }
+
+    public boolean isSlotsEnabled() {
+        return slotsEnabled;
+    }
+
+    public void setSlotsEnabled(boolean slotsEnabled) {
+        this.slotsEnabled = slotsEnabled;
     }
 
     public int getRelocationCooldown() {
