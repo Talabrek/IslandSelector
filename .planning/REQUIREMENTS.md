@@ -26,9 +26,9 @@
 - [x] **MOV-03**: Remove empty generations/ folder after moves
 
 ### Verification
-- [ ] **VER-01**: Run mvn clean compile to verify project builds
-- [ ] **VER-02**: Verify all 85 Java source files present
-- [ ] **VER-03**: Verify resource files present (addon.yml, config.yml, en-US.yml)
+- [x] **VER-01**: Run mvn clean compile to verify project builds
+- [x] **VER-02**: Verify all 85 Java source files present
+- [x] **VER-03**: Verify resource files present (addon.yml, config.yml, en-US.yml)
 
 ## v2 Requirements
 
@@ -61,9 +61,9 @@
 | MOV-01 | Phase 3 | Complete |
 | MOV-02 | Phase 3 | Complete |
 | MOV-03 | Phase 3 | Complete |
-| VER-01 | Phase 4 | Pending |
-| VER-02 | Phase 4 | Pending |
-| VER-03 | Phase 4 | Pending |
+| VER-01 | Phase 4 | Complete |
+| VER-02 | Phase 4 | Complete |
+| VER-03 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 17 total
@@ -72,4 +72,4 @@
 
 ---
 *Requirements defined: 2026-01-20*
-*Last updated: 2026-01-20 after Phase 3 completion*
+*Last updated: 2026-01-20 after Phase 4 completion*
