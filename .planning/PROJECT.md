@@ -1,69 +1,60 @@
-# IslandSelector Cleanup
+# IslandSelector
 
 ## What This Is
 
-A project cleanup for the IslandSelector BentoBox addon. The goal is to remove unused Python scripts, backup files, and generated files, then restructure so the Java addon source lives at the project root.
+A BentoBox addon for Minecraft that provides island selection and management features. The project uses a standard Maven structure with Java 17.
 
 ## Core Value
 
-Clean, organized project structure with only the necessary addon source code and resources.
+Clean, organized BentoBox addon ready for development.
+
+## Current State
+
+**Shipped:** v1.0 Cleanup (2026-01-20)
+**Codebase:** 83 Java files, 29,251 LOC
+**Build:** Maven, Java 17, compiles successfully
+
+```
+IslandSelector/
+├── src/
+│   ├── main/java/world/bentobox/islandselector/
+│   └── main/resources/ (addon.yml, config.yml, locales/)
+├── pom.xml
+└── .git/
+```
 
 ## Requirements
 
 ### Validated
 
-- Existing Java addon source code — working in generations/island_selector/src/
-- Maven build configuration — pom.xml exists
-- Resource files — addon.yml, config.yml, locales
+- Java addon source code — 80 main + 3 test files (v1.0)
+- Maven build configuration — pom.xml at root (v1.0)
+- Resource files — addon.yml, config.yml, en-US.yml (v1.0)
+- Standard project structure — src/ and pom.xml at root (v1.0)
+- Clean repository — no Python scripts, backups, or nested git (v1.0)
+- Build verification — mvn clean compile succeeds (v1.0)
 
 ### Active
 
-- [ ] Remove all Python scripts from project root
-- [ ] Remove Python cache and generated files
-- [ ] Remove backup Java files (*_backup.java)
-- [ ] Remove prompts/ folder and other tooling
-- [ ] Move src/ from generations/island_selector/ to project root
-- [ ] Move pom.xml to project root
-- [ ] Remove empty generations/ folder after move
-- [ ] Clean up nested .git folder
+(None — cleanup complete, project ready for development)
 
 ### Out of Scope
 
-- Modifying Java source code logic — cleanup only
-- Adding new features — not part of this project
-- Changing build configuration — just moving files
-
-## Context
-
-The project accumulated Python scripts and backup files during development. The actual addon source is buried under `generations/island_selector/`. This cleanup will make the project structure standard for a Maven Java project.
-
-**Current structure:**
-- Python tooling at root (agent.py, client.py, etc.)
-- Java source nested under generations/island_selector/src/
-- Backup files scattered (GridManager_backup.java, etc.)
-- Nested .git folder in generations/island_selector/
-
-**Target structure:**
-```
-IslandSelector/
-├── src/
-│   ├── main/java/world/bentobox/islandselector/...
-│   └── main/resources/*.yml
-├── pom.xml
-└── .git/
-```
-
-## Constraints
-
-- **Scope**: Only this project directory — do not touch files outside IslandSelector/
-- **Preservation**: Keep all Java source and resource files intact
+- Modifying Java source code logic — cleanup only (v1.0 scope)
+- Adding new features — not part of cleanup project
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Move src/ to root | Standard Maven project structure | - Pending |
-| Delete nested .git | Only need one git repo at root | - Pending |
+| Move src/ to root | Standard Maven project structure | Done (v1.0) |
+| Delete nested .git | Only need one git repo at root | Done (v1.0) |
+| Use git mv for moves | Preserves file history | Done (v1.0) |
+| Replace agent README | Agent harness docs not relevant | Done (v1.0) |
+
+## Milestones
+
+See `.planning/MILESTONES.md` for shipped milestones.
 
 ---
-*Last updated: 2026-01-20 after initialization*
+*Last updated: 2026-01-20 after v1.0 milestone*
