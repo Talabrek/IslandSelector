@@ -5,29 +5,57 @@
 See: .planning/PROJECT.md (updated 2026-01-20)
 
 **Core value:** Players can visually select their island location from a grid-based GUI
-**Current focus:** v1.1 Simplification — config, alias, and cleanup
+**Current focus:** v1.1 Simplification — config toggle, command alias, neighbors removal
 
 ## Current Position
 
 Milestone: v1.1 Simplification
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-01-20 — Milestone v1.1 started
+Phase: 5 of 7 (Config Toggle)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-20 — Roadmap created for v1.1
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████░░░░░░░░░░] 57% (v1.0 complete, v1.1 starting)
 
-## Milestone Goals
+## Performance Metrics
 
-1. Add config option to disable slot system
-2. Add /map command alias
-3. Remove neighbors GUI and command
+**Velocity:**
+- Total plans completed: 0 (v1.1)
+- Average duration: -
+- Total execution time: -
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 5 | 0/1 | - | - |
+| 6 | 0/1 | - | - |
+| 7 | 0/1 | - | - |
+
+*Updated after each plan completion*
+
+## Accumulated Context
+
+### Decisions
+
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- None yet for v1.1
+
+### Pending Todos
+
+None yet.
+
+### Blockers/Concerns
+
+None yet.
 
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Milestone initialization
-Resume: Define requirements, then create roadmap
+Stopped at: Roadmap created for v1.1 milestone
+Resume: `/gsd:plan-phase 5` to begin first phase
 
 ---
-*State updated: 2026-01-20 after v1.1 milestone start*
+*State updated: 2026-01-20 after roadmap creation*

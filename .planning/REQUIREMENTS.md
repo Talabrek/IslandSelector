@@ -41,21 +41,21 @@ None — v1.1 is a focused simplification milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SLOT-01 | TBD | Pending |
-| SLOT-02 | TBD | Pending |
-| SLOT-03 | TBD | Pending |
-| CMD-01 | TBD | Pending |
-| REM-01 | TBD | Pending |
-| REM-02 | TBD | Pending |
-| REM-03 | TBD | Pending |
-| REM-04 | TBD | Pending |
-| REM-05 | TBD | Pending |
+| SLOT-01 | Phase 5 | Pending |
+| SLOT-02 | Phase 5 | Pending |
+| SLOT-03 | Phase 5 | Pending |
+| CMD-01 | Phase 6 | Pending |
+| REM-01 | Phase 7 | Pending |
+| REM-02 | Phase 7 | Pending |
+| REM-03 | Phase 7 | Pending |
+| REM-04 | Phase 7 | Pending |
+| REM-05 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 9 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 9
+- Mapped to phases: 9
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-20*
-*Last updated: 2026-01-20 after initial definition*
+*Last updated: 2026-01-20 after roadmap creation*
