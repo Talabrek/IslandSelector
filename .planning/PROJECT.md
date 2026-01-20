@@ -10,8 +10,8 @@ Players can visually select their island location from a grid-based GUI.
 
 ## Current State
 
-**Shipped:** v1.1 Simplification (2026-01-20)
-**Codebase:** 80 Java files, 28,699 LOC
+**Shipped:** v1.1.1 Bugfixes (2026-01-21)
+**Codebase:** 80 Java files, 28,922 LOC
 **Build:** Maven, Java 17, compiles successfully
 
 ```
@@ -43,19 +43,21 @@ IslandSelector/
 - Remove neighbors GUI button from main GUI
 - Remove `/islandselector neighbors` command and source files
 
+**v1.1.1 Bugfixes:**
+- ✓ Fix island level mismatch between /islandselector and /island level — v1.1.1 (uses overworld-only, non-cached API)
+- ✓ Restrict island visiting to only allow warps when permitted — v1.1.1 (WarpIntegration created)
+- ✓ Show warp availability status in GUI hover text — v1.1.1 (green checkmark "Has Warp" indicator)
+- ✓ Fix relocation teleporting unrelated players to spawn — v1.1.1 (island.onIsland() checks added)
+
 ### Active
 
-**v1.1.1 Bugfixes:**
-- [ ] Fix island level mismatch between /islandselector and /island level
-- [ ] Restrict island visiting to only allow warps when permitted (warp sign + public visitors)
-- [ ] Show warp availability status in GUI hover text
-- [ ] Fix relocation teleporting unrelated players to spawn
+None — ready for next milestone planning.
 
 ### Out of Scope
 
 - Modifying slot system logic — only adding enable/disable toggle (v1.1 scope)
 - Other GUI changes — only removing neighbors button (v1.1 scope)
-- Adding new features — this is a bugfix-only patch release
+- Warps addon as hard dependency — use reflection/optional integration
 
 ## Key Decisions
 
@@ -68,10 +70,13 @@ IslandSelector/
 | Default slotsEnabled to true | Existing servers continue working after update | Done (v1.1) |
 | Map alias as fourth param | After islandselector, is, isgrid | Done (v1.1) |
 | Keep neighbors_online placeholder | Useful for scoreboards independently of GUI | Done (v1.1) |
+| Use overworld-only getFormattedIslandLevel | Matches Level addon /island level command | Done (v1.1.1) |
+| Use reflection for WarpIntegration | Same pattern as LevelIntegration, no hard dependency | Done (v1.1.1) |
+| Check location before relocation teleport | Capture state before async, pass through chain | Done (v1.1.1) |
 
 ## Milestones
 
 See `.planning/MILESTONES.md` for shipped milestones.
 
 ---
-*Last updated: 2026-01-20 after v1.1.1 milestone started*
+*Last updated: 2026-01-21 after v1.1.1 milestone shipped*

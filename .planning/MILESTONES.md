@@ -1,5 +1,32 @@
 # Project Milestones: IslandSelector
 
+## v1.1.1 Bugfixes (Shipped: 2026-01-21)
+
+**Delivered:** Fixed three independent bugs: level display accuracy, warp sign-based visit controls, and relocation safety.
+
+**Phases completed:** 8-10 (3 plans total)
+
+**Key accomplishments:**
+
+- Fixed island level display to match `/island level` command (overworld-only, non-cached)
+- Created WarpIntegration for conditional visit controls based on warp sign availability
+- Added location checks to relocation to prevent teleporting players who aren't on the island
+- Zero breaking changes — backward compatible with existing setups
+- All fixes follow established codebase patterns (reflection-based addon integration)
+
+**Stats:**
+
+- 80 Java source files (+1 WarpIntegration.java)
+- 28,922 lines of Java code
+- 3 phases, 3 plans, 9 tasks
+- 2-day completion (2026-01-20 → 2026-01-21)
+
+**Git range:** `2a787bb` → `9f78beb`
+
+**What's next:** Planning next milestone.
+
+---
+
 ## v1.1 Simplification (Shipped: 2026-01-20)
 
 **Delivered:** Streamlined addon with configurable slot system, /map command alias, and neighbors feature removed.
