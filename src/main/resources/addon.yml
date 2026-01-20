@@ -40,10 +40,6 @@ permissions:
     description: Can relocate island to a new grid position
     default: true
 
-  islandselector.neighbors:
-    description: Can use neighborhood view
-    default: true
-
   islandselector.purchase:
     description: Can purchase reserved premium locations
     default: true

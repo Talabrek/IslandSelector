@@ -61,9 +61,6 @@ gui:
       find-my-island: "&bFind My Island"
       find-my-island-desc: "&7Center on your island"
 
-      neighborhood: "&aNeighborhood View"
-      neighborhood-desc: "&7View your neighbors"
-
       slots: "&eSlot Selection"
       slots-desc: "&7Manage your island slots"
 
@@ -95,14 +92,6 @@ gui:
     locked-hint: "&7(e.g., VIP rank)"
 
     back: "&aBack to Grid"
-    close: "&cClose"
-
-  # Neighborhood GUI
-  neighborhood:
-    title: "Your Neighborhood"
-    your-island: "&a&l🏠 YOUR ISLAND"
-    back: "&aBack to Grid"
-    slots: "&eSlot Selection"
     close: "&cClose"
 
   # Confirmation GUI

@@ -119,7 +119,6 @@ gui:
     filter-online: LIME_DYE
     search: COMPASS
     find-my-island: ENDER_EYE
-    neighborhood: FILLED_MAP
     slots: CHEST
     close: BARRIER
     confirm: LIME_WOOL
