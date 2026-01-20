@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-20)
 
 **Core value:** Clean, organized project structure with only necessary addon source code
-**Current focus:** Phase 2 - Artifact Removal (COMPLETE)
+**Current focus:** Phase 3 - Project Restructure (COMPLETE)
 
 ## Current Position
 
-Phase: 2 of 4 (Artifact Removal)
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: Phase complete - ready for Phase 3
-Last activity: 2026-01-20 - Completed 02-02-PLAN.md (Backup and Development Artifact Removal)
+Phase: 3 of 4 (Project Restructure)
+Plan: 1 of 1 in current phase (COMPLETE)
+Status: Phase complete - ready for Phase 4
+Last activity: 2026-01-20 - Completed 03-01-PLAN.md (Maven Project Restructure)
 
-Progress: [████░░░░░░] 50% (2/4 phases complete)
+Progress: [███████░░░] 75% (3/4 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 3min
-- Total execution time: 9 min
+- Total execution time: 12 min
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [████░░░░░░] 50% (2/4 phases complete)
 |-------|-------|-------|----------|
 | 01-git-repository-consolidation | 1 | 5min | 5min |
 | 02-artifact-removal | 2 | 4min | 2min |
+| 03-project-restructure | 1 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5min), 02-01 (2min), 02-02 (2min)
-- Trend: Fast execution (artifact cleanup faster than git consolidation)
+- Last 5 plans: 01-01 (5min), 02-01 (2min), 02-02 (2min), 03-01 (3min)
+- Trend: Fast execution (restructure slightly longer than cleanup, still fast)
 
 *Updated after each plan completion*
 
@@ -49,10 +50,13 @@ Recent decisions affecting current work:
 | 2026-01-20 | 01-01 | Combined nested .git deletion + import into single commit | Deleting .git doesn't produce tracked changes, so tasks were logically one operation |
 | 2026-01-20 | 02-01 | No commits for deleted untracked files | All Python files were untracked, deletion produces no git changes |
 | 2026-01-20 | 02-02 | No commits for deleted untracked files | All backup/artifact files were untracked, deletion produces no git changes |
+| 2026-01-20 | 03-01 | Used git mv for all file moves | Preserves file history through the rename |
+| 2026-01-20 | 03-01 | Replaced agent README entirely | Agent harness docs not relevant to IslandSelector addon |
+| 2026-01-20 | 03-01 | Used inner .gitignore as-is | Comprehensive Java/Maven patterns, no need to merge |
 
 ### Pending Todos
 
-- Commit modified .gitignore when root project config is finalized (currently untracked)
+- None - .gitignore now committed with proper Java/Maven patterns
 
 ### Blockers/Concerns
 
@@ -62,5 +66,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 02-02-PLAN.md (Backup and Development Artifact Removal)
-Resume file: None - Phase 2 complete, ready for Phase 3
+Stopped at: Completed 03-01-PLAN.md (Maven Project Restructure)
+Resume file: None - Phase 3 complete, ready for Phase 4
