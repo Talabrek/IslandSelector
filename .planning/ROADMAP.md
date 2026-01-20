@@ -41,10 +41,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Running `/map` opens the island selector GUI
   2. Running `/map` with any subcommand works identically to `/islandselector`
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 06-01: Add /map command alias
+- [x] 06-01-PLAN.md - Add /map command alias to IslandSelectorCommand constructor
 
 #### Phase 7: Neighbors Removal
 
@@ -55,7 +55,7 @@ Plans:
   1. Main GUI does not show neighbors button
   2. Running `/islandselector neighbors` returns unknown command error
   3. No neighbors-related permissions exist in addon.yml
-  4. No orphaned neighbors locale keys remain
+  4. No orphaned neighbors locale keys cleaned up
 **Plans**: TBD
 
 Plans:
@@ -70,7 +70,7 @@ Phases 5, 6, 7 can execute in any order (no dependencies between them).
 |-------|-----------|----------------|--------|-----------|
 | 1-4 | v1.0 | - | Complete | 2026-01-20 |
 | 5. Config Toggle | v1.1 | 1/1 | Complete | 2026-01-20 |
-| 6. Command Alias | v1.1 | 0/1 | Not started | - |
+| 6. Command Alias | v1.1 | 1/1 | Complete | 2026-01-20 |
 | 7. Neighbors Removal | v1.1 | 0/1 | Not started | - |
 
 ---

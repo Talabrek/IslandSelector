@@ -15,7 +15,7 @@ Requirements for the Simplification milestone. Each maps to roadmap phases.
 
 ### Command Alias
 
-- [ ] **CMD-01**: `/map` command works as alias for `/islandselector`
+- [x] **CMD-01**: `/map` command works as alias for `/islandselector`
 
 ### Neighbors Removal
 
@@ -44,7 +44,7 @@ None — v1.1 is a focused simplification milestone.
 | SLOT-01 | Phase 5 | Complete |
 | SLOT-02 | Phase 5 | Complete |
 | SLOT-03 | Phase 5 | Complete |
-| CMD-01 | Phase 6 | Pending |
+| CMD-01 | Phase 6 | Complete |
 | REM-01 | Phase 7 | Pending |
 | REM-02 | Phase 7 | Pending |
 | REM-03 | Phase 7 | Pending |
