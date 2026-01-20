@@ -1,215 +1,154 @@
 # Project Research Summary
 
-**Project:** IslandSelector Brownfield Cleanup
-**Domain:** BentoBox Addon (Maven Java Project) - Project Restructure
+**Project:** IslandSelector v1.1 Simplification
+**Domain:** BentoBox addon configuration and feature management
 **Researched:** 2026-01-20
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This is a brownfield cleanup project, not a greenfield build. The IslandSelector BentoBox addon already exists as a complete Java/Maven project, but it is buried inside a `generations/island_selector/` subdirectory and surrounded by Python scaffolding files from an AI code generation tool. The goal is to restructure this into a standard Maven project at the repository root.
+The v1.1 simplification milestone involves three well-understood changes to the IslandSelector BentoBox addon: adding a config toggle to disable the slot system, adding a `/map` command alias, and removing the neighbors GUI/command entirely. The existing codebase already demonstrates all required patterns for these changes, making this a straightforward refactoring task with high confidence.
 
-The recommended approach is a phased cleanup: first handle the nested git repository situation (the actual project history lives in `generations/island_selector/.git/`), then systematically remove development artifacts (Python scripts, backup files, build outputs), and finally flatten the Maven project structure to the repository root. The order of operations is critical - moving files before handling the nested `.git` directory will cause history loss or corruption.
+The recommended approach is to implement these as three independent changes that can be developed in parallel but should be tested in sequence. The config toggle uses the exact same `@ConfigEntry` pattern already used 20+ times in Settings.java. The command alias requires a single-line addition to the existing varargs constructor. The neighbors removal is the most involved, requiring updates to 6+ files, but follows standard BentoBox patterns with no complex dependencies.
 
-Key risks are data loss from mishandling the nested git repository, broken builds from path reference issues in `pom.xml`, and Windows-specific file locking during deletion. All risks are mitigable with proper sequencing and verification steps. A full backup before starting is non-negotiable.
+The primary risk is incomplete removal of the neighbors feature, leaving orphaned references in GUI code, locale files, or placeholder integrations. A secondary risk is the `/map` alias conflicting with mapping plugins like Dynmap. Both are easily mitigated with thorough grep searching and pre-implementation conflict checking.
 
 ## Key Findings
 
-### Target Project Structure
+### Recommended Stack
 
-The standard BentoBox addon follows Maven conventions. After cleanup, the project root should contain only:
+No new technologies required. All changes use existing BentoBox APIs and patterns already demonstrated in the codebase.
 
-**Required files:**
-- `pom.xml` - Maven project definition (Java 17+, Paper 1.20.4+, BentoBox 2.4.0+)
-- `src/main/java/` - 82 production Java source files
-- `src/main/resources/` - addon.yml, config.yml, locales/en-US.yml
-- `src/test/java/` - 3 test files
-- `.gitignore` - Standard Maven + Java ignores
+**Core technologies (unchanged):**
+- **BentoBox Config API:** Settings.java with `@ConfigEntry` annotations - well-established pattern
+- **BentoBox CompositeCommand:** Command registration with varargs aliases - single line change
+- **Standard Java:** File deletion and reference cleanup for feature removal
 
-**Keep (recommended):**
-- `README.md` - Project documentation
-- `CLAUDE.md` - Development context documentation
-- `LICENSE` - EPL-2.0 or similar
+### Expected Features
 
-**Remove (everything else):**
-- Python files (17 files) - AI generation scaffolding
-- Backup files (11 files) - Duplicated source code
-- Nested `.git/` directory - Must be handled specially
-- Shell scripts (3 files) - Development tooling
-- `target/` directories - Build artifacts
-- `__pycache__/` - Python bytecode
-- `nul`, `prompts/`, `output/` - Misc artifacts
+**Must have (table stakes):**
+- Config toggle fully disables slots: command blocked AND GUI button hidden
+- Clear error message when attempting disabled command
+- `/map` alias works identically to `/islandselector`
+- Clean removal of neighbors with no orphaned references
 
-### Files Requiring Action
+**Should have (competitive):**
+- Tab completion filters disabled commands
+- Descriptive config comments explaining what disabling does
+- Startup log confirming feature state
 
-**From FEATURES.md - Summary table:**
-
-| Category | Count | Action |
-|----------|-------|--------|
-| Essential Java files | 85 | KEEP |
-| Essential resources | 3 | KEEP |
-| Backup files | 11 | REMOVE |
-| Python files | 17 | REMOVE |
-| Nested .git | 1 dir | HANDLE FIRST |
-| Shell scripts | 3 | REMOVE |
-| Build artifacts | 1 dir | CLEAN |
+**Defer (v2+):**
+- Configurable command aliases (hardcoded is fine for now)
+- Runtime toggle without server restart (current reload already works)
 
 ### Architecture Approach
 
-From ARCHITECTURE.md - the critical insight is that this project has a nested git repository inside `generations/island_selector/.git/` while the parent has minimal or no history. The restructure must either abandon the nested history (simpler) or merge it into the parent (preserves commits). Given this is a functioning addon with meaningful development history, preserving history is recommended but not mandatory.
+The changes fit cleanly into the existing architecture with no structural modifications. The config toggle adds one field to Settings.java and guards in two entry points (SlotsCommand.execute() and MainGridGUI button rendering). The command alias is purely additive. The neighbors removal is subtractive with no ripple effects on other features.
 
-**Order of operations:**
-1. Backup entire project
-2. Close all IDEs/editors
-3. Enable Windows long paths if needed
-4. Handle nested .git directory
-5. Delete build artifacts and development scripts
-6. Move essential files to root
-7. Update .gitignore
-8. Verify build
-9. Commit atomically
+**Major components affected:**
+1. **Settings.java** - Add `slotsEnabled` boolean field with getter
+2. **IslandSelectorCommand.java** - Add "map" alias, remove NeighborsCommand registration
+3. **MainGridGUI.java** - Conditionally render slots button, remove neighborhood button
+4. **SlotsCommand.java** - Add config check before execution
+5. **SharedGridGUIListener.java** - Remove neighborhood click handler
+6. **Files to delete** - NeighborsCommand.java, NeighborhoodGUI.java
 
 ### Critical Pitfalls
 
-From PITFALLS.md - top 5 critical issues:
+1. **Incomplete Feature Toggle** - Adding config toggle but only blocking command leaves GUI button visible and clickable. Must check BOTH SlotsCommand.execute() AND MainGridGUI button rendering AND SharedGridGUIListener click handler.
 
-1. **Nested .git corruption** - Handle `.git` directory BEFORE moving files. Back up externally first.
-2. **History loss from combined move+edit** - Commit file moves separately from content changes. Git needs >50% content similarity to detect renames.
-3. **Build path breakage** - Maven `pom.xml` uses default paths (`src/main/java`). Must exist at root after move. Run `mvn clean package` immediately after restructure.
-4. **Windows file locking** - Close all IDEs, kill Java processes before deletions. Use `-Dmaven.clean.failOnError=false` if needed.
-5. **Backup files containing unique code** - Review `*_backup.java` files before deletion. Three files exist: `MainGridGUI_backup.java`, `GridManager_backup.java`, `NeighborhoodGUI_backup_session44.java`. Diff against current versions first.
+2. **Orphaned References After Removal** - Neighbors feature has tentacles in 8+ files. Search must include all spelling variants: `neighbors`, `neighbourhood`, `neighborhood`, `NeighborhoodGUI`, `NEIGHBORHOOD`.
+
+3. **Command Alias Conflicts** - `/map` commonly used by Dynmap, BlueMap, and other mapping plugins. Test for conflicts before committing; consider `/ismap` if conflicts exist.
+
+4. **Both Checks Needed for Slots Button** - MainGridGUI already conditionally shows slots button based on FAWE availability. New code must be `settings.isSlotsEnabled() && addon.isSchematicOperationsAvailable()` - don't replace the FAWE check.
+
+5. **Placeholder Removal Decision** - `%islandselector_neighbors_online%` placeholder works independently of GUI. Decide whether to remove (breaking change for users) or keep (works without GUI but creates inconsistency).
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Preparation and Backup
-**Rationale:** Safety net is non-negotiable for destructive operations
-**Delivers:** External backup, documented current state
-**Addresses:** Risk mitigation
-**Avoids:** Pitfall 3 (nested .git data loss)
+### Phase 1: Config Toggle
+**Rationale:** Self-contained change, establishes pattern for future feature toggles, lowest risk
+**Delivers:** `slots.enabled` config option that disables command and hides GUI button
+**Addresses:** "Config option to disable slot system" requirement
+**Avoids:** Pitfall #1 (incomplete toggle) by checking all entry points
 
-Tasks:
-- Document current git state in both repos
-- Create external backup of entire directory
-- Close all IDEs and editors
-- Verify current project builds (`mvn clean package`)
-- Enable Windows long paths if needed
+**Implementation points:**
+- Settings.java: Add field with `@ConfigEntry(path = "slots.enabled")`, default `true`
+- SlotsCommand.java: Check `getSettings().isSlotsEnabled()` at start of execute()
+- MainGridGUI.java: Add `&& addon.getSettings().isSlotsEnabled()` to existing FAWE check
+- SharedGridGUIListener.java: Add same check before opening SlotSelectionGUI
 
-### Phase 2: Handle Git Repository Structure
-**Rationale:** Must be resolved BEFORE any file moves to prevent corruption
-**Delivers:** Single clean git repository at project root
-**Addresses:** Nested repository problem
-**Avoids:** Pitfall 3 (corrupted git state)
+### Phase 2: Command Alias
+**Rationale:** Single-line change, completely independent, trivial verification
+**Delivers:** `/map` as working alias for `/islandselector`
+**Addresses:** "/map command alias" requirement
+**Avoids:** Pitfall #5 (alias conflicts) by testing before deployment
 
-Tasks:
-- Decision: Abandon nested history OR merge into parent
-- If abandoning: Delete `generations/island_selector/.git/`
-- If merging: Use `git remote add` + merge with `--allow-unrelated-histories`
-- Verify `git status` works correctly after
+**Implementation points:**
+- IslandSelectorCommand.java line 20: Change `super(addon, "islandselector", "is", "isgrid")` to `super(addon, "islandselector", "is", "isgrid", "map")`
 
-### Phase 3: Remove Development Artifacts
-**Rationale:** Clean before moving - reduces complexity and potential file lock issues
-**Delivers:** Clean nested directory with only essential files
-**Avoids:** Pitfall 9 (leftover Python artifacts), Pitfall 4 (file locking)
+### Phase 3: Neighbors Removal
+**Rationale:** Most files affected, benefits from stable base, requires comprehensive cleanup
+**Delivers:** Clean codebase with neighbors feature completely removed
+**Addresses:** "Remove neighbors GUI and command entirely" requirement
+**Avoids:** Pitfalls #2 (orphaned refs), #4 (broken nav), #6-8 (locale/perms/placeholders)
 
-Tasks (in order):
-1. Delete `__pycache__/` directories
-2. Delete Python files (*.py, requirements.txt)
-3. Delete shell scripts (*.sh)
-4. Delete `prompts/` directory
-5. Delete `nul` file
-6. Delete `target/` directories
-7. Review and delete backup files (after comparing with originals)
-8. Delete misc files (feature_list.json, app_spec.txt, .claude_settings.json)
-
-### Phase 4: Flatten Project Structure
-**Rationale:** With artifacts removed, move clean Maven project to root
-**Delivers:** Standard Maven project structure at repository root
-**Addresses:** Proper project layout
-**Avoids:** Pitfall 2 (history loss from combined operations)
-
-Tasks:
-- Move `pom.xml` to root
-- Move `src/` directory to root (preserves test files and resources)
-- Move `CLAUDE.md`, `README.md`, `DEVELOPMENT_NOTES.md` to root
-- Remove empty `generations/` directory
-- Do NOT edit any files during this phase
-
-### Phase 5: Configuration and Verification
-**Rationale:** Ensure project is functional before committing
-**Delivers:** Working Maven project, proper ignore rules
-**Avoids:** Pitfall 1 (broken build), Pitfall 10 (bad .gitignore)
-
-Tasks:
-- Merge/update `.gitignore` for new structure
-- Run `mvn clean package` - must succeed
-- Verify JAR is created
-- Re-import project in IDE (let it regenerate from pom.xml)
-- Run tests if applicable
-
-### Phase 6: Final Commit
-**Rationale:** Atomic commit after verification ensures clean state
-**Delivers:** Committed, clean project structure
-
-Tasks:
-- `git add .`
-- Commit with message: "chore: restructure project - flatten Maven layout to root"
-- Verify commit looks clean (moves, not delete+add)
+**Implementation points:**
+- Remove subcommand registration from IslandSelectorCommand.java
+- Remove button creation from MainGridGUI.java
+- Remove click handler from SharedGridGUIListener.java
+- Delete NeighborsCommand.java
+- Delete NeighborhoodGUI.java
+- Remove permission from addon.yml
+- Remove locale strings from en-US.yml
+- Remove placeholder from PlaceholderAPIIntegration.java (or keep - decide)
 
 ### Phase Ordering Rationale
 
-- **Backup first** because all subsequent operations are destructive
-- **Git structure second** because file moves behave differently with nested repos
-- **Delete before move** because it reduces complexity and file counts
-- **Move as single phase** to preserve Git's rename detection
-- **Verify before commit** because catching issues before commit is far easier than fixing after
-- **Atomic commit last** to maintain clean project history
+- **Phase 1 before 2:** No technical dependency, but establishes config patterns
+- **Phase 2 independent:** Can actually be done in parallel with Phase 1
+- **Phase 3 last:** Multi-file changes benefit from a clean, tested base; if something breaks, easier to isolate cause
 
 ### Research Flags
 
-Phases with standard patterns (no additional research needed):
-- **Phase 1 (Backup):** Standard backup procedures
-- **Phase 3 (Cleanup):** Standard file deletion
-- **Phase 5 (Verify):** Standard Maven build verification
-- **Phase 6 (Commit):** Standard git operations
+Phases with standard patterns (skip additional research):
+- **Phase 1 (Config Toggle):** Well-documented - Settings.java already has 20+ examples of this exact pattern
+- **Phase 2 (Command Alias):** Well-documented - CompositeCommand varargs constructor is standard BentoBox
+- **Phase 3 (Neighbors Removal):** Standard Java file deletion - just need comprehensive grep
 
-Phases requiring care but not research:
-- **Phase 2 (Git structure):** Well-documented but requires decision on history preservation
-- **Phase 4 (Flatten):** Standard but order-dependent - follow exact sequence
+No phases need deeper research. All patterns are already demonstrated in the codebase.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Verified against official BentoBox repositories and documentation |
-| Features | HIGH | Direct filesystem analysis, clear categorization |
-| Architecture | HIGH | Git and Maven patterns are well-documented |
-| Pitfalls | HIGH | Based on official documentation and real-world case studies |
+| Stack | HIGH | No new tech, all existing BentoBox patterns |
+| Features | HIGH | Requirements are unambiguous, patterns exist in codebase |
+| Architecture | HIGH | Direct analysis of actual source files |
+| Pitfalls | HIGH | Identified from real codebase integration points |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Backup file review:** The three `*_backup.java` files should be diffed against current versions before deletion. This is a manual review step.
-- **History preservation decision:** Requires human decision whether nested repo history is worth preserving. Research provides both approaches.
-- **Windows environment specifics:** Long path enabling may require admin privileges. Have fallback plan if registry changes are not possible.
+- **Alias conflict check:** Need to verify `/map` availability on target servers before deployment. Consider providing alternative aliases in documentation if conflicts exist.
+
+- **Placeholder decision:** Research did not prescribe whether to remove or keep `%islandselector_neighbors_online%`. Recommend: remove it along with the feature for consistency, but document in changelog as breaking change.
+
+- **Locale file completeness:** Only en-US.yml analyzed. If other locales exist, they need same cleanup.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [BentoBox Official Documentation](https://docs.bentobox.world/en/latest/Tutorials/api/Create-an-addon/) - Addon structure requirements
-- [BentoBox GitHub Repository](https://github.com/BentoBoxWorld/BentoBox) - Reference implementation
-- [Level Addon Repository](https://github.com/BentoBoxWorld/Level) - Reference addon
-- [Maven Getting Started Guide](https://maven.apache.org/guides/getting-started/) - Standard directory layout
-- [Git Documentation](https://git-scm.com/docs/git-clean) - Git clean for nested repos
+- **IslandSelector codebase direct analysis** - Settings.java, SlotsCommand.java, MainGridGUI.java, SharedGridGUIListener.java, IslandSelectorCommand.java
+- **BentoBox CompositeCommand source** - https://github.com/BentoBoxWorld/BentoBox/blob/master/src/main/java/world/bentobox/bentobox/api/commands/CompositeCommand.java
+- **BentoBox Config API docs** - https://docs.bentobox.world/en/latest/BentoBox/Config-API/
 
 ### Secondary (MEDIUM confidence)
-- [Git Move Files: History Preservation in 2026](https://thelinuxcode.com/git-move-files-practical-renames-refactors-and-history-preservation-in-2026/) - Rename detection heuristics
-- [Microsoft Long Paths Documentation](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation) - Windows path limits
-
-### Tertiary (LOW confidence)
-- Community examples and forum posts - Supplementary context only
+- **BentoBox commands reference** - https://docs.bentobox.world/en/latest/BentoBox/Commands/
 
 ---
 *Research completed: 2026-01-20*

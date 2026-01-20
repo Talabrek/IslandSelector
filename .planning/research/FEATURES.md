@@ -1,223 +1,323 @@
-# Feature Landscape: Maven Java Project Cleanup
+# Feature Landscape
 
-**Domain:** BentoBox Addon (Maven Java Project) - Brownfield Cleanup
+**Domain:** BentoBox Addon Configuration Changes
 **Researched:** 2026-01-20
-**Confidence:** HIGH (based on direct file system analysis)
+**Confidence:** HIGH (based on existing codebase patterns and BentoBox documentation)
 
-## Table Stakes (MUST KEEP)
+## Context
 
-Files and directories essential to the project. Removing these breaks the build or loses source code.
+This research covers implementing configuration toggles and command changes for the IslandSelector BentoBox addon:
+1. Config option to disable the slot system (hide GUI button, block command)
+2. `/map` command alias for `/islandselector`
+3. Remove neighbors GUI and command entirely
 
-| File/Pattern | Why Keep | Location |
-|--------------|----------|----------|
-| `pom.xml` | Maven build configuration - defines dependencies, build process, project metadata | `generations/island_selector/pom.xml` |
-| `src/main/java/**/*.java` | Production source code - the actual addon implementation | 82 Java files across commands, gui, managers, etc. |
-| `src/main/resources/` | Runtime resources - config.yml, addon.yml, locales | `config.yml`, `addon.yml`, `locales/en-US.yml` |
-| `src/test/java/**/*.java` | Test source code - unit tests | 3 test files |
-| `.gitignore` | Git configuration for the main project | Root level |
-| `README.md` | Project documentation (in generations/island_selector) | Essential for understanding the addon |
-| `CLAUDE.md` | Development context documentation | Useful for ongoing development |
+---
 
-### Standard Maven Directory Structure
+## Table Stakes
+
+Features that MUST be implemented correctly for these changes to work properly.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Config toggle for slot system | Server admins expect feature toggles to fully disable features they don't want | Low | Standard BentoBox pattern using `@ConfigEntry` |
+| GUI button hidden when slots disabled | Showing a button that doesn't work is confusing UX | Low | Conditional check in `MainGridGUI.populateControlButtons()` |
+| Command blocked when slots disabled | Running a disabled command must fail gracefully with clear message | Low | Check in `SlotsCommand.execute()` |
+| Helpful error message when blocked | Players need to understand why a feature isn't available | Low | Message like "Slot system is disabled on this server" |
+| `/map` command alias registration | Aliases are standard BentoBox feature via constructor | Low | Add "map" to `IslandSelectorCommand` constructor |
+| Clean removal of neighbors code | Dead code should not remain in codebase | Medium | Remove files + all references |
+
+## Table Stakes Details
+
+### 1. Config Toggle Implementation
+
+**Pattern from existing codebase (HIGH confidence):**
+
+The addon already uses this pattern extensively. See `Settings.java`:
+- `multiDimensionEnabled` (line 217) - feature toggle
+- `backupsEnabled` (line 78) - feature toggle
+- `vaultEnabled` (line 159) - integration toggle
+
+**Required implementation:**
+```java
+@ConfigComment("Enable the multi-slot island system")
+@ConfigComment("When disabled, players can only have one island (no slot switching)")
+@ConfigEntry(path = "slots.enabled")
+private boolean slotsEnabled = true;
+```
+
+With getter:
+```java
+public boolean isSlotsEnabled() {
+    return slotsEnabled;
+}
+```
+
+### 2. GUI Button Hiding
+
+**Pattern from existing codebase (HIGH confidence):**
+
+`MainGridGUI.java` line 722-728 already does conditional button display:
+```java
+// Slot Selection - only show if FAWE is available
+if (addon.isSchematicOperationsAvailable()) {
+    ItemStack slots = createButton(Material.CHEST, "&6Island Slots",
+        "&7Manage your slots");
+    inventory.setItem(BOT_SLOTS_SLOT, slots);
+}
+// If FAWE not available, slot 50 will be filled with filler later
+```
+
+**Required change:** Add `&& addon.getSettings().isSlotsEnabled()` to the condition.
+
+### 3. Command Blocking
+
+**Pattern from existing codebase (HIGH confidence):**
+
+`SlotsCommand.java` lines 31-35 already has feature checking:
+```java
+// Check if FAWE is available
+if (!addon.isSchematicOperationsAvailable()) {
+    user.sendMessage("&cThis feature requires FastAsyncWorldEdit (FAWE) to be installed.");
+    return false;
+}
+```
+
+**Required addition:** Add similar check at start of `execute()`:
+```java
+// Check if slot system is enabled
+if (!addon.getSettings().isSlotsEnabled()) {
+    user.sendMessage("&cThe slot system is disabled on this server.");
+    return false;
+}
+```
+
+### 4. Command Alias
+
+**Pattern from BentoBox (HIGH confidence):**
+
+From `IslandSelectorCommand.java` line 19-21:
+```java
+public IslandSelectorCommand(IslandSelector addon) {
+    super(addon, "islandselector", "is", "isgrid");
+}
+```
+
+BentoBox `CompositeCommand` constructor accepts varargs for aliases. Simply add "map":
+```java
+super(addon, "islandselector", "is", "isgrid", "map");
+```
+
+**Source:** [BentoBox CompositeCommand.java](https://github.com/BentoBoxWorld/BentoBox/blob/master/src/main/java/world/bentobox/bentobox/api/commands/CompositeCommand.java)
+
+### 5. Neighbors Removal
+
+**Files to delete:**
+- `src/main/java/world/bentobox/islandselector/gui/NeighborhoodGUI.java`
+- `src/main/java/world/bentobox/islandselector/commands/NeighborsCommand.java`
+
+**References to remove:**
+- `IslandSelectorCommand.java` line 37: `new NeighborsCommand(this);`
+- `MainGridGUI.java`: `BOT_NEIGHBORHOOD_SLOT` constant and related code
+- `SharedGridGUIListener.java`: neighborhood button click handling
+- `addon.yml`: `islandselector.neighbors` permission
+
+---
+
+## Nice-to-Haves
+
+Features that would improve the implementation but aren't strictly required.
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Tab completion respects disabled commands | Cleaner UX - don't show commands that won't work | Low | Override `tabComplete()` to filter |
+| Config comment explaining implications | Helps admins understand what disabling does | Trivial | Add `@ConfigComment` lines |
+| Reload applies toggle immediately | Avoid server restart for config changes | Low | Already have reload command that reloads settings |
+| Log message when feature is disabled | Helps debugging/confirmation | Trivial | Add log in `onEnable()` |
+| Permission check before config check | Allow admins to override via permission | Low | Optional bypass permission |
+
+### Nice-to-Have Details
+
+**Tab completion filtering:**
+```java
+@Override
+public Optional<List<String>> tabComplete(User user, String alias, List<String> args) {
+    // Filter out disabled commands from suggestions
+    if (args.size() == 1) {
+        List<String> suggestions = new ArrayList<>();
+        for (CompositeCommand sub : getSubCommands().values()) {
+            // Skip slots if disabled
+            if (sub.getLabel().equals("slots") && !addon.getSettings().isSlotsEnabled()) {
+                continue;
+            }
+            // ... rest of logic
+        }
+    }
+}
+```
+
+**Config comments:**
+```java
+@ConfigComment("")
+@ConfigComment("==========================================")
+@ConfigComment("SLOT SYSTEM SETTINGS")
+@ConfigComment("==========================================")
+@ConfigComment("Enable the multi-slot island system.")
+@ConfigComment("When DISABLED:")
+@ConfigComment("  - Players can only have one island")
+@ConfigComment("  - /islandselector slots command is blocked")
+@ConfigComment("  - Slots button is hidden from grid GUI")
+@ConfigComment("  - Slot switching features are unavailable")
+@ConfigEntry(path = "slots.enabled")
+private boolean slotsEnabled = true;
+```
+
+---
+
+## Anti-Features
+
+Features to explicitly NOT implement. Common mistakes in this type of change.
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Silently failing commands | Confuses players - they don't know why it doesn't work | Always send a clear message explaining the feature is disabled |
+| Hiding command from help but still executable | Inconsistent behavior frustrates users | Either fully disable (block execution) or fully enable |
+| Breaking existing slot data when disabled | Players who had slots would lose data | Keep slot data intact; just prevent new slot operations |
+| Removing neighbors without updating translations | Leaves orphaned translation keys | Also remove from `locales/` if present |
+| Hardcoding the alias | Admins may want to customize | Consider making it configurable (optional nice-to-have) |
+| Leaving dead imports/references | Causes compilation warnings, confusion | Clean up all imports and references |
+| Removing permission from addon.yml only | Permission still referenced in code | Remove from both addon.yml AND code |
+
+### Anti-Feature Details
+
+**Do NOT do this - silent failure:**
+```java
+// BAD: Silently does nothing
+if (!addon.getSettings().isSlotsEnabled()) {
+    return false;  // No message!
+}
+```
+
+**Do NOT do this - data destruction:**
+```java
+// BAD: Deleting player slot data when feature disabled
+if (!addon.getSettings().isSlotsEnabled()) {
+    slotManager.deleteAllSlots();  // NEVER DO THIS
+}
+```
+
+**Do NOT do this - partial removal:**
+```java
+// BAD: Removing command registration but leaving GUI button
+// setup() {
+//     // new NeighborsCommand(this);  // Commented out
+// }
+// But MainGridGUI still has the button!
+```
+
+---
+
+## Feature Dependencies
 
 ```
-project-root/
-  pom.xml                    # KEEP - Build definition
-  src/
-    main/
-      java/                  # KEEP - All production Java source
-      resources/             # KEEP - All runtime resources
-    test/
-      java/                  # KEEP - All test source
-      resources/             # KEEP - Test resources (if any)
+Config Toggle (slots.enabled)
+    |
+    +---> SlotsCommand (checks toggle before executing)
+    |
+    +---> MainGridGUI (checks toggle before showing button)
+    |
+    +---> SlotSelectionGUI (checks toggle in various places)
+    |
+    +---> Tab completion (filters "slots" from suggestions)
+
+Command Alias (/map)
+    |
+    +---> No dependencies, additive change
+
+Neighbors Removal
+    |
+    +---> NeighborsCommand.java (DELETE)
+    +---> NeighborhoodGUI.java (DELETE)
+    +---> IslandSelectorCommand.java (remove registration)
+    +---> MainGridGUI.java (remove button)
+    +---> SharedGridGUIListener.java (remove click handler)
+    +---> addon.yml (remove permission)
 ```
 
-## Remove: Backup Files
+---
 
-Backup files that duplicate source code. These indicate development iteration but should not be in version control.
+## Affected Files Summary
 
-| Pattern | Count | Specific Files |
-|---------|-------|----------------|
-| `*_backup.java` | 3 | `MainGridGUI_backup.java`, `GridManager_backup.java`, `NeighborhoodGUI_backup_session44.java` |
-| `*.java.bak` | 1 | `src/main/java/.../gui/MainGridGUI.java.bak` |
-| `*.java.backup` | 3 | `IslandSelectorCommand.java.backup`, `AdminCommand.java.backup`, `IslandSelector.java.backup` |
-| `*.yml.bak` | 2 | `locales/en-US.yml.bak` (src and target) |
-| `*.md.backup` | 2 | `TESTING.md.backup`, `TESTING.md.session40.backup` |
+### Files to Modify
 
-**Total backup files: 11**
+| File | Change |
+|------|--------|
+| `Settings.java` | Add `slotsEnabled` field with getter |
+| `IslandSelectorCommand.java` | Add "map" alias, remove NeighborsCommand |
+| `SlotsCommand.java` | Add enabled check at start of execute() |
+| `MainGridGUI.java` | Add enabled check for slots button, remove neighborhood button |
+| `SharedGridGUIListener.java` | Remove neighborhood click handling |
+| `addon.yml` | Remove `islandselector.neighbors` permission |
 
-## Remove: Python Scripts and Artifacts
-
-Python tooling scripts that are not part of the Java project.
-
-### Root Level Python Files (REMOVE)
-| File | Purpose (inferred) |
-|------|-------------------|
-| `agent.py` | AI agent tooling |
-| `client.py` | AI client tooling |
-| `progress.py` | Progress tracking |
-| `prompts.py` | Prompt management |
-| `security.py` | Security utilities |
-| `test_security.py` | Security tests |
-| `autonomous_agent_demo.py` | Demo script |
-| `requirements.txt` | Python dependencies |
-
-### Inner Project Python Files (REMOVE from generations/island_selector/)
-| File | Purpose (inferred) |
-|------|-------------------|
-| `add_method.py` | Code generation helper |
-| `check_tests.py` | Test checking script |
-| `find_tests.py` | Test discovery |
-| `check_neighborhood.py` | Debug script |
-| `check_session42.py` | Session debug |
-| `find_simple_tests.py` | Test filtering |
-| `find_later_tests.py` | Test filtering |
-| `find_permission_tests.py` | Test filtering |
-| `get_neighborhood_tests.py` | Test extraction |
-
-### Python Cache (REMOVE)
-| Directory | Contents |
-|-----------|----------|
-| `__pycache__/` | 5 compiled .pyc files |
-
-**Total Python items: 17 files + 1 directory**
-
-## Remove: Nested Git Repository
-
-A nested `.git` folder inside `generations/island_selector/` creates a git-within-git scenario that causes issues.
-
-| Item | Issue |
-|------|-------|
-| `generations/island_selector/.git/` | Nested git repo - conflicts with parent .git |
-
-**Action:** Remove entire `.git` folder from `generations/island_selector/`
-
-## Remove: Build Artifacts (Optional)
-
-Maven's `target/` directory contains compiled output. Should be gitignored, can be regenerated with `mvn clean package`.
-
-| Directory | Contents | Size |
-|-----------|----------|------|
-| `generations/island_selector/target/` | .class files, compiled resources, test reports | 100+ files |
-
-**Note:** If not already in .gitignore, add `target/` pattern. Removal is safe - `mvn clean package` regenerates everything.
-
-## Remove: Shell Scripts (Development Tooling)
-
-Shell scripts used during development but not part of the addon.
-
-| File | Purpose |
-|------|---------|
-| `init.sh` | Project initialization |
-| `find_next_test.sh` | Test discovery |
-| `update_testing.sh` | Testing helper |
-
-**Total: 3 shell scripts**
-
-## Remove: Miscellaneous Clutter
+### Files to Delete
 
 | File | Reason |
 |------|--------|
-| `nul` | Empty file (Windows artifact from `> nul`) |
-| `prompts/` directory | AI tooling (app_spec.txt, initializer_prompt.md, coding_prompt.md) |
-| `generations/` wrapper | Consider flattening - the actual project is inside |
-| `feature_list.json` | Development tracking file, not runtime |
-| `.claude_settings.json` | AI tool settings |
-| `app_spec.txt` (in generations/island_selector) | Original spec, could keep for reference or archive |
-| `DEVELOPMENT_NOTES.md` | Keep if valuable, or archive |
-| `output/` directory | Build output folder |
+| `NeighborsCommand.java` | Feature removed |
+| `NeighborhoodGUI.java` | Feature removed |
 
-## Anti-Features (DO NOT REMOVE)
+---
 
-Files that might look like clutter but are essential.
+## User Experience Considerations
 
-| File/Pattern | Why Keep |
-|--------------|----------|
-| `.vscode/settings.json` | IDE configuration (optional but harmless) |
-| `.claude/` directory | Claude Code context (useful for AI-assisted development) |
-| `.planning/` directory | GSD planning files (active use) |
-| `CLAUDE.md` | Development context (valuable) |
+### When Slots Are Disabled
 
-## Cleanup Priority Order
-
-### Phase 1: Safe Removal (No Risk)
-1. `__pycache__/` - Python cache, zero value
-2. `nul` file - Empty artifact
-3. All `*_backup*` files - Duplicates of existing code
-4. All `*.bak` files - Duplicates
-5. All `*.backup` files - Duplicates
-
-### Phase 2: Python Cleanup (Verify Not Needed)
-1. Root-level `.py` files
-2. `requirements.txt`
-3. Python scripts in `generations/island_selector/`
-
-### Phase 3: Git Structure
-1. Remove `generations/island_selector/.git/` - Nested repo
-
-### Phase 4: Tooling Scripts
-1. Shell scripts (`*.sh`)
-2. `prompts/` directory
-
-### Phase 5: Optional Restructure
-1. Consider flattening: Move `generations/island_selector/*` to root
-2. Remove empty `generations/` wrapper
-3. Clean up `target/` if not gitignored
-
-## Verification Checklist
-
-Before removing any file category, verify:
-
-- [ ] No `.java` files in src/ are flagged for removal
-- [ ] `pom.xml` is preserved
-- [ ] `src/main/resources/` contents preserved
-- [ ] `src/test/java/` contents preserved
-- [ ] `.gitignore` preserved
-- [ ] Project still builds: `mvn clean package`
-
-## Cleanup Commands Reference
-
-```bash
-# Remove backup files
-rm -f *_backup.java
-rm -f **/*.bak
-rm -f **/*.backup
-
-# Remove Python files (from project root)
-rm -f *.py
-rm -f requirements.txt
-rm -rf __pycache__/
-
-# Remove nested git
-rm -rf generations/island_selector/.git/
-
-# Remove shell scripts
-rm -f generations/island_selector/*.sh
-
-# Remove nul artifact
-rm -f nul
-
-# Clean Maven build
-cd generations/island_selector && mvn clean
+**Command attempt:**
+```
+Player: /islandselector slots
+Server: The slot system is disabled on this server.
 ```
 
-## Summary Table
+**GUI experience:**
+- Slot button simply doesn't appear in bottom control bar
+- No indication it was ever there (clean absence)
 
-| Category | Count | Action |
-|----------|-------|--------|
-| Essential Java files | 85 | KEEP |
-| Essential resources | 3 | KEEP |
-| Essential config | 2 | KEEP |
-| Backup files | 11 | REMOVE |
-| Python files | 17 | REMOVE |
-| Python cache | 1 dir | REMOVE |
-| Nested .git | 1 dir | REMOVE |
-| Shell scripts | 3 | REMOVE |
-| Windows artifacts | 1 | REMOVE |
-| Build artifacts (target/) | 1 dir | CLEAN/GITIGNORE |
+**Help command:**
+- `/islandselector help` should NOT list "slots" subcommand
+- Requires filtering in help output
+
+### When Using /map Alias
+
+**Expected behavior:**
+- `/map` works exactly like `/islandselector`
+- `/map slots` works like `/islandselector slots`
+- Tab completion works for both
+- Help shows both aliases
+
+---
+
+## Implementation Checklist
+
+- [ ] Add `slotsEnabled` config option to Settings.java
+- [ ] Add enabled check to SlotsCommand.execute()
+- [ ] Add enabled check to MainGridGUI button display
+- [ ] Add "map" alias to IslandSelectorCommand constructor
+- [ ] Remove NeighborsCommand registration from IslandSelectorCommand
+- [ ] Remove neighborhood button from MainGridGUI
+- [ ] Remove neighborhood click handling from SharedGridGUIListener
+- [ ] Delete NeighborsCommand.java
+- [ ] Delete NeighborhoodGUI.java
+- [ ] Remove islandselector.neighbors permission from addon.yml
+- [ ] Test: /islandselector slots blocked when disabled
+- [ ] Test: Slots button hidden when disabled
+- [ ] Test: /map opens grid GUI
+- [ ] Test: /map slots works (when enabled)
+- [ ] Test: neighbors command no longer exists
+- [ ] Test: Build succeeds with no compilation errors
+
+---
 
 ## Sources
 
-- Direct file system analysis of `C:\Users\Administrator\Desktop\VSCode\IslandSelector`
-- Maven standard directory layout conventions
-- Git best practices for repository structure
+- **Existing codebase patterns:** Settings.java, SlotsCommand.java, MainGridGUI.java (HIGH confidence)
+- **BentoBox CompositeCommand:** [GitHub](https://github.com/BentoBoxWorld/BentoBox/blob/master/src/main/java/world/bentobox/bentobox/api/commands/CompositeCommand.java) (HIGH confidence)
+- **BentoBox addon documentation:** [docs.bentobox.world](https://docs.bentobox.world) (MEDIUM confidence)

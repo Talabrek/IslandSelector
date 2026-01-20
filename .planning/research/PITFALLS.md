@@ -1,205 +1,323 @@
-# Domain Pitfalls: Java Project Cleanup and Restructuring
+# Domain Pitfalls
 
-**Domain:** BentoBox addon project cleanup (brownfield)
+**Domain:** BentoBox addon configuration, command, and feature removal changes
+**Project:** IslandSelector modifications
 **Researched:** 2026-01-20
-**Context:** Moving files from `generations/island_selector/` to root, deleting Python scaffolding files and backups
+**Focus:** Config toggle, command alias, feature removal
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause data loss, broken builds, or require significant recovery effort.
+Mistakes that cause functionality breaks, runtime errors, or confusing user experience.
 
-### Pitfall 1: Deleting Files Still Referenced by Build Configuration
+### Pitfall 1: Incomplete Feature Toggle - GUI Button Still Visible
 
-**What goes wrong:** Deleting files that `pom.xml` or other build configurations reference, causing build failures that are not immediately obvious.
+**What goes wrong:** Adding a config toggle like `slots-enabled: false` but only blocking the command. The GUI button in MainGridGUI remains visible and clickable, confusing users when nothing happens or they get an error.
 
-**Why it happens:** The build configuration may reference paths relative to the project root. When moving files, these references become invalid. Additionally, backup files (like `*_backup.java`) might be accidentally included in the build if naming patterns match.
+**Why it happens:** Feature toggles need to be enforced at multiple entry points:
+1. Command execution (`SlotsCommand.execute()`)
+2. GUI button visibility (`MainGridGUI.populateControlButtons()`)
+3. GUI click handlers (`SharedGridGUIListener.onInventoryClick()`)
 
 **Consequences:**
-- `mvn clean package` fails with cryptic errors
-- IDE loses project configuration
-- CI/CD pipelines break
+- Users see "Island Slots" button but clicking does nothing
+- Inconsistent experience between command and GUI
+- Support tickets asking why slots feature is "broken"
 
 **Prevention:**
-1. Review `pom.xml` thoroughly before moving files
-2. Check `<sourceDirectory>`, `<resources>`, and plugin configurations for path assumptions
-3. Run `mvn clean package` immediately after restructuring to catch issues early
-4. Note: Current pom.xml uses default Maven paths (`src/main/java`, `src/main/resources`) - these must exist at root level after move
+When adding a feature toggle, grep for ALL references to the feature. Check:
+- `SlotsCommand.java` - command execution (add check at line ~28)
+- `MainGridGUI.java` lines 720-728 - button rendering (currently checks only FAWE availability)
+- `SharedGridGUIListener.java` lines 84-89 - click handler
 
-**Detection:** Build fails with "source directory does not exist" or "cannot find symbol" errors
+In MainGridGUI, the slots button rendering must check the new config:
+```java
+if (settings.isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
+    // render button
+}
+```
+
+In SharedGridGUIListener, the click handler must also check before opening SlotSelectionGUI.
+
+**Detection:**
+- Test disabled state by setting config to `false`
+- Click everywhere in GUI to find orphaned buttons
+- Run all related commands
+
+**Applies to:** `slots-enabled` config toggle
 
 ---
 
-### Pitfall 2: Breaking Git History with Combined Move+Edit Commits
+### Pitfall 2: Config Reload Does Not Apply to Open GUIs
 
-**What goes wrong:** Moving files and editing them in the same commit causes Git to treat the operation as delete+add instead of rename, losing file history.
+**What goes wrong:** Admin reloads config with `/islandselector admin reload`, but players with GUIs already open see stale state. Toggle changes don't apply until they close and reopen.
 
-**Why it happens:** Git uses content similarity heuristics (>50% match) to detect renames. Large edits combined with moves fall below this threshold. [Git does not store "rename" as a fundamental object](https://thelinuxcode.com/git-move-files-practical-renames-refactors-and-history-preservation-in-2026/) - it infers renames by comparing snapshots.
+**Why it happens:** The `onReload()` method (IslandSelector.java lines 254-271) reloads the Settings object, but existing GUI instances may:
+- Hold references to the old Settings object
+- Have cached values during construction
+- Never re-check settings after initial render
 
 **Consequences:**
-- `git log --follow` stops working at the move point
-- `git blame` shows all lines as "new" at the move commit
-- Historical context for code decisions is lost
+- Admin disables slots, but player with open GUI can still access it
+- Race condition between config reload and user actions
+- Difficult to debug "sometimes works, sometimes doesn't" reports
 
 **Prevention:**
-1. **Separate renames from content changes** - commit moves first, then make any needed edits in a second commit
-2. Use `git mv` for explicit intent (stages automatically, prevents accidental overwrites)
-3. Verify with `git diff --staged --stat` - it should show "renamed" not "deleted/added"
-4. For this project: Move the entire `generations/island_selector/` contents to root in one clean commit, no edits
+- Option A (Recommended): GUIs should always read fresh from `addon.getSettings()` at render/action time, not cache settings in constructor
+- Option B: Close all open IslandSelector GUIs when config reloads (heavyweight)
+- Option C: Document that config reload requires players to close GUIs
 
-**Detection:** `git status` shows deletions and additions instead of renames after staging
+For this project, MainGridGUI already calls `addon.getSettings()` in methods - verify the toggle check follows this pattern.
+
+**Detection:**
+1. Open GUI as player
+2. As admin, run reload command
+3. Click feature that was just toggled - does it respect new config?
+
+**Applies to:** `slots-enabled` config toggle, any future toggles
 
 ---
 
-### Pitfall 3: Losing the Nested .git Directory Data
+### Pitfall 3: Orphaned References After Feature Removal
 
-**What goes wrong:** The project has a `.git` directory inside `generations/island_selector/`. Moving files carelessly could either:
-- Overwrite the root project's git state
-- Lose commit history from the nested repo
-- Create a corrupted git state
+**What goes wrong:** Removing the neighbors feature but leaving references scattered across the codebase:
 
-**Why it happens:** The current structure has:
-- Root level: No `.git` (not a git repo at root)
-- `generations/island_selector/.git/`: Contains the actual git repository
+**Known reference locations for neighbors:**
+| File | Location | Type |
+|------|----------|------|
+| `addon.yml` | Lines 43-45 | Permission node |
+| `en-US.yml` | Lines 65, 100-106, 113 | Locale strings |
+| `PlaceholderAPIIntegration.java` | Lines 94-96, 186-228 | Placeholder + method |
+| `MainGridGUI.java` | BOT_NEIGHBORHOOD_SLOT (line 68), populateControlButtons() | GUI constant + rendering |
+| `SharedGridGUIListener.java` | Lines 79-82 | Click handler |
+| `IslandSelectorCommand.java` | Line 37 | Subcommand registration |
+| `NeighborsCommand.java` | Entire file | Command class |
+| `NeighborhoodGUI.java` | Entire file | GUI class |
 
-This is an unusual structure that requires careful handling.
+**Why it happens:** Features have tentacles throughout the codebase. Simple grep for class name misses:
+- GUI slot constants
+- Locale keys
+- Permission nodes
+- Placeholder identifiers
+- Alternative spellings (neighbourhood vs neighborhood)
 
 **Consequences:**
-- Complete loss of version control history
-- Corrupted repository state
-- Unable to push/pull from remotes
+- Compile errors if class is deleted but references remain (imports)
+- Runtime NPE if placeholder calls deleted method
+- Orphaned permissions in addon.yml waste space and confuse admins
+- Locale strings for non-existent features confuse translators
 
 **Prevention:**
-1. **First:** Move the `.git` directory from `generations/island_selector/` to root
-2. **Then:** Update git's working directory awareness
-3. **Then:** Move source files
-4. OR: Initialize fresh repo at root and use `git filter-repo` to preserve history
-5. Back up the entire `generations/island_selector/.git/` directory before any operations
+Search checklist before removing a feature:
+```bash
+grep -ri "NeighborhoodGUI" src/
+grep -ri "neighbors" src/ --include="*.java" --include="*.yml"
+grep -ri "neighbourhood" src/
+grep -ri "neighborhood" src/
+grep -ri "NEIGHBORHOOD" src/
+```
 
-**Detection:** `git status` fails or shows unexpected state after move
+**Detection:**
+- Compile after removal - catches import/reference errors
+- Run placeholder tests - catches runtime errors
+- grep for the feature name variants
+
+**Applies to:** Removing neighbors GUI and command
 
 ---
 
-### Pitfall 4: Windows File Locking During Deletion
+### Pitfall 4: Broken Back Navigation After Feature Removal
 
-**What goes wrong:** Files cannot be deleted because another process has them locked. Common on Windows with:
-- IDE (VS Code, IntelliJ) indexing files
-- Java processes with loaded JARs
-- Python interpreter with cached `.pyc` files
+**What goes wrong:** NeighborhoodGUI has navigation buttons that create a GUI graph. Removing NeighborhoodGUI breaks inbound navigation.
 
-**Why it happens:** [Windows locks files that are in use](https://forum.inductiveautomation.com/t/unblock-and-delete-files-that-have-been-locked-by-java/60194), preventing deletion until the handle is released. [Even after closing Java applications, Introspector can maintain locks on JAR files](https://bugs.openjdk.org/browse/JDK-8231454).
+**Navigation graph:**
+```
+MainGridGUI ----[slot 49]----> NeighborhoodGUI
+     ^                              |
+     |<----[slot 18 "Back"]---------|
+     |                              |
+     |<----[slot 20 "Slots"]------> SlotSelectionGUI
+```
+
+**Key locations:**
+- MainGridGUI line 68: `BOT_NEIGHBORHOOD_SLOT = 49`
+- MainGridGUI lines 717-720: "Neighborhood" button rendering
+- SharedGridGUIListener lines 79-82: Click handler opens NeighborhoodGUI
+
+**Why it happens:** Removing NeighborhoodGUI requires updating inbound links but these are in different files from the removed feature.
 
 **Consequences:**
-- Maven clean fails: "Failed to delete target directory"
-- Cannot delete backup `.java` files
-- Cannot remove `__pycache__` directories
+- Clicking "Neighborhood" button after removal causes NPE (class not found)
+- Or silent failure if import is removed but button remains
+- Users get confused by non-functional button
 
 **Prevention:**
-1. Close all IDEs and terminals before restructuring
-2. For Maven: Use `-Dmaven.clean.failOnError=false` if needed
-3. For Python cache: Delete `__pycache__` directories first (they lock `.pyc` files)
-4. Use `taskkill /F /IM java.exe` if Java processes linger
-5. Wait a few seconds after closing apps before attempting deletions
+1. Map the navigation graph before removal
+2. Update MainGridGUI to not render the button (or render filler)
+3. Update SharedGridGUIListener to remove the click handler
+4. Decide: Should slot 49 become empty/filler or be repurposed?
 
-**Detection:** "Access denied" or "file in use" errors during deletion
+**Detection:**
+- Navigate to every GUI and click every button
+- Check SharedGridGUIListener for references to removed GUI class
+
+**Applies to:** Removing neighbors GUI
 
 ---
 
 ## Moderate Pitfalls
 
-Mistakes that cause delays, confusion, or technical debt.
+Mistakes that cause confusion, technical debt, or minor bugs.
 
-### Pitfall 5: Forgetting to Update Import Statements
+### Pitfall 5: Command Alias Conflicts
 
-**What goes wrong:** After moving Java files, the package declarations and import statements may reference old locations.
+**What goes wrong:** Adding `/map` alias conflicts with existing server plugins.
 
-**Why it happens:** Moving files changes their filesystem path but not their internal package declarations. Java requires package declarations to match directory structure.
+BentoBox CompositeCommand constructor takes varargs for aliases:
+```java
+// Current (IslandSelectorCommand.java line 19)
+super(addon, "islandselector", "is", "isgrid");
+
+// Proposed
+super(addon, "islandselector", "is", "isgrid", "map");
+```
+
+**Why it happens:** Short, memorable aliases like `/map` are commonly used by:
+- Dynmap (`/map`, `/dynmap`)
+- BlueMap (`/map`, `/bluemap`)
+- squaremap, Pl3xMap
+- Server-specific commands
 
 **Consequences:**
-- Compilation errors: "package does not exist"
-- Runtime errors: `ClassNotFoundException`
-- IDE shows errors in all files
+- Command conflict warnings at startup
+- Unpredictable behavior - which plugin gets the command?
+- Player confusion when `/map` does unexpected thing
 
 **Prevention:**
-1. In this project, the package structure (`world.bentobox.islandselector`) is already correct
-2. The issue is the files are nested too deep - moving to root maintains the correct package
-3. Verify: After move, `src/main/java/world/bentobox/islandselector/IslandSelector.java` should have `package world.bentobox.islandselector;`
-4. No import changes needed if moving entire `src/` tree together
+1. Before adding alias, check for conflicts on test server:
+   ```
+   /plugins
+   /map
+   ```
+2. Use more specific aliases: `/ismap`, `/gridmap`, `/islandmap`
+3. Document the alias in README so admins know it exists
+4. Consider making alias configurable in config.yml
 
-**Detection:** IDE shows red underlines on package declarations after move
+**Detection:**
+- Server startup logs show "Command map is already defined by [plugin]"
+- Testing `/map` produces wrong behavior
+
+**Applies to:** Adding `/map` alias
 
 ---
 
-### Pitfall 6: Orphaning Configuration Files
+### Pitfall 6: Locale Key Mismatch After Feature Changes
 
-**What goes wrong:** Moving Java source but forgetting associated configuration files:
-- `src/main/resources/addon.yml` (BentoBox addon descriptor)
-- `src/main/resources/config.yml` (default configuration)
-- `src/main/resources/locales/*.yml` (language files)
+**What goes wrong:** Removing neighbors feature but not removing locale keys creates orphaned strings.
 
-**Why it happens:** Focus on `.java` files while forgetting the `resources/` directory that must accompany them.
+**Locale keys related to neighbors:**
+| Key | Line | Purpose |
+|-----|------|---------|
+| `gui.controls.neighborhood` | 64 | Button name |
+| `gui.controls.neighborhood-desc` | 65 | Button tooltip |
+| `gui.neighborhood.title` | 102 | GUI title |
+| `gui.neighborhood.your-island` | 103 | Center label |
+| `gui.neighborhood.back` | 104 | Back button |
+| `gui.neighborhood.slots` | 105 | Slots button |
+| `gui.neighborhood.close` | 106 | Close button |
+| `gui.confirmation.claim-neighbors` | 113 | May still be needed! |
+
+**Why it happens:** BentoBox uses locale paths like `commands.islandselector.neighbors.description` - these are strings, not compile-time checked.
 
 **Consequences:**
-- Addon fails to load: "addon.yml not found"
-- Missing default configuration
-- Missing translations
+- Orphaned strings in locale file (minor - just clutter)
+- Missing strings cause "[missing translation]" in-game
+- Locale file grows with dead keys over time
+- `claim-neighbors` might still be used in ConfirmationGUI - verify before removing!
 
 **Prevention:**
-1. Move the entire `src/` directory structure, not just `src/main/java/`
-2. Verify `src/main/resources/` is included
-3. Check for any resources outside the standard Maven structure
+1. After removal, grep locale file for feature name
+2. Check if `claim-neighbors` is used elsewhere before removing
+3. Consider keeping locale strings for one release cycle (deprecated)
 
-**Detection:** Plugin fails to enable with "Cannot load addon" errors
+**Detection:**
+- grep locale file for removed feature name
+- Test in-game for "[missing translation]" messages
+
+**Applies to:** Removing neighbors feature
 
 ---
 
-### Pitfall 7: Leaving Hidden State in Build Directories
+### Pitfall 7: Permission Node Removal Breaking Server Configs
 
-**What goes wrong:** Old `target/` directories or compiled classes from the old location interfere with the new build.
+**What goes wrong:** Removing `islandselector.neighbors` permission from addon.yml (lines 43-45). Server admins who granted this permission to groups now have orphaned permission in their LuckPerms/GroupManager config.
 
-**Why it happens:** [When a build behaves differently after a clean, that's hidden state](https://thelinuxcode.com/maven-build-lifecycle-a-practical-2026-guide/). Old `.class` files may be picked up, or stale artifacts may mask missing dependencies.
+**Current permission in addon.yml:**
+```yaml
+islandselector.neighbors:
+  description: Can use neighborhood view
+  default: true
+```
+
+**Why it happens:** Permission removal is a breaking change for server configurations.
 
 **Consequences:**
-- Build appears to work but uses stale classes
-- "Works on my machine" failures in CI
-- Mysterious runtime behavior
+- LuckPerms warnings about unknown permissions (depends on config)
+- Admin confusion when permission check shows "undefined"
+- Documentation/wiki references outdated permissions
 
 **Prevention:**
-1. Delete ALL `target/` directories before moving: both at root and nested
-2. Run `mvn clean` before AND after restructuring
-3. Clear IDE caches: IntelliJ "Invalidate Caches", VS Code delete `.vscode/` cache
-4. Delete `*.class` files if found outside `target/`
+1. Document permission removal in changelog/release notes
+2. Consider deprecation period: keep permission but make it no-op
+3. Communicate to server admins in update notes
+4. Add migration note: "Remove `islandselector.neighbors` from your permission configs"
 
-**Detection:** Build succeeds locally but fails in clean CI environment
+**Detection:**
+- Check addon.yml for removed feature's permissions
+- Review LuckPerms verbose output after removal
+
+**Applies to:** Removing neighbors feature
 
 ---
 
-### Pitfall 8: Removing Backup Files That Are Actually Needed
+### Pitfall 8: PlaceholderAPI Placeholder Removal
 
-**What goes wrong:** Files named `*_backup.java` or `*_backup_session*.java` might contain important code that was preserved intentionally.
+**What goes wrong:** `PlaceholderAPIIntegration` provides `%islandselector_neighbors_online%` placeholder (lines 94-96, method 186-228). Removing neighbors feature should address this.
 
-**Why it happens:** The project contains:
-- `MainGridGUI_backup.java`
-- `GridManager_backup.java`
-- `NeighborhoodGUI_backup_session44.java`
+**Current implementation:**
+```java
+// Line 94-96
+if (identifier.equals("neighbors_online")) {
+    return String.valueOf(getOnlineNeighborsCount(playerUUID));
+}
 
-These may have been created during development to preserve working versions before risky changes.
+// Lines 186-228: getOnlineNeighborsCount() method
+```
+
+**Decision point:** The placeholder calculates online players in 8 adjacent grid locations. This could work without the NeighborhoodGUI - it's mathematically independent.
+
+**Options:**
+1. **Remove entirely:** Delete lines 94-96 and method 186-228
+2. **Keep independent:** Document that it works without the GUI
+3. **Deprecate:** Return "0" or empty string with console warning
 
 **Consequences:**
-- Loss of potentially important fallback code
-- Cannot recover if current versions have regressions
+- If removed without updating: Runtime error when placeholder requested
+- If kept: Works but creates inconsistency (no GUI but placeholder exists)
+- Server admins using placeholder in scoreboard/tab get broken display
 
 **Prevention:**
-1. **Review each backup file before deletion**
-2. Compare backup content with current version using `diff`
-3. If backup contains unique code, consider:
-   - Merging it into the main file
-   - Creating a proper git branch/tag for the backup state
-   - Documenting what the backup preserved
-4. Only delete after confirming the main version is complete and stable
+1. Decide: Remove placeholder or keep it independent of GUI?
+2. If removing: Delete the handler and method
+3. If keeping: Document in changelog that it's independent
+4. Either way: Note in changelog
 
-**Detection:** Functionality regression after deleting "backup" files
+**Detection:**
+- Test `%islandselector_neighbors_online%` placeholder after removal
+- Check PlaceholderAPIIntegration for references to removed feature
+
+**Applies to:** Removing neighbors feature
 
 ---
 
@@ -207,86 +325,84 @@ These may have been created during development to preserve working versions befo
 
 Mistakes that cause annoyance but are easily fixable.
 
-### Pitfall 9: Leaving Python Artifacts Behind
+### Pitfall 9: Inconsistent Config Key Naming
 
-**What goes wrong:** Python scaffolding cleanup misses:
-- `__pycache__/` directories
-- `.pyc` and `.pyo` compiled files
-- Virtual environment directories
+**What goes wrong:** New config key doesn't follow existing naming patterns.
 
-**Why it happens:** These directories/files are often hidden or ignored by file browsers.
+**Existing patterns in Settings.java:**
+```java
+@ConfigEntry(path = "slots.default-slots")     // slots group
+@ConfigEntry(path = "slots.max-slots")         // slots group
+@ConfigEntry(path = "slots.switch-cooldown")   // slots group
+@ConfigEntry(path = "backups.enabled")         // feature toggle in category
+@ConfigEntry(path = "integration.vault.enabled") // integration toggle
+```
+
+**Good naming:** `slots.enabled` - follows existing `slots.*` group and `*.enabled` pattern
+**Bad naming:** `slots-enabled` - inconsistent with nested structure
 
 **Consequences:**
-- Repository clutter
-- Unnecessary files in commits
-- Confusion about project type
+- Config file looks inconsistent
+- Harder to find related settings
+- Future confusion about where to add new settings
 
 **Prevention:**
-1. Delete `__pycache__/` directories:
-   ```powershell
-   Get-ChildItem -Path . -Include __pycache__ -Recurse -Directory | Remove-Item -Recurse -Force
-   ```
-2. Delete `.pyc` files:
-   ```powershell
-   Get-ChildItem -Path . -Include *.pyc -Recurse | Remove-Item -Force
-   ```
-3. Check `.gitignore` is updated to exclude Python artifacts going forward
-4. Files to remove in this project: `*.py`, `requirements.txt`, `prompts/`, `__pycache__/`
+Use: `@ConfigEntry(path = "slots.enabled")` - consistent with existing patterns
 
-**Detection:** `git status` shows unexpected Python files after cleanup
+**Detection:**
+- Review Settings.java patterns before adding new field
+- Config file visual inspection
+
+**Applies to:** `slots-enabled` config toggle
 
 ---
 
-### Pitfall 10: Forgetting to Update .gitignore
+### Pitfall 10: Default Value Choices for New Config
 
-**What goes wrong:** After restructuring, the `.gitignore` patterns no longer match the new file locations.
+**What goes wrong:** Adding `slots.enabled` with default `true` or `false` without considering existing servers.
 
-**Why it happens:** The current `.gitignore` ignores `generations/` which won't be relevant after moving files to root.
-
-**Consequences:**
-- Build artifacts get committed
-- IDE files get committed
-- Noise in repository
+**Upgrade scenarios:**
+- **Default `true`:** Matches current behavior - slots work - backward compatible
+- **Default `false`:** Existing servers upgrade and slots feature suddenly disappears
 
 **Prevention:**
-1. Review `.gitignore` after restructuring
-2. Add standard Java/Maven ignores:
-   ```
-   target/
-   *.class
-   *.jar
-   *.log
-   .idea/
-   *.iml
-   .vscode/
-   ```
-3. Remove patterns that no longer apply (like `generations/`)
+- Default should match current behavior for backward compatibility
+- `slots.enabled: true` preserves current functionality for upgrades
+- Document the new setting in changelog
 
-**Detection:** `git status` shows files that should be ignored
+**Detection:**
+- Consider upgrade scenario before committing default value
+
+**Applies to:** `slots-enabled` config toggle
 
 ---
 
-### Pitfall 11: IDE Project Files Pointing to Wrong Locations
+### Pitfall 11: Slots Button Uses FAWE Check - Need Both Checks
 
-**What goes wrong:** IntelliJ `.idea/` or Eclipse `.project` files contain absolute or relative paths to the old structure.
+**What goes wrong:** MainGridGUI already conditionally shows slots button based on FAWE availability (lines 722-728). Adding a config toggle means TWO conditions must be true.
 
-**Why it happens:** IDEs cache project configuration including source roots, module paths, and build configurations.
+**Current code:**
+```java
+// Slot Selection - only show if FAWE is available
+if (addon.isSchematicOperationsAvailable()) {
+    ItemStack slots = createButton(Material.CHEST, "&6Island Slots", ...);
+    inventory.setItem(BOT_SLOTS_SLOT, slots);
+}
+```
 
-**Consequences:**
-- IDE cannot find sources
-- Build within IDE fails
-- Must reconfigure project
+**Needed code:**
+```java
+// Slot Selection - only show if enabled AND FAWE is available
+if (addon.getSettings().isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
+    // ...
+}
+```
 
-**Prevention:**
-1. Delete IDE configuration files before moving:
-   - `.idea/` directory
-   - `*.iml` files
-   - `.project`, `.classpath` (Eclipse)
-   - `.vscode/` (VS Code)
-2. Re-import project as Maven project after restructuring
-3. Let IDE regenerate from `pom.xml`
+**Why it matters:** Don't replace the FAWE check - both conditions matter. Slots require both:
+1. Admin has enabled the feature (new toggle)
+2. FAWE is installed (existing requirement)
 
-**Detection:** IDE shows "Project SDK not defined" or cannot resolve symbols
+**Applies to:** `slots-enabled` config toggle
 
 ---
 
@@ -294,45 +410,49 @@ Mistakes that cause annoyance but are easily fixable.
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |-------------|---------------|------------|
-| Moving .git directory | Pitfall 3: Corrupted git state | Back up .git first, test after move |
-| Deleting Python files | Pitfall 9: Leftover __pycache__ | Use recursive PowerShell command |
-| Deleting backup .java files | Pitfall 8: Loss of needed code | Review diff before deletion |
-| Moving pom.xml to root | Pitfall 1: Broken build paths | Run mvn clean package immediately |
-| Final cleanup | Pitfall 10: Bad .gitignore | Review and update patterns |
+| Config toggle (slots-enabled) | #1 Incomplete toggle, #2 Reload issues, #11 Both checks needed | Check ALL entry points (command + GUI + listener), verify both FAWE and config are checked |
+| Command alias (/map) | #5 Alias conflicts | Test for conflicts, consider server-specific prefix |
+| Feature removal (neighbors) | #3 Orphaned refs, #4 Broken nav, #6 Locale, #7 Perms, #8 Placeholders | Comprehensive grep with all spelling variants, map navigation graph |
 
 ---
 
-## Pre-Restructuring Checklist
+## Pre-Implementation Checklist
 
-Before starting any file operations:
+Before making these changes, verify:
 
-- [ ] Back up the entire `generations/island_selector/.git/` directory externally
-- [ ] Close all IDEs (VS Code, IntelliJ, Eclipse)
-- [ ] Close all terminal windows in the project directory
-- [ ] Kill any running Java processes: `taskkill /F /IM java.exe`
-- [ ] Document the current working state (does `mvn clean package` succeed?)
-- [ ] Review the three `*_backup*.java` files - determine if they contain unique code
-- [ ] List all files that will be deleted (Python scripts, backup files)
+**For Config Toggle:**
+- [ ] Settings.java: Add field with `@ConfigEntry(path = "slots.enabled")` and default `true`
+- [ ] SlotsCommand.java: Check `getSettings().isSlotsEnabled()` before executing
+- [ ] MainGridGUI.java: Check settings AND FAWE before rendering button
+- [ ] SharedGridGUIListener.java: Check settings before opening SlotSelectionGUI
+- [ ] Test reload behavior with GUI open
 
-## Post-Restructuring Checklist
+**For Command Alias:**
+- [ ] Check `/map` availability on test server
+- [ ] Consider more specific alias if conflict exists
+- [ ] Document alias in README/changelog
 
-After completing file operations:
-
-- [ ] Verify git status shows moves, not deletes/adds
-- [ ] Run `mvn clean package` - must succeed
-- [ ] Verify `target/IslandSelector-*.jar` is created
-- [ ] Update `.gitignore` for new structure
-- [ ] Delete orphaned directories (`generations/`, `__pycache__/`)
-- [ ] Commit with clear message: "chore: restructure project to root level"
+**For Neighbors Removal:**
+- [ ] Grep all variations: `neighbors`, `neighbourhood`, `neighborhood`, `NeighborhoodGUI`, `NeighborsCommand`, `NEIGHBORHOOD`
+- [ ] List files to modify: IslandSelectorCommand, MainGridGUI, SharedGridGUIListener
+- [ ] List files to delete: NeighborsCommand.java, NeighborhoodGUI.java
+- [ ] Decide on placeholder: remove or keep independent?
+- [ ] Decide on locale: remove or deprecate?
+- [ ] Update addon.yml permissions
+- [ ] Update en-US.yml locales
+- [ ] Test GUI navigation after removal
 
 ---
 
 ## Sources
 
-- [Git Move Files: History Preservation in 2026](https://thelinuxcode.com/git-move-files-practical-renames-refactors-and-history-preservation-in-2026/) - Git rename detection heuristics
-- [Maven Build Lifecycle 2026](https://thelinuxcode.com/maven-build-lifecycle-a-practical-2026-guide/) - Hidden state in builds
-- [Windows File Locking with Java](https://forum.inductiveautomation.com/t/unblock-and-delete-files-that-have-been-locked-by-java/60194) - File locking issues
-- [OpenJDK JAR Locking Bug](https://bugs.openjdk.org/browse/JDK-8231454) - Introspector leak causing file locks
-- [Always move and rename Git files in isolated commits](https://www.theserverside.com/blog/Coffee-Talk-Java-News-Stories-and-Opinions/Always-move-and-rename-Git-files-in-an-isolated-commit) - Best practice for preserving history
-- [Remove __pycache__ folders](https://bobbyhadz.com/blog/python-remove-pycache-folders-and-pyc-files) - Python cleanup methods
-- [Maven Common Bugs](https://maven.apache.org/plugin-developers/common-bugs.html) - Official Maven pitfall documentation
+- Direct code analysis of IslandSelector codebase
+- Settings.java: Existing config patterns (lines 42-59 for slots group)
+- MainGridGUI.java: GUI button rendering (lines 68, 717-728)
+- SharedGridGUIListener.java: Click handlers (lines 79-94)
+- IslandSelectorCommand.java: Subcommand registration (line 37)
+- PlaceholderAPIIntegration.java: Placeholder definitions (lines 94-96, 186-228)
+- addon.yml: Permission definitions (lines 43-45)
+- en-US.yml: Locale strings (lines 64-65, 100-106, 113)
+- BentoBox CompositeCommand API: Alias handling via constructor varargs
+- HIGH confidence - based on actual project code review

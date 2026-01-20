@@ -1,321 +1,249 @@
-# Technology Stack: BentoBox Addon Project Structure
+# Technology Stack: BentoBox Config/Command Patterns
 
-**Project:** IslandSelector (BentoBox Addon)
+**Project:** IslandSelector - Config Toggle, Command Alias, Feature Removal
 **Researched:** 2026-01-20
-**Confidence:** HIGH (verified against official BentoBox repositories)
+**Confidence:** HIGH (verified against existing codebase and official BentoBox documentation)
 
-## Target Project Structure
+## Executive Summary
 
-The standard 2025 BentoBox addon follows Maven conventions with specific BentoBox requirements.
+This research covers BentoBox-specific patterns for:
+1. Adding config toggles to Settings.java
+2. Adding command aliases via CompositeCommand constructor
+3. Cleanly removing commands and GUI elements
 
-### Root Directory Structure
+All patterns are verified against the existing IslandSelector codebase which already implements these APIs correctly.
 
-```
-IslandSelector/
-├── .github/                    # Optional: CI/CD workflows
-│   └── workflows/
-│       └── build.yml
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── world/bentobox/islandselector/
-│       │       └── [Java source files]
-│       └── resources/
-│           ├── addon.yml       # REQUIRED: BentoBox addon descriptor
-│           ├── config.yml      # Default configuration
-│           └── locales/
-│               └── en-US.yml   # Language files
-├── .gitignore                  # REQUIRED: Git ignore rules
-├── LICENSE                     # Recommended: License file
-├── README.md                   # Recommended: Project documentation
-└── pom.xml                     # REQUIRED: Maven build configuration
-```
+---
 
-### Files That SHOULD Exist at Root
+## 1. Config Toggle Pattern (slots-enabled)
 
-| File | Required | Purpose |
-|------|----------|---------|
-| `pom.xml` | YES | Maven project configuration |
-| `.gitignore` | YES | Exclude build artifacts, IDE files |
-| `README.md` | Recommended | Project documentation |
-| `LICENSE` | Recommended | License (EPL-2.0 common for BentoBox) |
-| `CLAUDE.md` | Optional | AI assistant context file |
+### Pattern: @ConfigEntry Boolean Field
 
-### Files That Should NOT Exist at Root
+The existing `Settings.java` already uses this pattern extensively. Add a new boolean field with:
 
-| Item | Reason |
-|------|--------|
-| `target/` | Build output (gitignored) |
-| `*.jar` | Build artifacts (gitignored) |
-| `*.py`, `*.sh` scripts | Development tools (not part of addon) |
-| `generations/` | AI generation artifacts (not part of final project) |
-| `__pycache__/` | Python bytecode (wrong ecosystem) |
-| `nul` | Empty/junk file |
-| Backup files (`*_backup.java`) | Should not be tracked |
+```java
+@ConfigComment("Enable the island slots feature (requires FAWE)")
+@ConfigComment("When disabled, the slots command and GUI button are hidden")
+@ConfigEntry(path = "slots.enabled")
+private boolean slotsEnabled = true;
 
-## Maven Directory Structure
+public boolean isSlotsEnabled() {
+    return slotsEnabled;
+}
 
-### src/main/java
-
-Standard Maven source directory. Package structure for BentoBox addons:
-
-```
-src/main/java/world/bentobox/islandselector/
-├── IslandSelector.java         # Main addon class (extends Addon)
-├── Settings.java               # Configuration (implements ConfigObject)
-├── commands/                   # Command implementations
-├── database/                   # BentoBox database models (@Table)
-├── events/                     # Custom Bukkit events
-├── gui/                        # Inventory GUIs
-├── integrations/               # External plugin hooks
-├── listeners/                  # Bukkit event listeners
-├── managers/                   # Business logic managers
-├── models/                     # Data models/POJOs
-└── utils/                      # Utility classes
+public void setSlotsEnabled(boolean slotsEnabled) {
+    this.slotsEnabled = slotsEnabled;
+}
 ```
 
-### src/main/resources
+**Why this location:** The slots settings already exist under `slots.*` path (see lines 42-60 in Settings.java). Adding `slots.enabled` maintains logical grouping.
 
-BentoBox-specific resources:
+**Confidence:** HIGH - This exact pattern is used 20+ times in the existing Settings.java (e.g., `backupsEnabled`, `vaultEnabled`, `debugEnabled`).
 
-```
-src/main/resources/
-├── addon.yml                   # REQUIRED: Addon descriptor
-├── config.yml                  # Default configuration (optional)
-└── locales/
-    └── en-US.yml               # Default locale
-```
+### Config Reload Behavior
 
-### src/test/java (Optional)
-
-Test structure mirrors main:
-
-```
-src/test/java/world/bentobox/islandselector/
-├── [Test classes]
+The addon already handles config reload in `IslandSelector.onReload()`:
+```java
+settings = new Config<>(this, Settings.class).loadConfigObject();
 ```
 
-## Required Configuration Files
+No additional work needed for reload support.
 
-### addon.yml (REQUIRED)
+---
 
-The BentoBox addon descriptor. Mandatory fields:
+## 2. Command Alias Pattern (/map alias)
+
+### Pattern: CompositeCommand Constructor Aliases
+
+The existing `IslandSelectorCommand.java` already demonstrates this pattern:
+
+```java
+public IslandSelectorCommand(IslandSelector addon) {
+    super(addon, "islandselector", "is", "isgrid");
+}
+```
+
+To add `/map` alias, simply add it to the constructor:
+
+```java
+public IslandSelectorCommand(IslandSelector addon) {
+    super(addon, "islandselector", "is", "isgrid", "map");
+}
+```
+
+**Why this works:** BentoBox's `CompositeCommand` accepts `String... aliases` as the final vararg parameter. All aliases are registered as top-level commands that invoke the same handler.
+
+**Confidence:** HIGH - Verified via [BentoBox CompositeCommand source](https://github.com/BentoBoxWorld/BentoBox/blob/master/src/main/java/world/bentobox/bentobox/api/commands/CompositeCommand.java).
+
+### Alternative: Subcommand Aliases
+
+For subcommands, the pattern is identical:
+```java
+// Existing in NeighborsCommand.java:
+super(parent, "neighbors", "neighbourhood", "neighborhood");
+
+// Existing in SlotsCommand.java:
+super(parent, "slots", "slot");
+```
+
+---
+
+## 3. Feature Removal Pattern (neighbors command/GUI)
+
+### Step A: Remove Command Registration
+
+In `IslandSelectorCommand.setup()`, remove or comment out the line:
+
+```java
+// REMOVE THIS LINE:
+new NeighborsCommand(this);
+```
+
+**Why delete vs hide:** BentoBox's `setHidden(boolean)` only hides from help/tab-complete but the command still executes. For true removal, don't register the command at all.
+
+### Step B: Remove GUI Button
+
+In `MainGridGUI.java`, the neighborhood button is created around line 717-720:
+
+```java
+// REMOVE THIS:
+ItemStack neighborhood = createButton(Material.FILLED_MAP, "&bNeighborhood",
+    "&7View your neighbors");
+inventory.setItem(BOT_NEIGHBORHOOD_SLOT, neighborhood);
+```
+
+Also remove the slot constant and getter method (`BOT_NEIGHBORHOOD_SLOT`, `getNeighborhoodSlot()`).
+
+### Step C: Remove Click Handler
+
+In `SharedGridGUIListener.java`, remove the handler around line 79-82:
+
+```java
+// REMOVE THIS:
+if (slot == gui.getNeighborhoodSlot()) {
+    player.closeInventory();
+    new NeighborhoodGUI(gui.getAddon(), player).open();
+    return;
+}
+```
+
+### Step D: Delete or Keep Files
+
+**Option 1 (Recommended):** Keep `NeighborhoodGUI.java` and `NeighborsCommand.java` files but remove all references. This allows easy restoration if the feature is wanted later.
+
+**Option 2:** Delete the files entirely for cleaner codebase.
+
+### Step E: Remove Permission (Optional)
+
+In `addon.yml`, the permission `islandselector.neighbors` can be removed:
 
 ```yaml
-name: IslandSelector
-main: world.bentobox.islandselector.IslandSelector
-version: ${project.version}
-api-version: 1.15.4
-authors: [Author Name]
-description: Brief description
-
-# Optional
-softdepend: Level
-permissions:
-  addon.permission:
-    description: Permission description
-    default: true
+# REMOVE THIS:
+islandselector.neighbors:
+  description: Can use neighborhood view
+  default: true
 ```
 
-**Key points:**
-- Do NOT list `BentoBox` in dependencies (it's implicit)
-- Use `${project.version}` for Maven resource filtering
-- `api-version` should match minimum BentoBox API version
+**Confidence:** HIGH - The removal pattern follows standard Java/BentoBox practices. No special API needed.
 
-### pom.xml Structure
+---
 
-Key sections for a BentoBox addon:
+## 4. Conditional Feature Display (slots-enabled check)
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project>
-    <modelVersion>4.0.0</modelVersion>
+### Pattern: Check Config at Runtime
 
-    <groupId>world.bentobox</groupId>
-    <artifactId>IslandSelector</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
+The existing codebase already demonstrates this pattern for FAWE availability:
 
-    <properties>
-        <java.version>17</java.version>
-        <bentobox.version>2.4.0</bentobox.version>
-        <paper.version>1.20.4-R0.1-SNAPSHOT</paper.version>
-    </properties>
-
-    <repositories>
-        <repository>
-            <id>papermc</id>
-            <url>https://repo.papermc.io/repository/maven-public/</url>
-        </repository>
-        <repository>
-            <id>codemc-repo</id>
-            <url>https://repo.codemc.io/repository/maven-public/</url>
-        </repository>
-    </repositories>
-
-    <dependencies>
-        <dependency>
-            <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
-            <version>${paper.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>world.bentobox</groupId>
-            <artifactId>bentobox</artifactId>
-            <version>${bentobox.version}</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-        <plugins>
-            <!-- compiler, shade, surefire -->
-        </plugins>
-    </build>
-</project>
+**In SlotsCommand.java:**
+```java
+@Override
+public boolean execute(User user, String label, List<String> args) {
+    IslandSelector addon = (IslandSelector) getAddon();
+    if (!addon.isSchematicOperationsAvailable()) {
+        user.sendMessage("&cThis feature requires FastAsyncWorldEdit...");
+        return false;
+    }
+    // ...
+}
 ```
 
-### .gitignore (Standard Maven + BentoBox)
-
-```gitignore
-# Maven
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-
-# Java
-*.class
-*.jar
-*.war
-*.log
-hs_err_pid*
-
-# IDE - IntelliJ
-.idea/
-*.iml
-*.iws
-*.ipr
-out/
-
-# IDE - Eclipse
-.classpath
-.project
-.settings/
-bin/
-
-# IDE - VS Code
-.vscode/
-
-# OS
-.DS_Store
-Thumbs.db
-*~
-
-# BentoBox specific
-*.bak
+**For slots-enabled toggle, use the same pattern:**
+```java
+@Override
+public boolean execute(User user, String label, List<String> args) {
+    IslandSelector addon = (IslandSelector) getAddon();
+    if (!addon.getSettings().isSlotsEnabled()) {
+        user.sendMessage("&cSlots feature is disabled in config.");
+        return false;
+    }
+    // existing FAWE check...
+}
 ```
 
-## Cleanup Actions Required
+### Hiding Command from Tab-Complete
 
-Based on the current project state at `generations/island_selector/`, the following cleanup is needed:
+To also hide the command when disabled, use `setHidden()` in setup() with a config check:
 
-### Files to KEEP (move to root)
+```java
+@Override
+public void setup() {
+    setPermission("islandselector.slots");
+    setOnlyPlayer(true);
+    setDescription("commands.islandselector.slots.description");
 
-From `generations/island_selector/`:
-- `pom.xml` - Move to root
-- `src/` directory - Move to root
-- `.gitignore` - Move to root (update as needed)
-- `README.md` - Move to root
-- `CLAUDE.md` - Move to root
-
-### Files to DELETE (from root)
-
-Current root contains AI generation scaffolding that should be removed:
-- `agent.py`
-- `client.py`
-- `progress.py`
-- `prompts.py`
-- `security.py`
-- `test_security.py`
-- `autonomous_agent_demo.py`
-- `requirements.txt`
-- `prompts/` directory
-- `__pycache__/` directory
-- `generations/` directory (after extracting useful content)
-- `nul` file
-
-### Files to DELETE (from generations/island_selector)
-
-Development artifacts that shouldn't be in final project:
-- `app_spec.txt` - Original specification
-- `feature_list.json` - Generation metadata
-- `init.sh` - Generation script
-- `output/` directory
-- `*.py` scripts (check_*.py, find_*.py, add_method.py, update_testing.sh)
-- `*_backup*.java` files
-- `TESTING.md.backup`, `TESTING.md.session40.backup`
-- `DEVELOPMENT_NOTES.md` (merge useful content into README if needed)
-- `.claude_settings.json`
-- Inner `.git/` directory (use outer .git)
-
-## Recommended Stack Versions (2025)
-
-| Technology | Version | Notes |
-|------------|---------|-------|
-| Java | 17 (minimum) | BentoBox requires Java 17+, Java 21 recommended |
-| Paper API | 1.20.4+ | Paper preferred over Spigot for BentoBox |
-| BentoBox | 2.4.0+ | Latest stable release |
-| Maven | 3.9+ | Build tool |
-| JUnit | 5.10+ | Testing |
-| Mockito | 5.8+ | Mocking |
-| MockBukkit | Latest for MC version | Minecraft plugin testing |
-
-## Final Target Structure
-
-After cleanup, the project root should contain:
-
+    // Hide from tab-complete when disabled
+    IslandSelector addon = (IslandSelector) getAddon();
+    if (!addon.getSettings().isSlotsEnabled()) {
+        setHidden(true);
+    }
+}
 ```
-IslandSelector/
-├── .git/                       # Version control
-├── .gitignore                  # Git ignore rules
-├── .planning/                  # Project planning (optional, can gitignore)
-├── CLAUDE.md                   # AI context file (optional)
-├── LICENSE                     # EPL-2.0 or other
-├── README.md                   # Project documentation
-├── pom.xml                     # Maven configuration
-└── src/
-    ├── main/
-    │   ├── java/
-    │   │   └── world/bentobox/islandselector/
-    │   │       └── [85 Java source files]
-    │   └── resources/
-    │       ├── addon.yml
-    │       ├── config.yml
-    │       └── locales/
-    │           └── en-US.yml
-    └── test/
-        └── java/
-            └── world/bentobox/islandselector/
-                └── [Test files]
+
+**Note:** `setHidden()` is called once at registration. If you need runtime toggle without restart, only check in `execute()`.
+
+### Hiding GUI Button
+
+In `MainGridGUI.java`, wrap the button creation with a config check:
+
+```java
+// Slot Selection - only show if enabled AND FAWE is available
+if (addon.getSettings().isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
+    ItemStack slots = createButton(Material.CHEST, "&eSlot Selection",
+        "&7Manage your island slots");
+    inventory.setItem(BOT_SLOTS_SLOT, slots);
+}
 ```
+
+**Confidence:** HIGH - Exact same pattern used for FAWE check already in the codebase.
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `Settings.java` | Add `slotsEnabled` field with annotations, getter, setter |
+| `IslandSelectorCommand.java` | Add "map" to constructor aliases, remove `new NeighborsCommand(this)` |
+| `SlotsCommand.java` | Add config check in `execute()`, optionally `setHidden()` in `setup()` |
+| `MainGridGUI.java` | Remove neighborhood button, add config check for slots button |
+| `SharedGridGUIListener.java` | Remove neighborhood click handler |
+| `addon.yml` | Remove `islandselector.neighbors` permission |
+
+## Files to Delete (Optional)
+
+| File | Rationale |
+|------|-----------|
+| `NeighborsCommand.java` | Feature removed |
+| `NeighborhoodGUI.java` | Feature removed |
+
+---
 
 ## Sources
 
-- [BentoBox Official Documentation](https://docs.bentobox.world/en/latest/Tutorials/api/Create-an-addon/) - HIGH confidence
-- [BentoBox GitHub Repository](https://github.com/BentoBoxWorld/BentoBox) - HIGH confidence
-- [Level Addon Repository](https://github.com/BentoBoxWorld/Level) - HIGH confidence (reference implementation)
-- [Warps Addon Repository](https://github.com/BentoBoxWorld/Warps) - HIGH confidence (reference implementation)
-- [ExampleAddon Repository](https://github.com/BONNePlayground/ExampleAddon) - MEDIUM confidence (community example)
-- [GitHub Maven .gitignore Template](https://github.com/github/gitignore/blob/main/Maven.gitignore) - HIGH confidence
+- [BentoBox Config API Documentation](https://docs.bentobox.world/en/latest/BentoBox/Config-API/) - ConfigObject, ConfigEntry patterns
+- [BentoBox CompositeCommand Source](https://github.com/BentoBoxWorld/BentoBox/blob/master/src/main/java/world/bentobox/bentobox/api/commands/CompositeCommand.java) - Constructor signatures with aliases
+- [BentoBox Commands Reference](https://docs.bentobox.world/en/latest/BentoBox/Commands/) - Command structure overview
+- Existing `Settings.java` (lines 1-848) - 20+ examples of ConfigEntry boolean toggles
+- Existing `IslandSelectorCommand.java` (line 20) - Alias pattern: `super(addon, "islandselector", "is", "isgrid")`
+- Existing `SlotsCommand.java` (lines 31-35) - Runtime feature availability check pattern
+- Existing `MainGridGUI.java` (lines 717-720, 722-726) - Conditional GUI button pattern
