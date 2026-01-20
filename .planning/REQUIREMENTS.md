@@ -21,9 +21,9 @@
 - [x] **REM-08**: Delete misc files (nul, app_spec.txt, feature_list.json)
 
 ### File Movement
-- [ ] **MOV-01**: Move src/ from generations/island_selector/ to project root
-- [ ] **MOV-02**: Move pom.xml from generations/island_selector/ to project root
-- [ ] **MOV-03**: Remove empty generations/ folder after moves
+- [x] **MOV-01**: Move src/ from generations/island_selector/ to project root
+- [x] **MOV-02**: Move pom.xml from generations/island_selector/ to project root
+- [x] **MOV-03**: Remove empty generations/ folder after moves
 
 ### Verification
 - [ ] **VER-01**: Run mvn clean compile to verify project builds
@@ -58,9 +58,9 @@
 | REM-06 | Phase 2 | Complete |
 | REM-07 | Phase 2 | Complete |
 | REM-08 | Phase 2 | Complete |
-| MOV-01 | Phase 3 | Pending |
-| MOV-02 | Phase 3 | Pending |
-| MOV-03 | Phase 3 | Pending |
+| MOV-01 | Phase 3 | Complete |
+| MOV-02 | Phase 3 | Complete |
+| MOV-03 | Phase 3 | Complete |
 | VER-01 | Phase 4 | Pending |
 | VER-02 | Phase 4 | Pending |
 | VER-03 | Phase 4 | Pending |
@@ -72,4 +72,4 @@
 
 ---
 *Requirements defined: 2026-01-20*
-*Last updated: 2026-01-20 after Phase 2 completion*
+*Last updated: 2026-01-20 after Phase 3 completion*
