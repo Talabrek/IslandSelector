@@ -26,6 +26,7 @@ import world.bentobox.islandselector.managers.MultiDimensionIslandCreator;
 import world.bentobox.islandselector.managers.RelocationManager;
 import world.bentobox.islandselector.managers.SlotManager;
 import world.bentobox.islandselector.managers.SlotSwitchManager;
+import world.bentobox.islandselector.managers.WarpIntegration;
 import world.bentobox.islandselector.utils.EntityStorage;
 import world.bentobox.islandselector.utils.SchematicUtils;
 
@@ -52,6 +53,7 @@ public class IslandSelector extends Addon {
     private MultiDimensionIslandCreator multiDimensionIslandCreator;
     private ChallengesIntegration challengesIntegration;
     private LevelIntegration levelIntegration;
+    private WarpIntegration warpIntegration;
     private BlueprintChallengesManager blueprintChallengesManager;
     private WorldEditIntegration worldEditIntegration;
     private NovaIntegration novaIntegration;
@@ -126,6 +128,7 @@ public class IslandSelector extends Addon {
         customCommandExecutor = new world.bentobox.islandselector.utils.CustomCommandExecutor(this);
         challengesIntegration = new ChallengesIntegration(this);
         levelIntegration = new LevelIntegration(this);
+        warpIntegration = new WarpIntegration(this);
         blueprintChallengesManager = new BlueprintChallengesManager(this);
         schematicUtils = new SchematicUtils(this);
         entityStorage = new EntityStorage(this);
@@ -483,6 +486,13 @@ public class IslandSelector extends Addon {
      */
     public LevelIntegration getLevelIntegration() {
         return levelIntegration;
+    }
+
+    /**
+     * Get the Warps addon integration manager
+     */
+    public WarpIntegration getWarpIntegration() {
+        return warpIntegration;
     }
 
     /**
