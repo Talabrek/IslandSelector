@@ -45,12 +45,17 @@ IslandSelector/
 
 ### Active
 
-(Planning next milestone)
+**v1.1.1 Bugfixes:**
+- [ ] Fix island level mismatch between /islandselector and /island level
+- [ ] Restrict island visiting to only allow warps when permitted (warp sign + public visitors)
+- [ ] Show warp availability status in GUI hover text
+- [ ] Fix relocation teleporting unrelated players to spawn
 
 ### Out of Scope
 
 - Modifying slot system logic — only adding enable/disable toggle (v1.1 scope)
 - Other GUI changes — only removing neighbors button (v1.1 scope)
+- Adding new features — this is a bugfix-only patch release
 
 ## Key Decisions
 
@@ -69,4 +74,4 @@ IslandSelector/
 See `.planning/MILESTONES.md` for shipped milestones.
 
 ---
-*Last updated: 2026-01-20 after v1.1 milestone completion*
+*Last updated: 2026-01-20 after v1.1.1 milestone started*

@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-01-20)
 
 **Core value:** Players can visually select their island location from a grid-based GUI
-**Current focus:** Planning next milestone
+**Current focus:** v1.1.1 Bugfixes - Phase 8
 
 ## Current Position
 
-Milestone: v1.1 Simplification COMPLETE
-Phase: 7 of 7 (Neighbors Removal)
-Plan: 1 of 1 COMPLETE
-Status: Milestone archived, ready for next milestone
-Last activity: 2026-01-20 — v1.1 milestone archived
+Milestone: v1.1.1 Bugfixes
+Phase: 8 of 10 (Level Display)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-20 — Roadmap created for v1.1.1
 
-Progress: [████████████████████] 100% (v1.1 shipped)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -24,24 +24,11 @@ Progress: [████████████████████] 100% (v
 - Average duration: 4 minutes
 - Total execution time: 11 minutes
 
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 5 | 1/1 | 5 min | 5 min |
-| 6 | 1/1 | 3 min | 3 min |
-| 7 | 1/1 | 3 min | 3 min |
-
 ## Accumulated Context
 
 ### Decisions
 
 Full decision log in PROJECT.md Key Decisions table.
-
-v1.1 decisions:
-- Default slotsEnabled to true for backward compatibility
-- Map alias as fourth param after is, isgrid
-- Keep neighbors_online placeholder for scoreboards
 
 ### Pending Todos
 
@@ -49,13 +36,13 @@ None.
 
 ### Blockers/Concerns
 
-None.
+- Relocation bug is hard to reproduce — may need defensive fix
 
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: v1.1 milestone archived
-Resume: `/gsd:new-milestone` to start next milestone
+Stopped at: Roadmap created for v1.1.1
+Resume: Run `/gsd:plan-phase 8` to start Level Display phase
 
 ---
-*State updated: 2026-01-20 after v1.1 milestone completion*
+*State updated: 2026-01-20 after roadmap creation*
