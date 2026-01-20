@@ -565,33 +565,49 @@ public class RelocationManager {
     private void performRelocationAsync(Player player, GridCoordinate fromCoord, GridCoordinate toCoord) {
         UUID playerUUID = player.getUniqueId();
 
+        // Get island to check if player is on it
+        World bskyblockWorld = addon.getGridManager().getBSkyBlockWorld();
+        Island island = bskyblockWorld != null ? addon.getIslands().getIsland(bskyblockWorld, playerUUID) : null;
+
+        // Capture whether player is on their island BEFORE any async operations
+        // Only teleport to spawn if player is actually on the island being relocated
+        final boolean playerIsOnIsland = island != null && island.onIsland(player.getLocation());
+
         // Capture player's origin world BEFORE teleporting to spawn
         // This allows us to return them to the same dimension after relocation
         final World originWorld = player.getWorld();
 
         // Step 0: Teleport player to SERVER spawn BEFORE starting relocation (on main thread)
         // This prevents the player from falling into the void during the move
+        // Only do this if player is actually on the island
         Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-            // Use server spawn (first world's spawn) not the current world's spawn
-            World spawnWorld = Bukkit.getWorld("world");
-            if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
-                spawnWorld = Bukkit.getWorlds().get(0);
+            if (playerIsOnIsland) {
+                // Player IS on island - teleport to safety
+                // Use server spawn (first world's spawn) not the current world's spawn
+                World spawnWorld = Bukkit.getWorld("world");
+                if (spawnWorld == null && !Bukkit.getWorlds().isEmpty()) {
+                    spawnWorld = Bukkit.getWorlds().get(0);
+                }
+                if (spawnWorld == null) {
+                    player.sendMessage(colorize("&cCannot relocate - no spawn world available!"));
+                    return;
+                }
+                Location serverSpawn = spawnWorld.getSpawnLocation();
+                // Use safe teleport for server spawn
+                new SafeSpotTeleport.Builder(addon.getPlugin())
+                    .entity(player)
+                    .location(serverSpawn)
+                    .buildFuture();
+                sendProgress(player, "&eTeleported to spawn for safety during relocation...");
+            } else {
+                // Player is NOT on island - skip initial teleport, just notify
+                addon.log("Skipping pre-relocation teleport - " + player.getName() + " not on island");
+                sendProgress(player, "&eStarting island relocation...");
             }
-            if (spawnWorld == null) {
-                player.sendMessage(colorize("&cCannot relocate - no spawn world available!"));
-                return;
-            }
-            Location serverSpawn = spawnWorld.getSpawnLocation();
-            // Use safe teleport for server spawn
-            new SafeSpotTeleport.Builder(addon.getPlugin())
-                .entity(player)
-                .location(serverSpawn)
-                .buildFuture();
-            sendProgress(player, "&eTeleported to spawn for safety during relocation...");
 
-            // Now run the rest asynchronously, passing origin world
+            // Now run the rest asynchronously, passing origin world and on-island flag
             Bukkit.getScheduler().runTaskAsynchronously(addon.getPlugin(), () -> {
-                performRelocationWork(player, playerUUID, fromCoord, toCoord, originWorld);
+                performRelocationWork(player, playerUUID, fromCoord, toCoord, originWorld, playerIsOnIsland);
             });
         });
     }
@@ -601,8 +617,9 @@ public class RelocationManager {
      * Uses callback-based async operations to prevent server freezes.
      *
      * @param originWorld The world the player was in before relocation (to return them there)
+     * @param playerWasOnIsland Whether the player was on their island when relocation started
      */
-    private void performRelocationWork(Player player, UUID playerUUID, GridCoordinate fromCoord, GridCoordinate toCoord, World originWorld) {
+    private void performRelocationWork(Player player, UUID playerUUID, GridCoordinate fromCoord, GridCoordinate toCoord, World originWorld, boolean playerWasOnIsland) {
         // Step 1: Get the island (on main thread for BentoBox API access)
         Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
             sendProgress(player, "&eStarting island relocation...");
@@ -699,7 +716,7 @@ public class RelocationManager {
                                 relocateDimensionBlocksAsync(oldCenter, newCenter, finalEntityRange, dimSuccess -> {
                                     // Step 6: Update BSkyBlock island data (on main thread)
                                     Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-                                        finishRelocation(player, playerUUID, island, oldCenter, newCenter, fromCoord, toCoord, newWorldX, newWorldZ, allCapturedHomes, capturedSpawnPoints, originWorld);
+                                        finishRelocation(player, playerUUID, island, oldCenter, newCenter, fromCoord, toCoord, newWorldX, newWorldZ, allCapturedHomes, capturedSpawnPoints, originWorld, playerWasOnIsland);
                                     });
                                 });
                             });
@@ -716,11 +733,12 @@ public class RelocationManager {
      * @param allCapturedHomes Map of dimension key to captured homes for all dimensions
      * @param capturedSpawnPoints Captured spawn points for all environments
      * @param originWorld The world the player was in before relocation (to return them there)
+     * @param playerWasOnIsland Whether the player was on their island when relocation started
      */
     private void finishRelocation(Player player, UUID playerUUID, Island island, Location oldCenter,
                                    Location newCenter, GridCoordinate fromCoord, GridCoordinate toCoord,
                                    int newWorldX, int newWorldZ, Map<String, Map<String, RelativeHome>> allCapturedHomes,
-                                   CapturedSpawnPoints capturedSpawnPoints, World originWorld) {
+                                   CapturedSpawnPoints capturedSpawnPoints, World originWorld, boolean playerWasOnIsland) {
         try {
             sendProgress(player, "&eUpdating island data...");
 
@@ -838,8 +856,9 @@ public class RelocationManager {
             database.saveObjectAsync(data);
 
             // Load chunks and teleport players safely (to their origin dimension if multi-dimension)
+            // Only teleport owner if they were on the island when relocation started
             sendProgress(player, "&eLoading chunks and teleporting...");
-            teleportPlayersSafely(island, player, newCenter, originWorld);
+            teleportPlayersSafely(island, player, newCenter, originWorld, playerWasOnIsland);
 
             // Complete (sent after teleport delay)
             final int finalNewWorldX = newWorldX;
@@ -1232,8 +1251,9 @@ public class RelocationManager {
      * @param owner The island owner
      * @param newCenter The new center location in main dimension
      * @param originWorld The world the player was in before relocation (to return them there)
+     * @param playerWasOnIsland Whether the owner was on their island when relocation started
      */
-    private void teleportPlayersSafely(Island island, Player owner, Location newCenter, World originWorld) {
+    private void teleportPlayersSafely(Island island, Player owner, Location newCenter, World originWorld, boolean playerWasOnIsland) {
         try {
             // Determine target world and island based on origin dimension
             World targetWorld = newCenter.getWorld();
