@@ -4,17 +4,17 @@
 
 - v1.0 MVP - Phases 1-4 (shipped)
 - v1.1 Simplification - Phases 5-7 (shipped)
-- **v1.1.1 Bugfixes** - Phases 8-10 (in progress)
+- **v1.1.1 Bugfixes** - Phases 8-10 (complete)
 
 ## Phases
 
-### v1.1.1 Bugfixes (In Progress)
+### v1.1.1 Bugfixes (Complete)
 
 **Milestone Goal:** Fix level display accuracy, warp-based visiting, and relocation safety
 
 - [x] **Phase 8: Level Display** - Accurate island level in GUI
 - [x] **Phase 9: Island Visiting** - Warp sign-based visit controls
-- [ ] **Phase 10: Relocation Safety** - Only teleport affected players
+- [x] **Phase 10: Relocation Safety** - Only teleport affected players
 
 ## Phase Details
 
@@ -53,7 +53,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 10-01-PLAN.md — Add island.onIsland() checks before relocation teleports
+- [x] 10-01-PLAN.md — Add island.onIsland() checks before relocation teleports
 
 ## Progress
 
@@ -61,7 +61,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 8. Level Display | v1.1.1 | 1/1 | Complete | 2026-01-20 |
 | 9. Island Visiting | v1.1.1 | 1/1 | Complete | 2026-01-20 |
-| 10. Relocation Safety | v1.1.1 | 0/1 | Planned | - |
+| 10. Relocation Safety | v1.1.1 | 1/1 | Complete | 2026-01-21 |
 
 ---
 *Roadmap created: 2026-01-20*

@@ -21,8 +21,8 @@ Bugfix patch release. All requirements are defect corrections.
 
 ### Relocation Safety
 
-- [ ] **RELC-01**: Relocation only teleports players who were actually on the old island location
-- [ ] **RELC-02**: Players elsewhere in the world are not affected by relocation
+- [x] **RELC-01**: Relocation only teleports players who were actually on the old island location
+- [x] **RELC-02**: Players elsewhere in the world are not affected by relocation
 
 ## Future Requirements
 
@@ -46,8 +46,8 @@ None — patch release only.
 | VIST-02 | Phase 9 | Complete |
 | VIST-03 | Phase 9 | Complete |
 | VIST-04 | Phase 9 | Complete |
-| RELC-01 | Phase 10 | Pending |
-| RELC-02 | Phase 10 | Pending |
+| RELC-01 | Phase 10 | Complete |
+| RELC-02 | Phase 10 | Complete |
 
 **Coverage:**
 - v1.1.1 requirements: 8 total
@@ -56,4 +56,4 @@ None — patch release only.
 
 ---
 *Requirements defined: 2026-01-20*
-*Last updated: 2026-01-20 after Phase 9 completion*
+*Last updated: 2026-01-21 after Phase 10 completion*
