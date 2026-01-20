@@ -50,10 +50,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Player standing on island being relocated is teleported to new location
   2. Player elsewhere in world (spawn, other island, nether) is not teleported
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 10-01: Relocation player filtering
+- [ ] 10-01-PLAN.md — Add island.onIsland() checks before relocation teleports
 
 ## Progress
 
@@ -61,7 +61,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 8. Level Display | v1.1.1 | 1/1 | Complete | 2026-01-20 |
 | 9. Island Visiting | v1.1.1 | 1/1 | Complete | 2026-01-20 |
-| 10. Relocation Safety | v1.1.1 | 0/1 | Not started | - |
+| 10. Relocation Safety | v1.1.1 | 0/1 | Planned | - |
 
 ---
 *Roadmap created: 2026-01-20*
