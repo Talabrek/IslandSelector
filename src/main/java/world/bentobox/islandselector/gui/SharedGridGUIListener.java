@@ -183,6 +183,15 @@ public class SharedGridGUIListener implements Listener {
             return;
         }
 
+        // Check for warp before teleporting (if Warps addon is enabled)
+        var warpIntegration = gui.getAddon().getWarpIntegration();
+        if (warpIntegration.isEnabled()) {
+            if (!warpIntegration.hasWarp(location.getOwnerUUID())) {
+                player.sendMessage("\u00A7cThis island doesn't have a warp sign.");
+                return;
+            }
+        }
+
         String ownerName = location.getOwnerName() != null ? location.getOwnerName() : "Unknown";
 
         org.bukkit.Location targetLoc = island.getSpawnPoint(org.bukkit.World.Environment.NORMAL);

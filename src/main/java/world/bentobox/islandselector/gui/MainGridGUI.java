@@ -513,10 +513,22 @@ public class MainGridGUI implements InventoryHolder {
             }
         }
 
-        // Action hint
+        // Action hint (only for other players' islands)
         if (!isOwnIsland) {
             lore.add("");
-            lore.add(colorize("&e▶ Right-click to visit"));
+
+            // Check warp availability
+            if (addon.getWarpIntegration().isEnabled()) {
+                boolean hasWarp = ownerUUID != null && addon.getWarpIntegration().hasWarp(ownerUUID);
+                if (hasWarp) {
+                    lore.add(colorize("&a\u2713 Has Warp"));
+                    lore.add(colorize("&e\u25b6 Right-click to visit"));
+                }
+                // No hint shown when no warp - intentional
+            } else {
+                // Warps addon not installed - show visit hint (unrestricted mode)
+                lore.add(colorize("&e\u25b6 Right-click to visit"));
+            }
         }
 
         meta.setLore(lore);
