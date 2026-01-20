@@ -39,11 +39,11 @@ Plans:
   2. No backup Java files (*_backup*.java) exist anywhere in the project
   3. No `__pycache__/`, `prompts/`, or other development artifact folders exist
   4. Only Java source files, Maven config, and documentation remain
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Delete Python scripts and related files
-- [ ] 02-02: Delete backup files and misc artifacts
+- [ ] 02-01-PLAN.md - Delete Python files and related artifacts (root + generations/)
+- [ ] 02-02-PLAN.md - Delete backup files, shell scripts, and misc development debris
 
 ### Phase 3: Project Restructure
 **Goal**: Standard Maven project structure at repository root
@@ -78,8 +78,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Git Repository Consolidation | 1/1 | Complete ✓ | 2026-01-20 |
-| 2. Artifact Removal | 0/2 | Not started | - |
+| 1. Git Repository Consolidation | 1/1 | Complete | 2026-01-20 |
+| 2. Artifact Removal | 0/2 | Ready | - |
 | 3. Project Restructure | 0/1 | Not started | - |
 | 4. Build Verification | 0/1 | Not started | - |
 
