@@ -13,7 +13,7 @@
 **Milestone Goal:** Fix level display accuracy, warp-based visiting, and relocation safety
 
 - [x] **Phase 8: Level Display** - Accurate island level in GUI
-- [ ] **Phase 9: Island Visiting** - Warp sign-based visit controls
+- [x] **Phase 9: Island Visiting** - Warp sign-based visit controls
 - [ ] **Phase 10: Relocation Safety** - Only teleport affected players
 
 ## Phase Details
@@ -38,10 +38,10 @@ Plans:
   1. User can only visit islands that have warp signs (right-click teleports)
   2. GUI shows warp indicator on islands that have warps, hides "Right-click to visit" hint when no warp
   3. Clicking island without warp shows clear "no warp" message instead of teleporting
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 09-01: Warp detection and visit controls
+- [x] 09-01-PLAN.md — WarpIntegration + GUI warp indicator + visit restriction
 
 ### Phase 10: Relocation Safety
 **Goal**: Relocation only affects players actually on the relocating island
@@ -60,7 +60,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 8. Level Display | v1.1.1 | 1/1 | Complete | 2026-01-20 |
-| 9. Island Visiting | v1.1.1 | 0/1 | Not started | - |
+| 9. Island Visiting | v1.1.1 | 1/1 | Complete | 2026-01-20 |
 | 10. Relocation Safety | v1.1.1 | 0/1 | Not started | - |
 
 ---
