@@ -1336,27 +1336,37 @@ public class RelocationManager {
                     homeLocation = dimCenter != null ? dimCenter : newCenter;
                 }
 
-                // Use BentoBox SafeSpotTeleport for owner, targeting home location
-                // IMPORTANT: Do NOT use .island() as it searches across ALL dimensions (nether, end)
-                // and may teleport to End if it finds a "safer" spot there
-                new SafeSpotTeleport.Builder(addon.getPlugin())
-                    .entity(owner)
-                    .location(homeLocation)
-                    .thenRun(() -> addon.log("Teleported " + owner.getName() + " to relocated island home in " + finalTargetWorld.getName()))
-                    .ifFail(() -> owner.sendMessage(colorize("&eCouldn't find safe spot - use /island go")))
-                    .buildFuture();
+                // Only teleport owner if they were on the island when relocation started
+                if (playerWasOnIsland) {
+                    // Use BentoBox SafeSpotTeleport for owner, targeting home location
+                    // IMPORTANT: Do NOT use .island() as it searches across ALL dimensions (nether, end)
+                    // and may teleport to End if it finds a "safer" spot there
+                    new SafeSpotTeleport.Builder(addon.getPlugin())
+                        .entity(owner)
+                        .location(homeLocation)
+                        .thenRun(() -> addon.log("Teleported " + owner.getName() + " to relocated island home in " + finalTargetWorld.getName()))
+                        .ifFail(() -> owner.sendMessage(colorize("&eCouldn't find safe spot - use /island go")))
+                        .buildFuture();
+                } else {
+                    addon.log("Skipping owner teleport - " + owner.getName() + " was not on island");
+                }
 
-                // Teleport team members if online using safe teleport to home
+                // Teleport team members if online AND currently on the island
                 final Location finalHomeLocation = homeLocation;
                 for (UUID memberUUID : island.getMemberSet()) {
                     if (!memberUUID.equals(owner.getUniqueId())) {
                         Player member = Bukkit.getPlayer(memberUUID);
                         if (member != null && member.isOnline()) {
-                            new SafeSpotTeleport.Builder(addon.getPlugin())
-                                .entity(member)
-                                .location(finalHomeLocation)
-                                .thenRun(() -> member.sendMessage(colorize("&eYour island has been relocated to a new location!")))
-                                .buildFuture();
+                            // Only teleport if member is currently on the island
+                            if (island.onIsland(member.getLocation())) {
+                                new SafeSpotTeleport.Builder(addon.getPlugin())
+                                    .entity(member)
+                                    .location(finalHomeLocation)
+                                    .thenRun(() -> member.sendMessage(colorize("&eYour island has been relocated to a new location!")))
+                                    .buildFuture();
+                            } else {
+                                addon.log("Skipping team member teleport - " + member.getName() + " not on island");
+                            }
                         }
                     }
                 }
