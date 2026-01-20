@@ -719,8 +719,8 @@ public class MainGridGUI implements InventoryHolder {
             "&7View your neighbors");
         inventory.setItem(BOT_NEIGHBORHOOD_SLOT, neighborhood);
 
-        // Slot Selection - only show if FAWE is available
-        if (addon.isSchematicOperationsAvailable()) {
+        // Slot Selection - only show if slots are enabled AND FAWE is available
+        if (addon.getSettings().isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
             ItemStack slots = createButton(Material.CHEST, "&6Island Slots",
                 "&7Manage your slots");
             inventory.setItem(BOT_SLOTS_SLOT, slots);

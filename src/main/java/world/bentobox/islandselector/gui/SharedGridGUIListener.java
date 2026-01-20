@@ -82,7 +82,7 @@ public class SharedGridGUIListener implements Listener {
             return;
         }
         if (slot == gui.getSlotsSlot()) {
-            if (gui.getAddon().isSchematicOperationsAvailable()) {
+            if (gui.getAddon().getSettings().isSlotsEnabled() && gui.getAddon().isSchematicOperationsAvailable()) {
                 player.closeInventory();
                 new SlotSelectionGUI(gui.getAddon(), player).open();
             }

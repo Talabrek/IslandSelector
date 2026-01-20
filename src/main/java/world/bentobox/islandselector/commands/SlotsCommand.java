@@ -28,6 +28,12 @@ public class SlotsCommand extends CompositeCommand {
     public boolean execute(User user, String label, List<String> args) {
         IslandSelector addon = (IslandSelector) getAddon();
 
+        // Check if slot system is enabled in config
+        if (!addon.getSettings().isSlotsEnabled()) {
+            user.sendMessage("&cThe slot system is disabled on this server.");
+            return false;
+        }
+
         // Check if FAWE is available
         if (!addon.isSchematicOperationsAvailable()) {
             user.sendMessage("&cThis feature requires FastAsyncWorldEdit (FAWE) to be installed.");
