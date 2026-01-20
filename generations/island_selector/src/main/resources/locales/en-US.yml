@@ -1,0 +1,361 @@
+# IslandSelector English (US) Locale
+# All messages support color codes (&a, &c, etc.) and hex colors (&#FF5555)
+# Placeholders: {player}, {coords}, {level}, {price}, {time}, etc.
+
+# General messages
+prefix: "&8[&aIslandSelector&8]&r "
+no-permission: "&cYou don't have permission to do that."
+player-only: "&cThis command can only be used by players."
+unknown-command: "&cUnknown command. Use &e/islandselector help&c for help."
+
+# Grid GUI
+gui:
+  grid:
+    title: "Grid View: {start} - {end}"
+
+    # Location tooltips
+    location:
+      available: "&aLocation: {coords}"
+      available-claim: "&eClick to claim this location"
+      available-relocate: "&eClick to relocate here"
+
+      your-island: "&a&l🏠 Your Island"
+      your-coords: "&7Location: &f{coords}"
+      your-level: "&7Level: &f{level}"
+      your-slot: "&7Active Slot: &f{slot}"
+
+      occupied-owner: "&e{owner}'s Island"
+      occupied-coords: "&7Location: &f{coords}"
+      occupied-level: "&7Level: &f{level}"
+      occupied-members: "&7Members: &f{count}"
+      occupied-online: "&a🟢 Online"
+      occupied-offline: "&c🔴 Offline - Last seen: {time}"
+      occupied-warp-open: "&a🌐 Warp Open"
+      occupied-warp-closed: "&7🔒 Private Island"
+      occupied-warp-visit: "&eRight-click to visit"
+
+      reserved-blocked: "&c🚫 Reserved"
+      reserved-blocked-desc: "&7This location is not available"
+
+      reserved-premium: "&6⭐ Premium Location: {coords}"
+      reserved-premium-price: "&7Price: &a${price}"
+      reserved-premium-click: "&eClick to purchase"
+
+      locked: "&8🔒 Locked Area"
+      locked-desc: "&7This area is not yet available"
+
+    # Control buttons
+    controls:
+      filter-all: "&fFilter: &eAll"
+      filter-all-desc: "&7Show all locations"
+
+      filter-available: "&aFilter: Available"
+      filter-available-desc: "&7Show only empty locations"
+
+      filter-online: "&aFilter: Online"
+      filter-online-desc: "&7Show only online players"
+
+      search: "&eSearch"
+      search-desc: "&7Search for a player's island"
+
+      find-my-island: "&bFind My Island"
+      find-my-island-desc: "&7Center on your island"
+
+      neighborhood: "&aNeighborhood View"
+      neighborhood-desc: "&7View your neighbors"
+
+      slots: "&eSlot Selection"
+      slots-desc: "&7Manage your island slots"
+
+      close: "&cClose"
+      close-desc: "&7Close this menu"
+
+  # Slot Selection GUI
+  slots:
+    title: "Your Island Slots"
+
+    active: "&a&l{name}"
+    active-level: "&7Level: &f{level}"
+    active-members: "&7Members: &f{count}"
+    active-indicator: "&e★ ACTIVE"
+
+    inactive: "&f{name}"
+    inactive-level: "&7Level: &f{level}"
+    inactive-members: "&7Members: &f{count}"
+    inactive-click: "&eClick to switch to this slot"
+    inactive-cooldown: "&7Cooldown: &c{time}"
+
+    empty: "&aEmpty Slot"
+    empty-desc: "&7This slot is available!"
+    empty-click: "&eClick to create a new island"
+
+    locked: "&cLocked Slot"
+    locked-desc: "&7This slot is locked."
+    locked-perm: "&7Unlock with: &f{permission}"
+    locked-hint: "&7(e.g., VIP rank)"
+
+    back: "&aBack to Grid"
+    close: "&cClose"
+
+  # Neighborhood GUI
+  neighborhood:
+    title: "Your Neighborhood"
+    your-island: "&a&l🏠 YOUR ISLAND"
+    back: "&aBack to Grid"
+    slots: "&eSlot Selection"
+    close: "&cClose"
+
+  # Confirmation GUI
+  confirmation:
+    title: "{action} Confirmation"
+
+    claim-info: "&eClaming location: &f{coords}"
+    claim-neighbors: "&7Neighbors: &f{neighbors}"
+
+    switch-info: "&eSwitch from &f{from} &eto &f{to}"
+    switch-warning: "&7Visitors will be teleported away"
+    switch-cooldown: "&7Cooldown after: &c{time}"
+
+    relocate-info: "&eRelocate from &f{from} &eto &f{to}"
+    relocate-cost: "&7Cost: &a${cost}"
+    relocate-cooldown: "&7Cooldown after: &c{time}"
+
+    purchase-info: "&ePurchase location: &f{coords}"
+    purchase-price: "&7Price: &a${price}"
+
+    delete-info: "&cDelete slot: &f{name}"
+    delete-warning: "&c&lThis cannot be undone!"
+    delete-warning2: "&7All progress will be lost"
+
+    confirm: "&a&lConfirm"
+    confirm-desc: "&7Click to proceed"
+
+    cancel: "&c&lCancel"
+    cancel-desc: "&7Click to cancel"
+
+# Commands - BentoBox uses "commands.<addon>.<command>.<key>" format
+commands:
+  islandselector:
+    description: "&7Open the island grid selector"
+
+    slots:
+      description: "&7Manage your island slots"
+
+    switch:
+      description: "&7Switch directly to a specific slot"
+      parameters: "&f<slot>"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-locked: "&cSlot [slot] is locked! You need permission to access this slot."
+      no-island: "&cYou must have an island before you can switch slots!"
+      already-active: "&7Slot [slot] is already your active slot."
+      empty-slot: "&cSlot [slot] is empty! Create an island in this slot first."
+
+    setname:
+      description: "&7Set a custom name for an island slot"
+      parameters: "&f<slot> <name...>"
+      success: "&aSet name for slot [slot] to '[name]'"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-not-found: "&cYou don't have an island in slot [slot] yet!"
+      name-too-long: "&cSlot name is too long! Maximum 32 characters."
+      name-empty: "&cSlot name cannot be empty!"
+
+    seticon:
+      description: "&7Set a custom icon for an island slot"
+      parameters: "&f<slot>"
+      success: "&aSet icon for slot [slot] to [icon]"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-not-found: "&cYou don't have an island in slot [slot] yet!"
+      no-item: "&cYou must be holding an item to set as the icon!"
+
+    delete:
+      description: "&7Delete an island slot permanently"
+      parameters: "&f<slot>"
+      invalid-slot: "&cInvalid slot number. Must be a number."
+      invalid-slot-range: "&cSlot number must be between [min] and [max]"
+      slot-not-found: "&cYou don't have an island in slot [slot]!"
+      warning-active-slot: "&e⚠ Warning: This is your currently active slot!"
+
+    sethome:
+      dimension-mismatch: "&cYou must be in the [target] dimension to set a home there! You are currently in [current]."
+
+    admin:
+      description: "&7Admin commands for IslandSelector"
+
+      reload:
+        description: "&7Reload configuration"
+        success: "&aConfiguration reloaded successfully!"
+
+      reserve:
+        description: "&7Reserve a grid location"
+        parameters: "&f<coord>"
+        success: "&aReserved location [coord]"
+        already-reserved: "&c[coord] is already reserved"
+        occupied: "&cCannot reserve [coord] - it is currently occupied by a player's island"
+        invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
+
+      setprice:
+        description: "&7Set purchase price for a location"
+        parameters: "&f<coord> <price>"
+        success: "&aSet price for [coord] to $[price]"
+        invalid-coord: "&cInvalid coordinate format: [coord]"
+        invalid-price: "&cInvalid price. Must be a positive number."
+
+      unreserve:
+        description: "&7Unreserve a grid location"
+        parameters: "&f<coord>"
+        success: "&aUnreserved location [coord] - it is now available for claiming"
+        not-reserved: "&c[coord] is not reserved"
+        occupied: "&cCannot unreserve [coord] - it is currently occupied by a player"
+        invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
+
+      clearprice:
+        description: "&7Clear the purchase price from a reserved location"
+        parameters: "&f<coord>"
+        success: "&aCleared price for [coord] - it is now blocked (not purchasable)"
+        not-reserved: "&c[coord] is not reserved"
+        no-price: "&c[coord] does not have a purchase price set"
+        invalid-coord: "&cInvalid coordinate format: [coord]. Use format like 0,0 or -1,2"
+
+      info:
+        description: "&7Show info about a grid location or player"
+        parameters: "&f<coord|player>"
+        header: "&a&l=== Location [coord] ==="
+        empty: "&7Status: &fEmpty (no island)"
+        status: "&7Status: &f[status]"
+        owner: "&7Owner: &f[owner]"
+        purchasable: "&7Purchasable: &aYes &7(Price: $[price])"
+        blocked: "&7Reserved: &cBlocked (not purchasable)"
+        world-coords: "&7World coordinates: &f[x], [z]"
+        invalid-coord: "&cInvalid coordinate format: [coord]"
+        player-not-found: "&cPlayer '[player]' not found"
+        player-no-data: "&cPlayer '[player]' has no IslandSelector data"
+        player-header: "&a&l=== Player Info: [player] ==="
+        player-location: "&7Grid Location: &f[location]"
+        player-world-coords: "&7World Coordinates: &f[x], [z]"
+        player-no-island: "&7Island: &cNone"
+        player-active-slot: "&7Active Slot: &f#[slot] - [name]"
+        player-slot-count: "&7Slots: &f[used]/[total] with islands"
+        player-slots-list: "&7&l--- Slot Details ---"
+        player-slot-entry: "&7  #[number]: &f[name] &7- [status] &7- [island]"
+        player-cooldown: "&7Switch Cooldown: &c[time] remaining"
+        player-no-cooldown: "&7Switch Cooldown: &aNone"
+
+      version:
+        description: "&7Show plugin version and dependencies"
+
+      expand:
+        description: "&7Expand the grid boundaries"
+        parameters: "&f<direction> <amount>"
+        success: "&aExpanded grid [direction] by [amount] - New size: [width]x[height]"
+        invalid-direction: "&cInvalid direction: [direction]. Use: north, south, east, or west"
+        invalid-amount: "&cInvalid amount: [amount]. Must be a positive number."
+
+      shrink:
+        description: "&7Shrink the grid boundaries"
+        parameters: "&f<direction> <amount>"
+        success: "&aShrunk grid [direction] by [amount] - New size: [width]x[height]"
+        invalid-direction: "&cInvalid direction: [direction]. Use: north, south, east, or west"
+        invalid-amount: "&cInvalid amount: [amount]. Must be a positive number."
+        islands-in-area: "&cCannot shrink: [count] island(s) exist in the area that would be removed!"
+        too-small: "&cCannot shrink: The grid would become too small or inverted!"
+
+      resetcooldown:
+        description: "&7Reset slot switch or relocation cooldown for a player"
+        parameters: "&f<player> <switch|relocate|all>"
+        success-switch: "&aReset switch cooldown for [player]"
+        success-relocate: "&aReset relocation cooldown for [player]"
+        success-all: "&aReset all cooldowns for [player]"
+        invalid-type: "&cInvalid cooldown type. Use: switch, relocate, or all"
+        player-not-found: "&cPlayer not found"
+
+      backup:
+        description: "&7Create a backup of a player's island slot"
+        parameters: "&f<player> <slot>"
+        creating: "&eCreating backup for [player] slot [slot]..."
+        success: "&aBackup created for [player] slot [slot] &7(Total backups: [count])"
+        failed: "&cFailed to create backup for [player] slot [slot]"
+        player-not-found: "&cPlayer '[player]' not found"
+        invalid-slot: "&cInvalid slot number. Must be between 1-10"
+
+      restore:
+        description: "&7Restore a backup to a player's island slot"
+        parameters: "&f<player> <slot> [backup-file]"
+        restoring: "&eRestoring backup for [player] slot [slot]..."
+        restoring-file: "&7File: &f[file]"
+        restoring-date: "&7Backup date: &f[date]"
+        success: "&aSuccessfully restored [file] for [player] slot [slot]"
+        failed: "&cFailed to restore backup for [player] slot [slot]"
+        player-not-found: "&cPlayer '[player]' not found"
+        invalid-slot: "&cInvalid slot number. Must be between 1-10"
+        backup-not-found: "&cBackup file '[file]' not found for this player"
+        no-backups: "&cNo backups found for [player] slot [slot]"
+
+    # Help and other general commands nested correctly under islandselector
+    format: "&e{command} &7- {description}"
+
+    locate:
+      description: "&7Show your island's grid coordinates"
+      header: "&a&l=== Your Island Location ==="
+      grid-location: "&7Grid Location: &e[coords]"
+      world-coords: "&7World Coordinates: &f[x], [z]"
+      no-island: "&cYou don't have an island yet!"
+      error: "&cError determining island location. Please contact an administrator."
+
+    find:
+      description: "&7Find a player's island on the grid"
+      parameters: "&f<player>"
+      success: "&aOpening grid centered on [player]'s island at [coords]"
+      player-not-found: "&cPlayer '[player]' not found."
+      no-island: "&cPlayer '[player]' doesn't have an island."
+      error: "&cError finding island location. Please contact an administrator."
+
+    help:
+      description: "&7Show list of available commands"
+      header: "&a&l=== IslandSelector Commands ==="
+      format: "&e{command} &7- {description}"
+      footer: "&7Use &e/islandselector <command>&7 to execute a command"
+
+    search:
+      enter-name: "&eEnter player name to search:"
+      not-found: "&cPlayer '[player]' not found or has no island."
+      found: "&aOpening grid centered on [player]'s island at [coords]"
+
+# In-game notifications
+notifications:
+  claiming: "&aCreating your island at {coords}..."
+  claimed: "&aIsland created successfully at {coords}!"
+
+  switching:
+    started: "&eSwitching to slot {slot}..."
+    saving: "&7Saving current island..."
+    clearing: "&7Clearing location..."
+    loading: "&7Loading new island..."
+    complete: "&aSwitch complete! Welcome to {name}"
+
+  relocating:
+    started: "&eRelocating island from {from} to {to}..."
+    copying: "&7Copying island data..."
+    clearing: "&7Clearing old location..."
+    pasting: "&7Placing island at new location..."
+    complete: "&aRelocation complete! Your island is now at {to}"
+
+  visitor-teleported: "&eYou were teleported because the island owner switched islands."
+
+  purchase:
+    insufficient-funds: "&cYou need ${price} to purchase this location (you have ${balance})"
+    success: "&aPurchased location {coords} for ${price}"
+
+# Errors
+errors:
+  no-island: "&cYou don't have an island yet!"
+  only-owner: "&cOnly the island owner can do that."
+  cooldown: "&cYou must wait {time} before doing that again."
+  insufficient-funds: "&cYou don't have enough money! Need: ${price}, Have: ${balance}"
+  fawe-error: "&cAn error occurred during schematic operation. Check console."
+  location-occupied: "&cThat location is already occupied!"
+  location-reserved: "&cThat location is reserved and cannot be claimed."
+  invalid-coords: "&cInvalid coordinates format. Example: A1, B7, C12"
+  slot-locked: "&cThat slot is locked! You need {permission} to unlock it."

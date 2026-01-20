@@ -1,0 +1,231 @@
+# IslandSelector Configuration
+# BentoBox Addon for BSkyBlock
+
+# ==========================================
+# GRID SETTINGS
+# ==========================================
+grid:
+  # Grid boundaries (supports negative coordinates)
+  # The grid is centered at 0,0 by default
+  # min-x: Western boundary (negative = west)
+  # max-x: Eastern boundary (positive = east)
+  # min-z: Northern boundary (negative = north)
+  # max-z: Southern boundary (positive = south)
+  min-x: -10
+  max-x: 10
+  min-z: -10
+  max-z: 10
+
+  # Note: Island spacing is automatically detected from BSkyBlock's configuration
+  # (distance-between-islands setting in BSkyBlock's config.yml)
+
+# ==========================================
+# SLOT SETTINGS
+# ==========================================
+slots:
+  # Default number of slots for new players
+  # Players still need the appropriate permission (islandselector.slots.X)
+  default-slots: 2
+
+  # Maximum possible slots (cannot exceed 5)
+  max-slots: 5
+
+  # Cooldown between slot switches in seconds
+  # Set to 0 to disable cooldown
+  # Default: 3600 (1 hour)
+  switch-cooldown: 3600
+
+  # Default slot name for new slots
+  # Placeholders: {number} = slot number
+  default-slot-name: "Island {number}"
+
+  # Default slot icon (material name)
+  default-slot-icon: GRASS_BLOCK
+
+# ==========================================
+# RELOCATION SETTINGS
+# ==========================================
+relocation:
+  # Cooldown between island relocations in seconds
+  # Set to 0 to disable cooldown
+  # Default: 604800 (7 days)
+  cooldown: 604800
+
+  # Cost to relocate island (requires Vault)
+  # Set to 0 for free relocation
+  cost: 0
+
+  # Currency name for display (if using cost)
+  currency-name: "coins"
+
+# ==========================================
+# RESERVED LOCATIONS
+# ==========================================
+reserved:
+  # Default price for new reserved locations
+  # Used when admin reserves without specifying price
+  default-price: 50000
+
+  # List of reserved locations
+  # Format: "COORD: PRICE" or "COORD: blocked"
+  # Example:
+  # locations:
+  #   - "A1: 100000"
+  #   - "A2: blocked"
+  #   - "B1: 75000"
+  locations: []
+
+# ==========================================
+# BACKUP SETTINGS
+# ==========================================
+backups:
+  # Enable automatic backups
+  enabled: true
+
+  # Create backup on every slot switch
+  on-switch: true
+
+  # Maximum backups to keep per slot
+  # Older backups are automatically deleted
+  max-per-slot: 3
+
+  # Backup on server shutdown (for active slots)
+  on-shutdown: false
+
+# ==========================================
+# GUI SETTINGS
+# ==========================================
+gui:
+  # Items used for grid display
+  items:
+    available: GREEN_STAINED_GLASS_PANE
+    offline: RED_STAINED_GLASS_PANE
+    reserved-blocked: GRAY_STAINED_GLASS_PANE
+    reserved-purchasable: GOLD_BLOCK
+    locked-area: BLACK_STAINED_GLASS_PANE
+    filler: BLACK_STAINED_GLASS_PANE
+
+  # Navigation arrows
+  arrows:
+    up: ARROW
+    down: ARROW
+    left: ARROW
+    right: ARROW
+
+  # Control buttons
+  buttons:
+    filter-all: PAPER
+    filter-available: GREEN_DYE
+    filter-online: LIME_DYE
+    search: COMPASS
+    find-my-island: ENDER_EYE
+    neighborhood: FILLED_MAP
+    slots: CHEST
+    close: BARRIER
+    confirm: LIME_WOOL
+    cancel: RED_WOOL
+    back: ARROW
+
+  # Add enchantment glow to active slot
+  active-slot-glow: true
+
+  # Number of rows/columns to scroll per click
+  scroll-amount: 1
+
+  # Number of rows/columns to scroll per shift-click
+  scroll-amount-shift: 5
+
+# ==========================================
+# VISITOR HANDLING
+# ==========================================
+visitors:
+  # Delay before teleporting visitors (in ticks, 20 = 1 second)
+  # Gives them time to read the notification
+  teleport-delay: 40
+
+  # Message shown to visitors before teleport
+  # Set to empty string to disable
+  warning-message: "&eThe island owner is switching islands. You will be teleported in 2 seconds..."
+
+# ==========================================
+# PERFORMANCE
+# ==========================================
+performance:
+  # Cache duration for island data in seconds
+  # Lower = more database queries, higher = potentially stale data
+  cache-duration: 60
+
+  # Maximum concurrent schematic operations
+  # Increase on powerful servers, decrease on weaker ones
+  max-concurrent-operations: 2
+
+# ==========================================
+# INTEGRATION
+# ==========================================
+integration:
+  # Vault economy integration
+  vault:
+    enabled: true
+
+  # PlaceholderAPI integration
+  placeholderapi:
+    enabled: true
+
+  # BSkyBlock Level addon integration
+  level-addon:
+    enabled: true
+
+# ==========================================
+# CUSTOM COMMANDS
+# ==========================================
+# Commands to run after relocation or slot switch completes
+# These run as the absolute last step after all other operations
+#
+# Available placeholders:
+#   {player} - Player name
+#   {uuid} - Player UUID
+#   {slot} - Current slot number (slot-switch only)
+#   {from_slot} - Previous slot number (slot-switch only)
+#   {from_coord} - Previous grid coordinate (relocation only)
+#   {to_coord} - New grid coordinate (relocation only)
+#   {world_x} - World X coordinate of island center
+#   {world_z} - World Z coordinate of island center
+#
+# Execution scope options:
+#   CONSOLE - Run from console (full permissions)
+#   PLAYER - Run as the player (player's normal permissions)
+#   PLAYER_OP - Run as the player with temporary OP permissions
+#
+custom-commands:
+  # Commands to run after island relocation
+  relocation:
+    # Enable relocation commands
+    enabled: false
+    # List of commands to run (without leading slash)
+    # Example: ["say {player} relocated their island to {to_coord}", "eco give {player} 100"]
+    commands: []
+    # Execution scope: CONSOLE, PLAYER, or PLAYER_OP
+    scope: CONSOLE
+
+  # Commands to run after slot switch
+  slot-switch:
+    # Enable slot switch commands
+    enabled: false
+    # List of commands to run (without leading slash)
+    # Example: ["say {player} switched to slot {slot}", "effect give {player} minecraft:regeneration 10 1"]
+    commands: []
+    # Execution scope: CONSOLE, PLAYER, or PLAYER_OP
+    scope: CONSOLE
+
+# ==========================================
+# DEBUG
+# ==========================================
+debug:
+  # Enable debug logging
+  enabled: false
+
+  # Log schematic operations
+  log-schematics: false
+
+  # Log GUI interactions
+  log-gui: false
