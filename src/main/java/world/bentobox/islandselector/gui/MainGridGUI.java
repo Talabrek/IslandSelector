@@ -64,7 +64,6 @@ public class MainGridGUI implements InventoryHolder {
     // Bottom control bar (slots 47-51)
     private static final int BOT_SEARCH_SLOT = 47;
     private static final int BOT_FIND_MY_ISLAND_SLOT = 48;
-    private static final int BOT_NEIGHBORHOOD_SLOT = 49;
     private static final int BOT_SLOTS_SLOT = 50;
     private static final int BOT_CLOSE_SLOT = 51;
 
@@ -714,11 +713,6 @@ public class MainGridGUI implements InventoryHolder {
             "&7Center view on your island");
         inventory.setItem(BOT_FIND_MY_ISLAND_SLOT, findMyIsland);
 
-        // Neighborhood View
-        ItemStack neighborhood = createButton(Material.FILLED_MAP, "&bNeighborhood",
-            "&7View your neighbors");
-        inventory.setItem(BOT_NEIGHBORHOOD_SLOT, neighborhood);
-
         // Slot Selection - only show if slots are enabled AND FAWE is available
         if (addon.getSettings().isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
             ItemStack slots = createButton(Material.CHEST, "&6Island Slots",
@@ -975,10 +969,6 @@ public class MainGridGUI implements InventoryHolder {
 
     public int getFindMyIslandSlot() {
         return BOT_FIND_MY_ISLAND_SLOT;
-    }
-
-    public int getNeighborhoodSlot() {
-        return BOT_NEIGHBORHOOD_SLOT;
     }
 
     public int getSlotsSlot() {

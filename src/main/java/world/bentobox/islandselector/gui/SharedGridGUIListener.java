@@ -76,11 +76,6 @@ public class SharedGridGUIListener implements Listener {
             gui.findMyIsland();
             return;
         }
-        if (slot == gui.getNeighborhoodSlot()) {
-            player.closeInventory();
-            new NeighborhoodGUI(gui.getAddon(), player).open();
-            return;
-        }
         if (slot == gui.getSlotsSlot()) {
             if (gui.getAddon().getSettings().isSlotsEnabled() && gui.getAddon().isSchematicOperationsAvailable()) {
                 player.closeInventory();

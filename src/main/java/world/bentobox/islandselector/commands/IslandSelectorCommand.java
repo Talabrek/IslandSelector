@@ -34,7 +34,6 @@ public class IslandSelectorCommand extends CompositeCommand {
         new DeleteCommand(this);
         new LocateCommand(this);
         new FindCommand(this);
-        new NeighborsCommand(this);
         new HelpCommand(this);
         new AdminCommand(this);
     }
