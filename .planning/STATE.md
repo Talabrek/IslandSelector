@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-01-20)
 
 **Core value:** Players can visually select their island location from a grid-based GUI
-**Current focus:** v1.1 Simplification COMPLETE
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Milestone: v1.1 Simplification
+Milestone: v1.1 Simplification COMPLETE
 Phase: 7 of 7 (Neighbors Removal)
 Plan: 1 of 1 COMPLETE
-Status: v1.1 Milestone complete
-Last activity: 2026-01-20 - Completed 07-01-PLAN.md
+Status: Milestone archived, ready for next milestone
+Last activity: 2026-01-20 — v1.1 milestone archived
 
-Progress: [████████████████████] 100% (v1.1: 3/3 phases complete)
+Progress: [████████████████████] 100% (v1.1 shipped)
 
 ## Performance Metrics
 
@@ -32,18 +32,16 @@ Progress: [████████████████████] 100% (v
 | 6 | 1/1 | 3 min | 3 min |
 | 7 | 1/1 | 3 min | 3 min |
 
-*Updated after each plan completion*
-
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Full decision log in PROJECT.md Key Decisions table.
 
-- Config default true: slotsEnabled defaults to true for backward compatibility
-- Map alias position: Added as fourth alias after is, isgrid
-- Keep neighbors_online placeholder: PlaceholderAPI placeholder kept as useful for scoreboards
+v1.1 decisions:
+- Default slotsEnabled to true for backward compatibility
+- Map alias as fourth param after is, isgrid
+- Keep neighbors_online placeholder for scoreboards
 
 ### Pending Todos
 
@@ -56,8 +54,8 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-20
-Stopped at: Completed 07-01-PLAN.md (Phase 7 Neighbors Removal)
-Resume: v1.1 Milestone complete - ready for next milestone
+Stopped at: v1.1 milestone archived
+Resume: `/gsd:new-milestone` to start next milestone
 
 ---
-*State updated: 2026-01-20 after 07-01-PLAN.md completion*
+*State updated: 2026-01-20 after v1.1 milestone completion*

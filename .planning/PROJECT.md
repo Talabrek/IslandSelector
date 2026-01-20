@@ -8,19 +8,10 @@ A BentoBox addon for Minecraft that provides island selection and management fea
 
 Players can visually select their island location from a grid-based GUI.
 
-## Current Milestone: v1.1 Simplification
-
-**Goal:** Streamline the addon by adding configurability and removing unused features.
-
-**Target features:**
-- Config option to disable slot system (hides GUI button, blocks command)
-- /map command alias for /islandselector
-- Remove neighbors GUI and command entirely
-
 ## Current State
 
-**Shipped:** v1.0 Cleanup (2026-01-20)
-**Codebase:** 83 Java files, 29,251 LOC
+**Shipped:** v1.1 Simplification (2026-01-20)
+**Codebase:** 80 Java files, 28,699 LOC
 **Build:** Maven, Java 17, compiles successfully
 
 ```
@@ -36,21 +27,25 @@ IslandSelector/
 
 ### Validated
 
-- Java addon source code — 80 main + 3 test files (v1.0)
-- Maven build configuration — pom.xml at root (v1.0)
-- Resource files — addon.yml, config.yml, en-US.yml (v1.0)
-- Standard project structure — src/ and pom.xml at root (v1.0)
-- Clean repository — no Python scripts, backups, or nested git (v1.0)
-- Build verification — mvn clean compile succeeds (v1.0)
+**v1.0 Cleanup:**
+- Java addon source code — 80 main + 3 test files
+- Maven build configuration — pom.xml at root
+- Resource files — addon.yml, config.yml, en-US.yml
+- Standard project structure — src/ and pom.xml at root
+- Clean repository — no Python scripts, backups, or nested git
+- Build verification — mvn clean compile succeeds
+
+**v1.1 Simplification:**
+- Config option `slots.enabled` to enable/disable slot system
+- Block `/islandselector slots` command when slots disabled
+- Hide slots button in GUI when slots disabled
+- Add `/map` command alias for `/islandselector`
+- Remove neighbors GUI button from main GUI
+- Remove `/islandselector neighbors` command and source files
 
 ### Active
 
-- [ ] Config option to enable/disable slot system
-- [ ] Block /islandselector slots command when slots disabled
-- [ ] Hide slots button in GUI when slots disabled
-- [ ] Add /map command alias for /islandselector
-- [ ] Remove neighbors GUI button from main GUI
-- [ ] Remove /islandselector neighbors command
+(Planning next milestone)
 
 ### Out of Scope
 
@@ -65,10 +60,13 @@ IslandSelector/
 | Delete nested .git | Only need one git repo at root | Done (v1.0) |
 | Use git mv for moves | Preserves file history | Done (v1.0) |
 | Replace agent README | Agent harness docs not relevant | Done (v1.0) |
+| Default slotsEnabled to true | Existing servers continue working after update | Done (v1.1) |
+| Map alias as fourth param | After islandselector, is, isgrid | Done (v1.1) |
+| Keep neighbors_online placeholder | Useful for scoreboards independently of GUI | Done (v1.1) |
 
 ## Milestones
 
 See `.planning/MILESTONES.md` for shipped milestones.
 
 ---
-*Last updated: 2026-01-20 after v1.1 milestone start*
+*Last updated: 2026-01-20 after v1.1 milestone completion*
