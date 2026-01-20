@@ -11,7 +11,7 @@ This cleanup transforms a cluttered BentoBox addon project into a standard Maven
 - Decimal phases (1.1, 2.1): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Git Repository Consolidation** - Merge nested git history and establish single clean repo
-- [ ] **Phase 2: Artifact Removal** - Delete Python scripts, backups, and development debris
+- [x] **Phase 2: Artifact Removal** - Delete Python scripts, backups, and development debris
 - [ ] **Phase 3: Project Restructure** - Move Maven project to repository root
 - [ ] **Phase 4: Build Verification** - Confirm project compiles and all files are present
 
@@ -42,8 +42,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md - Delete Python files and related artifacts (root + generations/)
-- [ ] 02-02-PLAN.md - Delete backup files, shell scripts, and misc development debris
+- [x] 02-01-PLAN.md - Delete Python files and related artifacts (root + generations/)
+- [x] 02-02-PLAN.md - Delete backup files, shell scripts, and misc development debris
 
 ### Phase 3: Project Restructure
 **Goal**: Standard Maven project structure at repository root
@@ -79,8 +79,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Git Repository Consolidation | 1/1 | Complete | 2026-01-20 |
-| 2. Artifact Removal | 0/2 | Ready | - |
-| 3. Project Restructure | 0/1 | Not started | - |
+| 2. Artifact Removal | 2/2 | Complete | 2026-01-20 |
+| 3. Project Restructure | 0/1 | Ready | - |
 | 4. Build Verification | 0/1 | Not started | - |
 
 ---
