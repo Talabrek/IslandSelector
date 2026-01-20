@@ -17,7 +17,7 @@ import world.bentobox.islandselector.gui.MainGridGUI;
 public class IslandSelectorCommand extends CompositeCommand {
 
     public IslandSelectorCommand(IslandSelector addon) {
-        super(addon, "islandselector", "is", "isgrid");
+        super(addon, "islandselector", "is", "isgrid", "map");
     }
 
     @Override
