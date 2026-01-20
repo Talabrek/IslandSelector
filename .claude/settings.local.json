@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.xenondevs.xyz)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:madelinemiller.dev)",
+      "WebFetch(domain:docs.enginehub.org)",
+      "Bash(powershell -Command \"cd ''C:\\Users\\Administrator\\Desktop\\VSCode\\IslandSelector\\generations\\island_selector''; mvn clean package -U 2>&1\")",
+      "Bash(powershell -Command \"Remove-Item ''C:\\Users\\Administrator\\Desktop\\VSCode\\IslandSelector\\generations\\island_selector\\src\\main\\java\\world\\bentobox\\islandselector\\nativeblocks\\NativeBlockHandler.java'' -Force\")",
+      "Bash(powershell -Command \"Remove-Item ''C:\\Users\\Administrator\\Desktop\\VSCode\\IslandSelector\\generations\\island_selector\\src\\main\\java\\world\\bentobox\\islandselector\\nativeblocks\\FastIslandHandler.java'' -Force\")",
+      "Bash(powershell -Command \"Remove-Item ''C:\\Users\\Administrator\\Desktop\\VSCode\\IslandSelector\\generations\\island_selector\\src\\main\\java\\world\\bentobox\\islandselector\\nativeblocks\\BlockSnapshot.java'' -Force\")",
+      "Bash(powershell -Command \"Remove-Item ''C:\\Users\\Administrator\\Desktop\\VSCode\\IslandSelector\\generations\\island_selector\\src\\main\\java\\world\\bentobox\\islandselector\\nativeblocks\\IslandSnapshot.java'' -Force\")",
+      "Bash(powershell -Command \"Remove-Item ''C:\\Users\\Administrator\\Desktop\\VSCode\\IslandSelector\\generations\\island_selector\\src\\main\\java\\world\\bentobox\\islandselector\\nativeblocks\\EntitySnapshot.java'' -Force\")",
+      "Bash(powershell:*)",
+      "WebFetch(domain:docs.bentobox.world)",
+      "WebSearch",
+      "WebFetch(domain:hub.spigotmc.org)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git pull:*)",
+      "Bash(mvn clean package:*)",
+      "Bash(git fetch:*)",
+      "WebFetch(domain:www.spigotmc.org)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -2,8 +2,8 @@
 
 ## Milestones
 
-- ✅ **v1.0 Cleanup** - Phases 1-4 (shipped 2026-01-20)
-- 🚧 **v1.1 Simplification** - Phases 5-7 (in progress)
+- **v1.0 Cleanup** - Phases 1-4 (shipped 2026-01-20)
+- **v1.1 Simplification** - Phases 5-7 (in progress)
 
 ## Phases
 
@@ -56,10 +56,10 @@ Plans:
   2. Running `/islandselector neighbors` returns unknown command error
   3. No neighbors-related permissions exist in addon.yml
   4. No orphaned neighbors locale keys cleaned up
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 07-01: Remove neighbors feature
+- [ ] 07-01-PLAN.md - Delete neighbors source files and remove all references
 
 ## Progress
 
