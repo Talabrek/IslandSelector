@@ -3,7 +3,7 @@
 ## Milestones
 
 - **v1.0 Cleanup** - Phases 1-4 (shipped 2026-01-20)
-- **v1.1 Simplification** - Phases 5-7 (in progress)
+- ✅ **v1.1 Simplification** - Phases 5-7 (shipped 2026-01-20)
 
 ## Phases
 
@@ -14,7 +14,7 @@ Phases 1-4 completed prior to this roadmap. See MILESTONES.md for details.
 
 </details>
 
-### v1.1 Simplification (In Progress)
+### v1.1 Simplification (Complete)
 
 **Milestone Goal:** Streamline the addon by adding slot system configurability, command alias, and removing unused neighbors feature.
 
@@ -59,7 +59,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 07-01-PLAN.md - Delete neighbors source files and remove all references
+- [x] 07-01-PLAN.md - Delete neighbors source files and remove all references
 
 ## Progress
 
@@ -71,7 +71,7 @@ Phases 5, 6, 7 can execute in any order (no dependencies between them).
 | 1-4 | v1.0 | - | Complete | 2026-01-20 |
 | 5. Config Toggle | v1.1 | 1/1 | Complete | 2026-01-20 |
 | 6. Command Alias | v1.1 | 1/1 | Complete | 2026-01-20 |
-| 7. Neighbors Removal | v1.1 | 0/1 | Not started | - |
+| 7. Neighbors Removal | v1.1 | 1/1 | Complete | 2026-01-20 |
 
 ---
 *Roadmap created: 2026-01-20*
