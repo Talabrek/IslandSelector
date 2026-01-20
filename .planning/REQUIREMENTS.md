@@ -9,8 +9,8 @@ Bugfix patch release. All requirements are defect corrections.
 
 ### Level Display
 
-- [ ] **LEVL-01**: Island level in GUI matches `/island level` command output exactly
-- [ ] **LEVL-02**: Level updates reflect immediately (no stale cached values)
+- [x] **LEVL-01**: Island level in GUI matches `/island level` command output exactly
+- [x] **LEVL-02**: Level updates reflect immediately (no stale cached values)
 
 ### Island Visiting
 
@@ -40,8 +40,8 @@ None — patch release only.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LEVL-01 | Phase 8 | Pending |
-| LEVL-02 | Phase 8 | Pending |
+| LEVL-01 | Phase 8 | Complete |
+| LEVL-02 | Phase 8 | Complete |
 | VIST-01 | Phase 9 | Pending |
 | VIST-02 | Phase 9 | Pending |
 | VIST-03 | Phase 9 | Pending |
@@ -56,4 +56,4 @@ None — patch release only.
 
 ---
 *Requirements defined: 2026-01-20*
-*Last updated: 2026-01-20 after initial definition*
+*Last updated: 2026-01-20 after Phase 8 completion*

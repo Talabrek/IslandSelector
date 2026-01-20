@@ -12,7 +12,7 @@
 
 **Milestone Goal:** Fix level display accuracy, warp-based visiting, and relocation safety
 
-- [ ] **Phase 8: Level Display** - Accurate island level in GUI
+- [x] **Phase 8: Level Display** - Accurate island level in GUI
 - [ ] **Phase 9: Island Visiting** - Warp sign-based visit controls
 - [ ] **Phase 10: Relocation Safety** - Only teleport affected players
 
@@ -25,10 +25,10 @@
 **Success Criteria** (what must be TRUE):
   1. User sees same level number in GUI as `/island level` command shows
   2. After leveling up, GUI shows new level immediately without reopening
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 08-01: Level display accuracy fix
+- [x] 08-01-PLAN.md — Fix level display to use overworld-only, non-cached method
 
 ### Phase 9: Island Visiting
 **Goal**: Right-click visit only works when island has active warp sign
@@ -59,7 +59,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 8. Level Display | v1.1.1 | 0/1 | Not started | - |
+| 8. Level Display | v1.1.1 | 1/1 | Complete | 2026-01-20 |
 | 9. Island Visiting | v1.1.1 | 0/1 | Not started | - |
 | 10. Relocation Safety | v1.1.1 | 0/1 | Not started | - |
 
