@@ -28,10 +28,10 @@ Phases 1-4 completed prior to this roadmap. See MILESTONES.md for details.
   2. When `slots.enabled: false`, running `/islandselector slots` shows disabled message
   3. When `slots.enabled: false`, slots button does not appear in main GUI
   4. When `slots.enabled: true`, existing slot functionality works unchanged
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 05-01: Implement slot system config toggle
+- [x] 05-01-PLAN.md - Add slots.enabled config toggle with command/GUI checks
 
 #### Phase 6: Command Alias
 
@@ -69,7 +69,7 @@ Phases 5, 6, 7 can execute in any order (no dependencies between them).
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1-4 | v1.0 | - | Complete | 2026-01-20 |
-| 5. Config Toggle | v1.1 | 0/1 | Not started | - |
+| 5. Config Toggle | v1.1 | 1/1 | Complete | 2026-01-20 |
 | 6. Command Alias | v1.1 | 0/1 | Not started | - |
 | 7. Neighbors Removal | v1.1 | 0/1 | Not started | - |
 

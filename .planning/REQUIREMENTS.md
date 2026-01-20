@@ -9,9 +9,9 @@ Requirements for the Simplification milestone. Each maps to roadmap phases.
 
 ### Config Toggle
 
-- [ ] **SLOT-01**: Config option `slots.enabled` exists in config.yml with default `true`
-- [ ] **SLOT-02**: When slots disabled, `/islandselector slots` command shows disabled message
-- [ ] **SLOT-03**: When slots disabled, slots button is hidden from main GUI
+- [x] **SLOT-01**: Config option `slots.enabled` exists in config.yml with default `true`
+- [x] **SLOT-02**: When slots disabled, `/islandselector slots` command shows disabled message
+- [x] **SLOT-03**: When slots disabled, slots button is hidden from main GUI
 
 ### Command Alias
 
@@ -41,9 +41,9 @@ None — v1.1 is a focused simplification milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SLOT-01 | Phase 5 | Pending |
-| SLOT-02 | Phase 5 | Pending |
-| SLOT-03 | Phase 5 | Pending |
+| SLOT-01 | Phase 5 | Complete |
+| SLOT-02 | Phase 5 | Complete |
+| SLOT-03 | Phase 5 | Complete |
 | CMD-01 | Phase 6 | Pending |
 | REM-01 | Phase 7 | Pending |
 | REM-02 | Phase 7 | Pending |
