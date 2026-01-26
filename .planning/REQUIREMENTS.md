@@ -13,10 +13,10 @@ Requirements for Nova Integration milestone. Each maps to roadmap phases.
 - [x] **NOVA-02**: System captures all Nova tile entities in island region before operations
 - [x] **NOVA-03**: System restores Nova blocks at new location after operations complete
 - [x] **NOVA-04**: System removes Nova blocks properly via BlockManager.removeBlock() before WorldEdit
-- [ ] **NOVA-05**: Machine inventory contents preserved during capture/restore cycle
-- [ ] **NOVA-06**: Machine owner preserved during capture/restore cycle
-- [ ] **NOVA-07**: Player sees visual feedback message showing Nova machines preserved count
-- [ ] **NOVA-08**: Player sees error message if Nova machines fail to restore
+- [x] **NOVA-05**: Machine inventory contents preserved during capture/restore cycle
+- [x] **NOVA-06**: Machine owner preserved during capture/restore cycle
+- [x] **NOVA-07**: Player sees visual feedback message showing Nova machines preserved count
+- [x] **NOVA-08**: Player sees error message if Nova machines fail to restore
 
 ### Operation Integration
 
@@ -67,10 +67,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NOVA-02 | Phase 12 | Complete |
 | NOVA-03 | Phase 12 | Complete |
 | NOVA-04 | Phase 12 | Complete |
-| NOVA-05 | Phase 13 | Pending |
-| NOVA-06 | Phase 13 | Pending |
-| NOVA-07 | Phase 13 | Pending |
-| NOVA-08 | Phase 13 | Pending |
+| NOVA-05 | Phase 13 | Complete |
+| NOVA-06 | Phase 13 | Complete |
+| NOVA-07 | Phase 13 | Complete |
+| NOVA-08 | Phase 13 | Complete |
 | NOVA-09 | Phase 14 | Pending |
 | NOVA-10 | Phase 14 | Pending |
 | NOVA-11 | Phase 14 | Pending |
@@ -85,4 +85,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-26*
-*Last updated: 2026-01-27 after roadmap creation*
+*Last updated: 2026-01-27 after Phase 13 completion*
