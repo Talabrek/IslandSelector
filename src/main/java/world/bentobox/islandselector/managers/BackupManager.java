@@ -6,8 +6,10 @@ import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.models.DimensionConfig;
+import world.bentobox.islandselector.integrations.NovaIntegration.NovaBlockData;
+import world.bentobox.islandselector.integrations.NovaIntegration.RestoreResult;
 
-import java.io.File;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -306,6 +308,124 @@ public class BackupManager {
                 addon.logError("Security exception deleting backup " + backupFiles[i].getName() + ": " + e.getMessage());
             }
         }
+    }
+
+    /**
+     * Check if Nova integration is available and enabled
+     */
+    private boolean isNovaEnabled() {
+        return addon.getNovaIntegration() != null
+            && addon.getNovaIntegration().isAvailable()
+            && addon.getSettings().isNovaEnabled();
+    }
+
+    /**
+     * Get the Nova blocks backup file for a specific backup schematic.
+     * File is stored alongside the schematic with .nova extension.
+     *
+     * @param schematicFile The schematic backup file
+     * @return The Nova blocks file (.nova)
+     */
+    private File getNovaBackupFile(File schematicFile) {
+        String schematicPath = schematicFile.getAbsolutePath();
+        String novaPath = schematicPath.replace(".schem", ".nova");
+        return new File(novaPath);
+    }
+
+    /**
+     * Capture Nova blocks for a backup operation.
+     *
+     * @param playerUUID Player's UUID
+     * @param world The world containing the island
+     * @param schematicFile The schematic file (used to derive Nova file path)
+     * @return true if successful (or Nova not enabled)
+     */
+    private boolean captureAndSaveNovaBlocksForBackup(UUID playerUUID, World world, File schematicFile) {
+        if (!isNovaEnabled()) {
+            return true;
+        }
+
+        Island island = addon.getIslands().getIsland(world, playerUUID);
+        if (island == null) {
+            return true; // No island, nothing to capture
+        }
+
+        Location center = island.getCenter();
+        if (center == null || center.getWorld() == null) {
+            return true;
+        }
+
+        int islandSpacing = addon.getIslandSpacing();
+        int protectionRange = island.getProtectionRange();
+        int range = Math.max(islandSpacing / 2, protectionRange);
+
+        // Capture Nova blocks
+        List<NovaBlockData> novaBlocks = addon.getNovaIntegration().captureNovaBlocks(center, range);
+
+        if (novaBlocks == null || novaBlocks.isEmpty()) {
+            return true; // No Nova blocks to save
+        }
+
+        // Save to .nova file alongside schematic
+        File novaFile = getNovaBackupFile(schematicFile);
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(novaFile))) {
+            oos.writeObject(novaBlocks);
+            addon.log("Saved " + novaBlocks.size() + " Nova blocks to backup: " + novaFile.getName());
+            return true;
+        } catch (IOException e) {
+            addon.logError("Failed to save Nova blocks for backup: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Load and restore Nova blocks from a backup.
+     *
+     * @param playerUUID Player's UUID
+     * @param world The world containing the island
+     * @param schematicFile The schematic file (used to derive Nova file path)
+     * @return RestoreResult with machine counts
+     */
+    @SuppressWarnings("unchecked")
+    private RestoreResult loadAndRestoreNovaBlocksFromBackup(UUID playerUUID, World world, File schematicFile) {
+        if (!isNovaEnabled()) {
+            return new RestoreResult(0, 0);
+        }
+
+        File novaFile = getNovaBackupFile(schematicFile);
+        if (!novaFile.exists()) {
+            return new RestoreResult(0, 0); // No Nova blocks in this backup
+        }
+
+        Island island = addon.getIslands().getIsland(world, playerUUID);
+        if (island == null || island.getCenter() == null) {
+            return new RestoreResult(0, 0);
+        }
+
+        // Load Nova blocks from file
+        List<NovaBlockData> novaBlocks;
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(novaFile))) {
+            Object obj = ois.readObject();
+            if (obj instanceof List) {
+                novaBlocks = (List<NovaBlockData>) obj;
+            } else {
+                addon.logWarning("Nova backup file has unexpected format");
+                return new RestoreResult(0, 0);
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            addon.logError("Failed to load Nova blocks from backup: " + e.getMessage());
+            return new RestoreResult(0, 0);
+        }
+
+        if (novaBlocks.isEmpty()) {
+            return new RestoreResult(0, 0);
+        }
+
+        // Restore Nova blocks
+        RestoreResult result = addon.getNovaIntegration().restoreNovaBlocks(novaBlocks, island.getCenter());
+        addon.log("Restored Nova blocks from backup: " + result.machinesRestored + " machines restored");
+
+        return result;
     }
 
     /**
