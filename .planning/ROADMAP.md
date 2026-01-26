@@ -143,10 +143,10 @@ Plans:
   2. Machine owner preserved (ownership doesn't reset)
   3. Player sees "Preserved 23 Nova machines" feedback message after operations
   4. Player sees "3 machines couldn't be restored" error message if restoration fails
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — Add RestoreResult return type with feedback message generation
 
 #### Phase 14: Operation Integration
 **Goal**: Nova integration hooks into all island operation workflows
@@ -194,6 +194,6 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 15
 | 10. Relocation Safety | v1.1.1 | 1/1 | Complete | 2026-01-21 |
 | 11. Foundation | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 12. Core Capture and Restore | v1.2 | 1/1 | Complete | 2026-01-27 |
-| 13. State Preservation | v1.2 | 0/TBD | Not started | - |
+| 13. State Preservation | v1.2 | 0/1 | Not started | - |
 | 14. Operation Integration | v1.2 | 0/TBD | Not started | - |
 | 15. Performance and Polish | v1.2 | 0/TBD | Not started | - |
