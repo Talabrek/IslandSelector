@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-26)
 
 Milestone: v1.2 Nova Integration
 Phase: 14 of 15 (Operation Integration)
-Plan: 1 of 1 complete
+Plan: 3 of 4 complete (14-01, 14-02, 14-03)
 Status: In progress
-Last activity: 2026-01-27 — Completed 14-01-PLAN.md (SlotSwitchManager integration)
+Last activity: 2026-01-27 — Completed 14-03-PLAN.md (BackupManager integration)
 
 Progress: [█████████████░░░░░░░] 87% (13/15 phases complete from all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18 (5 v1.0 + 4 v1.1 + 5 v1.1.1 + 4 v1.2)
-- Average duration: 3.6 minutes
-- Total execution time: ~66 minutes
+- Total plans completed: 19 (5 v1.0 + 4 v1.1 + 5 v1.1.1 + 5 v1.2)
+- Average duration: 4.0 minutes
+- Total execution time: ~74 minutes
 
 ## Accumulated Context
 
@@ -68,6 +68,11 @@ Full decision log in PROJECT.md Key Decisions table.
 - Target slot's Nova blocks loaded from storage (not copied from source)
 - Combined RestoreResult feedback from all dimensions for single player message
 
+**Phase 14 decisions (14-03 BackupManager):**
+- Nova blocks stored in separate .nova files alongside .schem files
+- Capture/restore happens AFTER schematic operation succeeds (fail-safe)
+- Machine restoration feedback logged to console only (not propagated to player)
+
 ### Pending Todos
 
 None.
@@ -78,10 +83,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-27T03:00:34Z
-Stopped at: Completed 14-01-PLAN.md (SlotSwitchManager integration)
+Last session: 2026-01-27T02:56:30Z
+Stopped at: Completed 14-03-PLAN.md (BackupManager integration)
 Resume file: None
-Resume: Continue Phase 14 (remaining plans: 14-02 RelocationManager, 14-03 BackupManager)
+Resume: Continue Phase 14 (remaining plan: 14-04 Multi-dimension)
 
 ---
-*State updated: 2026-01-27 after 14-01 completion*
+*State updated: 2026-01-27 after 14-03 completion*
