@@ -802,6 +802,15 @@ public class BackupManager {
             boolean success = addon.getSchematicUtils().loadAndPaste(backupFile, center);
             if (success) {
                 addon.log("Restored backup " + backupFile.getName() + " to dimension " + dimensionKey);
+
+                // Also restore Nova blocks for this dimension
+                if (isNovaEnabled()) {
+                    RestoreResult novaResult = loadAndRestoreNovaBlocksFromBackup(playerUUID, world, backupFile);
+                    String novaMessage = novaResult.getFeedbackMessage();
+                    if (novaMessage != null) {
+                        addon.log("Backup restore (" + dimensionKey + "): " + novaMessage);
+                    }
+                }
             }
             return success;
 
@@ -1016,6 +1025,15 @@ public class BackupManager {
             boolean success = addon.getSchematicUtils().loadAndPaste(backupFile, center);
             if (success) {
                 addon.log("Restored backup " + backupFile.getName() + " for slot: " + slotData.getUniqueId());
+
+                // Also restore Nova blocks if available
+                if (isNovaEnabled()) {
+                    RestoreResult novaResult = loadAndRestoreNovaBlocksFromBackup(playerUUID, bskyblockWorld, backupFile);
+                    String novaMessage = novaResult.getFeedbackMessage();
+                    if (novaMessage != null) {
+                        addon.log("Backup restore: " + novaMessage);
+                    }
+                }
             }
             return success;
 
