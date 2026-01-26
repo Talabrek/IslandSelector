@@ -115,10 +115,10 @@ Plans:
   2. Player sees "Nova integration enabled" message when available
   3. Config option `nova.enabled` controls whether Nova integration runs
   4. System gracefully degrades when Nova not installed or disabled
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Add Nova config toggle and verify 0.17+ API paths
 
 #### Phase 12: Core Capture and Restore
 **Goal**: Nova blocks captured and restored with proper lifecycle management
@@ -192,7 +192,7 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 15
 | 8. GUI Cleanup | v1.1 | 2/2 | Complete | 2026-01-19 |
 | 9. Level and Warp Fixes | v1.1.1 | 3/3 | Complete | 2026-01-21 |
 | 10. Relocation Safety | v1.1.1 | 1/1 | Complete | 2026-01-21 |
-| 11. Foundation | v1.2 | 0/TBD | Not started | - |
+| 11. Foundation | v1.2 | 0/1 | Ready | - |
 | 12. Core Capture and Restore | v1.2 | 0/TBD | Not started | - |
 | 13. State Preservation | v1.2 | 0/TBD | Not started | - |
 | 14. Operation Integration | v1.2 | 0/TBD | Not started | - |
