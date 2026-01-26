@@ -175,6 +175,11 @@ public class Settings implements ConfigObject {
     @ConfigEntry(path = "integration.level-addon.enabled")
     private boolean levelAddonEnabled = true;
 
+    @ConfigComment("Enable Nova integration for custom block support")
+    @ConfigComment("Preserves Nova machines during relocation, slot switch, and backups")
+    @ConfigEntry(path = "integration.nova.enabled")
+    private boolean novaEnabled = true;
+
     // Custom Command Settings - Relocation
     @ConfigComment("Enable custom commands after relocation")
     @ConfigEntry(path = "custom-commands.relocation.enabled")
@@ -499,6 +504,14 @@ public class Settings implements ConfigObject {
 
     public void setLevelAddonEnabled(boolean levelAddonEnabled) {
         this.levelAddonEnabled = levelAddonEnabled;
+    }
+
+    public boolean isNovaEnabled() {
+        return novaEnabled;
+    }
+
+    public void setNovaEnabled(boolean novaEnabled) {
+        this.novaEnabled = novaEnabled;
     }
 
     public boolean isDebugEnabled() {

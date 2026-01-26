@@ -107,8 +107,16 @@ public class IslandSelector extends Addon {
         // Initialize WorldEdit/FAWE integration (before other managers that depend on it)
         worldEditIntegration = new WorldEditIntegration(this);
 
-        // Initialize Nova integration for custom block support
-        novaIntegration = new NovaIntegration(this);
+        // Initialize Nova integration for custom block support (if enabled)
+        if (settings.isNovaEnabled()) {
+            novaIntegration = new NovaIntegration(this);
+            if (!novaIntegration.isAvailable()) {
+                // Nova not installed or not compatible
+                novaIntegration = null;
+            }
+        } else {
+            log("Nova integration disabled via config");
+        }
 
         // Initialize dimension manager (before other managers that may use it)
         dimensionManager = new DimensionManager(this);
@@ -158,7 +166,13 @@ public class IslandSelector extends Addon {
             logWarning("Schematic features (slot switching, backups, relocation) are DISABLED");
             logWarning("Install FastAsyncWorldEdit to enable these features");
         }
-        log("Nova Integration: " + (novaIntegration.isAvailable() ? "Enabled" : "Not available"));
+        if (novaIntegration != null) {
+            log("Nova integration: Enabled");
+        } else if (settings.isNovaEnabled()) {
+            log("Nova integration: Not available (Nova plugin not detected)");
+        } else {
+            log("Nova integration: Disabled via config");
+        }
     }
 
     /**
