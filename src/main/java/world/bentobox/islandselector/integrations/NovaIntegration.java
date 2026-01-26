@@ -27,17 +27,107 @@ public class NovaIntegration {
 
     private final IslandSelector addon;
     private final boolean available;
+    private final ReflectionCache cache;
     private Class<?> novaClass;
     private Class<?> blockManagerClass;
     private Class<?> novaBlockStateClass;
     private Object blockManager;
 
+    /**
+     * Caches all reflection lookups for Nova API access.
+     * Initialized once during NovaIntegration construction.
+     * All fields are final for thread-safety.
+     */
+    private static class ReflectionCache {
+        // Classes
+        final Class<?> worldDataManagerClass;
+        final Class<?> tileEntityClass;
+        final Class<?> blockUtilsClass;
+        final Class<?> contextClass;
+        final Class<?> keyClass;
+        final Class<?> novaRegistriesClass;
+        final Class<?> novaBlockClass;
+        final Class<?> novaBlockStateClass;
+
+        // Singleton instances
+        final Object worldDataManagerInstance;
+        final Object blockRegistry;
+        final Object emptyContext;
+
+        // Methods
+        final java.lang.reflect.Method getBlockStateMethod;
+        final java.lang.reflect.Method getTileEntityMethod;
+        final java.lang.reflect.Method getDropsMethod;
+        final java.lang.reflect.Method getIdMethod;
+        final java.lang.reflect.Method breakBlockMethod;
+        final java.lang.reflect.Method placeBlockMethod;
+        final java.lang.reflect.Method keyMethod;
+        final java.lang.reflect.Method registryGetMethod;
+
+        ReflectionCache() throws ReflectiveOperationException {
+            // Load all classes
+            this.worldDataManagerClass = Class.forName("xyz.xenondevs.nova.world.format.WorldDataManager");
+            this.tileEntityClass = Class.forName("xyz.xenondevs.nova.world.block.tileentity.TileEntity");
+            this.blockUtilsClass = Class.forName("xyz.xenondevs.nova.util.BlockUtils");
+            this.contextClass = Class.forName("xyz.xenondevs.nova.context.Context");
+            this.keyClass = Class.forName("net.kyori.adventure.key.Key");
+            this.novaRegistriesClass = Class.forName("xyz.xenondevs.nova.registry.NovaRegistries");
+            this.novaBlockClass = Class.forName("xyz.xenondevs.nova.world.block.NovaBlock");
+            this.novaBlockStateClass = Class.forName("xyz.xenondevs.nova.world.block.state.NovaBlockState");
+
+            // Get singleton instances
+            this.worldDataManagerInstance = worldDataManagerClass.getField("INSTANCE").get(null);
+            if (worldDataManagerInstance == null) {
+                throw new IllegalStateException("Nova WorldDataManager INSTANCE is null");
+            }
+
+            this.blockRegistry = novaRegistriesClass.getField("BLOCK").get(null);
+            if (blockRegistry == null) {
+                throw new IllegalStateException("Nova block registry is null");
+            }
+
+            // Get Context.EMPTY (try field first, then method)
+            Object tempContext;
+            try {
+                tempContext = contextClass.getDeclaredField("EMPTY").get(null);
+            } catch (NoSuchFieldException e) {
+                tempContext = contextClass.getMethod("empty").invoke(null);
+            }
+            if (tempContext == null) {
+                throw new IllegalStateException("Cannot create Nova empty context");
+            }
+            this.emptyContext = tempContext;
+
+            // Cache all methods
+            this.getBlockStateMethod = worldDataManagerClass.getMethod("getBlockState", Location.class);
+            this.getTileEntityMethod = worldDataManagerClass.getMethod("getTileEntity", Location.class);
+            this.getDropsMethod = tileEntityClass.getMethod("getDrops", boolean.class);
+            this.getIdMethod = novaBlockStateClass.getMethod("getId");
+            this.breakBlockMethod = blockUtilsClass.getMethod("breakBlock", contextClass, Location.class, boolean.class);
+            this.placeBlockMethod = blockUtilsClass.getMethod("placeBlock", contextClass, Location.class, novaBlockClass, boolean.class);
+            this.keyMethod = keyClass.getMethod("key", String.class);
+            this.registryGetMethod = blockRegistry.getClass().getMethod("get", keyClass);
+        }
+    }
+
     public NovaIntegration(IslandSelector addon) {
         this.addon = addon;
         this.available = detectNova();
 
+        ReflectionCache tempCache = null;
         if (available) {
+            try {
+                tempCache = new ReflectionCache();
+            } catch (Exception e) {
+                addon.logWarning("Failed to initialize Nova reflection cache: " + e.getMessage());
+            }
+        }
+        this.cache = tempCache;
+
+        if (available && cache != null) {
             addon.log("Nova integration enabled - custom block support active");
+        } else if (available && cache == null) {
+            addon.logWarning("Nova detected but reflection cache failed - integration disabled");
         }
     }
 
@@ -95,7 +185,7 @@ public class NovaIntegration {
      * Check if Nova integration is available
      */
     public boolean isAvailable() {
-        return available;
+        return available && cache != null;
     }
 
     /**
