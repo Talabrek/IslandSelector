@@ -197,9 +197,10 @@ public class NovaIntegration {
      * @return List of captured Nova block data
      */
     public List<NovaBlockData> captureNovaBlocks(Location center, int range) {
+        long startTime = System.nanoTime();
         List<NovaBlockData> novaBlocks = new ArrayList<>();
 
-        if (!available) {
+        if (!available || cache == null) {
             return novaBlocks;
         }
 
@@ -214,53 +215,33 @@ public class NovaIntegration {
         int minY = world.getMinHeight();
         int maxY = world.getMaxHeight();
 
+        // Reuse single Location object (avoid allocation overhead)
+        Location loc = new Location(world, 0, 0, 0);
+        int blocksWithTileData = 0;
+
         try {
-            // Use Nova's WorldDataManager to check blocks
-            Class<?> worldDataManagerClass = Class.forName("xyz.xenondevs.nova.world.format.WorldDataManager");
-            Object worldDataManager = worldDataManagerClass.getField("INSTANCE").get(null);
-
-            if (worldDataManager == null) {
-                addon.logWarning("Nova WorldDataManager INSTANCE is null - cannot capture Nova blocks");
-                return novaBlocks;
-            }
-
-            // Get the getBlockState method
-            java.lang.reflect.Method getBlockStateMethod = worldDataManagerClass.getMethod(
-                "getBlockState", Location.class
-            );
-
-            // Get getTileEntity method for drop capture
-            java.lang.reflect.Method getTileEntityMethod = worldDataManagerClass.getMethod(
-                "getTileEntity", Location.class
-            );
-
-            // Get TileEntity class for getDrops method
-            Class<?> tileEntityClass = Class.forName("xyz.xenondevs.nova.world.block.tileentity.TileEntity");
-            java.lang.reflect.Method getDropsMethod = tileEntityClass.getMethod("getDrops", boolean.class);
-
-            int blocksWithTileData = 0;
-
             for (int x = centerX - range; x <= centerX + range; x++) {
                 for (int z = centerZ - range; z <= centerZ + range; z++) {
                     for (int y = minY; y < maxY; y++) {
-                        Location loc = new Location(world, x, y, z);
+                        loc.setX(x);
+                        loc.setY(y);
+                        loc.setZ(z);
 
                         try {
                             // Check if this location has a Nova block
-                            Object blockState = getBlockStateMethod.invoke(worldDataManager, loc);
+                            Object blockState = cache.getBlockStateMethod.invoke(cache.worldDataManagerInstance, loc);
 
                             if (blockState != null) {
                                 // Get the block ID
-                                java.lang.reflect.Method getIdMethod = blockState.getClass().getMethod("getId");
-                                Object blockId = getIdMethod.invoke(blockState);
+                                Object blockId = cache.getIdMethod.invoke(blockState);
 
                                 // Capture TileEntity drops if this is a tile entity block
                                 List<ItemStack> drops = null;
                                 try {
-                                    Object tileEntity = getTileEntityMethod.invoke(worldDataManager, loc);
+                                    Object tileEntity = cache.getTileEntityMethod.invoke(cache.worldDataManagerInstance, loc);
                                     if (tileEntity != null) {
                                         @SuppressWarnings("unchecked")
-                                        List<ItemStack> capturedDrops = (List<ItemStack>) getDropsMethod.invoke(tileEntity, true);
+                                        List<ItemStack> capturedDrops = (List<ItemStack>) cache.getDropsMethod.invoke(tileEntity, true);
                                         drops = capturedDrops;
                                         blocksWithTileData++;
                                     }
@@ -287,6 +268,12 @@ public class NovaIntegration {
 
         } catch (Exception e) {
             addon.logWarning("Failed to capture Nova blocks: " + e.getMessage());
+        }
+
+        if (addon.getSettings().isDebugEnabled()) {
+            long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
+            addon.log(String.format("Nova scan: %d blocks found in %dms (range=%d)",
+                novaBlocks.size(), elapsedMs, range));
         }
 
         return novaBlocks;
@@ -350,7 +337,9 @@ public class NovaIntegration {
      * @return RestoreResult with machine restoration counts
      */
     public RestoreResult restoreNovaBlocks(List<NovaBlockData> novaBlocks, Location center) {
-        if (!available || novaBlocks == null || novaBlocks.isEmpty()) {
+        long startTime = System.nanoTime();
+
+        if (!available || cache == null || novaBlocks == null || novaBlocks.isEmpty()) {
             return new RestoreResult(0, 0);
         }
 
@@ -366,50 +355,6 @@ public class NovaIntegration {
         int restored = 0;
 
         try {
-            // Get BlockUtils class for placing blocks
-            Class<?> blockUtilsClass = Class.forName("xyz.xenondevs.nova.util.BlockUtils");
-
-            // Get the block registry to look up blocks by ID
-            Class<?> novaRegistriesClass = Class.forName("xyz.xenondevs.nova.registry.NovaRegistries");
-            Object blockRegistry = novaRegistriesClass.getField("BLOCK").get(null);
-
-            if (blockRegistry == null) {
-                addon.logWarning("Nova block registry is null - cannot restore blocks");
-                return new RestoreResult(0, 0);
-            }
-
-            java.lang.reflect.Method getMethod = blockRegistry.getClass().getMethod("get",
-                Class.forName("net.kyori.adventure.key.Key"));
-
-            // Try to get a default Context from Nova
-            Object novaContext = null;
-            try {
-                Class<?> contextClass = Class.forName("xyz.xenondevs.nova.context.Context");
-                // Try to get the EMPTY or DEFAULT context
-                try {
-                    java.lang.reflect.Field emptyField = contextClass.getDeclaredField("EMPTY");
-                    novaContext = emptyField.get(null);
-                } catch (NoSuchFieldException e1) {
-                    // Try alternative approaches
-                    try {
-                        java.lang.reflect.Method emptyMethod = contextClass.getMethod("empty");
-                        novaContext = emptyMethod.invoke(null);
-                    } catch (NoSuchMethodException e2) {
-                        // Context not available - will skip block placement
-                    }
-                }
-            } catch (ClassNotFoundException e) {
-                addon.logWarning("Nova Context class not found - cannot restore blocks");
-                return new RestoreResult(0, 0);
-            }
-
-            if (novaContext == null) {
-                addon.logWarning("Cannot create Nova context - skipping block restoration");
-                return new RestoreResult(0, 0);
-            }
-
-            final Object finalContext = novaContext;
-
             for (NovaBlockData data : novaBlocks) {
                 try {
                     int x = centerX + data.relX;
@@ -418,24 +363,14 @@ public class NovaIntegration {
                     Location loc = new Location(world, x, y, z);
 
                     // Parse the block ID (format: namespace:path)
-                    Class<?> keyClass = Class.forName("net.kyori.adventure.key.Key");
-                    java.lang.reflect.Method keyMethod = keyClass.getMethod("key", String.class);
-                    Object key = keyMethod.invoke(null, data.blockId);
+                    Object key = cache.keyMethod.invoke(null, data.blockId);
 
                     // Get the NovaBlock from registry
-                    Object novaBlock = getMethod.invoke(blockRegistry, key);
+                    Object novaBlock = cache.registryGetMethod.invoke(cache.blockRegistry, key);
 
                     if (novaBlock != null) {
                         // Place the block using BlockUtils with proper context
-                        java.lang.reflect.Method placeBlockMethod = blockUtilsClass.getMethod(
-                            "placeBlock",
-                            Class.forName("xyz.xenondevs.nova.context.Context"),
-                            Location.class,
-                            Class.forName("xyz.xenondevs.nova.world.block.NovaBlock"),
-                            boolean.class
-                        );
-
-                        placeBlockMethod.invoke(null, finalContext, loc, novaBlock, false);
+                        cache.placeBlockMethod.invoke(null, cache.emptyContext, loc, novaBlock, false);
                         restored++;
                     }
                 } catch (Exception e) {
@@ -447,36 +382,26 @@ public class NovaIntegration {
             int machinesRestored = 0;
             int machinesFailed = 0;
 
-            try {
-                // Get WorldDataManager to verify TileEntity restoration
-                Class<?> worldDataManagerClass = Class.forName("xyz.xenondevs.nova.world.format.WorldDataManager");
-                Object worldDataManager = worldDataManagerClass.getField("INSTANCE").get(null);
-                java.lang.reflect.Method getTileEntityMethod = worldDataManagerClass.getMethod("getTileEntity", Location.class);
+            // Check each block that had TileEntity data (drops captured)
+            for (NovaBlockData data : novaBlocks) {
+                if (data.drops != null && !data.drops.isEmpty()) {
+                    try {
+                        int x = centerX + data.relX;
+                        int y = centerY + data.relY;
+                        int z = centerZ + data.relZ;
+                        Location loc = new Location(world, x, y, z);
 
-                // Check each block that had TileEntity data (drops captured)
-                for (NovaBlockData data : novaBlocks) {
-                    if (data.drops != null && !data.drops.isEmpty()) {
-                        try {
-                            int x = centerX + data.relX;
-                            int y = centerY + data.relY;
-                            int z = centerZ + data.relZ;
-                            Location loc = new Location(world, x, y, z);
-
-                            Object tileEntity = getTileEntityMethod.invoke(worldDataManager, loc);
-                            if (tileEntity != null) {
-                                machinesRestored++;
-                            } else {
-                                machinesFailed++;
-                            }
-                        } catch (Exception e) {
-                            // Failed to verify - count as failure
+                        Object tileEntity = cache.getTileEntityMethod.invoke(cache.worldDataManagerInstance, loc);
+                        if (tileEntity != null) {
+                            machinesRestored++;
+                        } else {
                             machinesFailed++;
                         }
+                    } catch (Exception e) {
+                        // Failed to verify - count as failure
+                        machinesFailed++;
                     }
                 }
-            } catch (Exception e) {
-                // Reflection setup failed - cannot count machines
-                addon.logWarning("Failed to verify machine restoration: " + e.getMessage());
             }
 
             addon.log("Restored " + restored + "/" + novaBlocks.size() + " Nova blocks");
@@ -484,11 +409,14 @@ public class NovaIntegration {
                 addon.log("Nova machines: " + machinesRestored + " restored, " + machinesFailed + " failed");
             }
 
+            if (addon.getSettings().isDebugEnabled()) {
+                long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
+                addon.log(String.format("Nova restore: %d blocks placed in %dms",
+                    restored, elapsedMs));
+            }
+
             return new RestoreResult(machinesRestored, machinesFailed);
 
-        } catch (NoSuchFieldException e) {
-            addon.logWarning("Nova API changed - field not found: " + e.getMessage());
-            return new RestoreResult(0, 0);
         } catch (Exception e) {
             addon.logWarning("Failed to restore Nova blocks: " + e.getMessage());
             e.printStackTrace();
@@ -521,7 +449,9 @@ public class NovaIntegration {
      * @param center Center location where blocks were captured
      */
     public void removeNovaBlocks(List<NovaBlockData> novaBlocks, Location center) {
-        if (!available || novaBlocks == null || novaBlocks.isEmpty()) {
+        long startTime = System.nanoTime();
+
+        if (!available || cache == null || novaBlocks == null || novaBlocks.isEmpty()) {
             return;
         }
 
@@ -536,43 +466,6 @@ public class NovaIntegration {
         int removed = 0;
 
         try {
-            // Get BlockUtils class
-            Class<?> blockUtilsClass = Class.forName("xyz.xenondevs.nova.util.BlockUtils");
-
-            // Get Context.EMPTY for automated operations (no player involved)
-            Class<?> contextClass = Class.forName("xyz.xenondevs.nova.context.Context");
-            Object emptyContext = null;
-
-            // Try EMPTY field first (companion object in Kotlin)
-            try {
-                java.lang.reflect.Field emptyField = contextClass.getDeclaredField("EMPTY");
-                emptyContext = emptyField.get(null);
-            } catch (NoSuchFieldException e1) {
-                // Try empty() method as fallback
-                try {
-                    java.lang.reflect.Method emptyMethod = contextClass.getMethod("empty");
-                    emptyContext = emptyMethod.invoke(null);
-                } catch (NoSuchMethodException e2) {
-                    addon.logWarning("Cannot get empty Nova context - skipping block removal");
-                    return;
-                }
-            }
-
-            if (emptyContext == null) {
-                addon.logWarning("Nova context is null - skipping block removal");
-                return;
-            }
-
-            // Get breakBlock method: breakBlock(Context, Location, boolean breakEffects)
-            java.lang.reflect.Method breakBlockMethod = blockUtilsClass.getMethod(
-                "breakBlock",
-                contextClass,
-                Location.class,
-                boolean.class
-            );
-
-            final Object finalContext = emptyContext;
-
             for (NovaBlockData data : novaBlocks) {
                 try {
                     Location loc = new Location(world,
@@ -581,7 +474,7 @@ public class NovaIntegration {
                         centerZ + data.relZ);
 
                     // Break the block silently (no effects, no drops - we already captured them)
-                    breakBlockMethod.invoke(null, finalContext, loc, false);
+                    cache.breakBlockMethod.invoke(null, cache.emptyContext, loc, false);
                     removed++;
 
                 } catch (Exception e) {
@@ -594,10 +487,12 @@ public class NovaIntegration {
 
             addon.log("Removed " + removed + "/" + novaBlocks.size() + " Nova blocks before WorldEdit operation");
 
-        } catch (ClassNotFoundException e) {
-            addon.logWarning("Nova BlockUtils class not found - cannot remove blocks: " + e.getMessage());
-        } catch (NoSuchMethodException e) {
-            addon.logWarning("Nova breakBlock method not found - API may have changed: " + e.getMessage());
+            if (addon.getSettings().isDebugEnabled()) {
+                long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
+                addon.log(String.format("Nova remove: %d blocks cleaned in %dms",
+                    removed, elapsedMs));
+            }
+
         } catch (Exception e) {
             addon.logWarning("Failed to remove Nova blocks: " + e.getMessage());
         }
