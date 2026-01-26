@@ -36,7 +36,7 @@ public class NovaIntegration {
         this.available = detectNova();
 
         if (available) {
-            addon.log("Nova detected - custom block support enabled");
+            addon.log("Nova integration enabled - custom block support active");
         }
     }
 
@@ -75,6 +75,12 @@ public class NovaIntegration {
                     addon.logWarning("Nova detected but NovaBlockState class not found");
                     return false;
                 }
+            }
+
+            // Debug logging for API version detection
+            if (addon.getSettings().isDebugEnabled()) {
+                addon.log("Nova API detected - using " +
+                    (blockManagerClass.getName().contains("world.block") ? "0.17+" : "pre-0.17") + " paths");
             }
 
             return true;
