@@ -551,4 +551,46 @@ public class NovaIntegration {
             this(relX, relY, relZ, blockId, null);
         }
     }
+
+    /**
+     * Result of Nova block restoration operation.
+     * Tracks successful and failed machine (TileEntity) restorations.
+     */
+    public static class RestoreResult {
+        public final int machinesRestored;
+        public final int machinesFailed;
+
+        public RestoreResult(int machinesRestored, int machinesFailed) {
+            this.machinesRestored = machinesRestored;
+            this.machinesFailed = machinesFailed;
+        }
+
+        /**
+         * Generate user-facing feedback message about machine preservation.
+         * @return Feedback message or null if no machines to report
+         */
+        public String getFeedbackMessage() {
+            if (machinesFailed > 0) {
+                return "Preserved " + machinesRestored + " Nova machines (" + machinesFailed + " couldn't be restored)";
+            } else if (machinesRestored > 0) {
+                return "Preserved " + machinesRestored + " Nova machines";
+            } else {
+                return null; // No machines to report
+            }
+        }
+
+        /**
+         * Check if any machines failed to restore
+         */
+        public boolean hasFailures() {
+            return machinesFailed > 0;
+        }
+
+        /**
+         * Check if any machines were successfully restored
+         */
+        public boolean hasSuccesses() {
+            return machinesRestored > 0;
+        }
+    }
 }
