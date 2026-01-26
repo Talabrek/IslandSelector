@@ -9,7 +9,7 @@ Requirements for Nova Integration milestone. Each maps to roadmap phases.
 
 ### Core Integration
 
-- [ ] **NOVA-01**: NovaIntegration updated to Nova 0.17+ API (new package paths, WorldDataManager)
+- [x] **NOVA-01**: NovaIntegration updated to Nova 0.17+ API (new package paths, WorldDataManager)
 - [ ] **NOVA-02**: System captures all Nova tile entities in island region before operations
 - [ ] **NOVA-03**: System restores Nova blocks at new location after operations complete
 - [ ] **NOVA-04**: System removes Nova blocks properly via BlockManager.removeBlock() before WorldEdit
@@ -28,7 +28,7 @@ Requirements for Nova Integration milestone. Each maps to roadmap phases.
 
 ### Configuration
 
-- [ ] **NOVA-14**: Config option `nova.enabled` to enable/disable Nova integration
+- [x] **NOVA-14**: Config option `nova.enabled` to enable/disable Nova integration
 
 ## Future Requirements
 
@@ -63,7 +63,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NOVA-01 | Phase 11 | Pending |
+| NOVA-01 | Phase 11 | Complete |
 | NOVA-02 | Phase 12 | Pending |
 | NOVA-03 | Phase 12 | Pending |
 | NOVA-04 | Phase 12 | Pending |
@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NOVA-11 | Phase 14 | Pending |
 | NOVA-12 | Phase 14 | Pending |
 | NOVA-13 | Phase 15 | Pending |
-| NOVA-14 | Phase 11 | Pending |
+| NOVA-14 | Phase 11 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 14 total
