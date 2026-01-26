@@ -132,7 +132,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 12-01-PLAN.md — Enhance capture with TileEntity drops, add removeNovaBlocks method
+- [x] 12-01-PLAN.md — Enhance capture with TileEntity drops, add removeNovaBlocks method
 
 #### Phase 13: State Preservation
 **Goal**: Nova machine inventories and owners preserved through operations
@@ -193,7 +193,7 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 15
 | 9. Level and Warp Fixes | v1.1.1 | 3/3 | Complete | 2026-01-21 |
 | 10. Relocation Safety | v1.1.1 | 1/1 | Complete | 2026-01-21 |
 | 11. Foundation | v1.2 | 1/1 | Complete | 2026-01-27 |
-| 12. Core Capture and Restore | v1.2 | 0/1 | Not started | - |
+| 12. Core Capture and Restore | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 13. State Preservation | v1.2 | 0/TBD | Not started | - |
 | 14. Operation Integration | v1.2 | 0/TBD | Not started | - |
 | 15. Performance and Polish | v1.2 | 0/TBD | Not started | - |
