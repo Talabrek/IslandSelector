@@ -1,323 +1,382 @@
-# Feature Landscape
+# Feature Landscape: Nova Integration for Island Manipulation
 
-**Domain:** BentoBox Addon Configuration Changes
-**Researched:** 2026-01-20
-**Confidence:** HIGH (based on existing codebase patterns and BentoBox documentation)
+**Domain:** Custom block preservation during island operations (relocation & slot switching)
+**Researched:** 2026-01-26
+**Confidence:** MEDIUM (based on official Nova docs, existing implementation, and ecosystem research)
 
-## Context
+## Executive Summary
 
-This research covers implementing configuration toggles and command changes for the IslandSelector BentoBox addon:
-1. Config option to disable the slot system (hide GUI button, block command)
-2. `/map` command alias for `/islandselector`
-3. Remove neighbors GUI and command entirely
+Nova is a server-side modding framework that adds custom blocks (machines, storage, etc.) without client modifications using resource pack tricks. The critical problem: **Nova stores block data outside Minecraft's NBT system**, so WorldEdit/FAWE copy operations lose this data. When islands are relocated or slots are switched, Nova machines appear as vanilla backing blocks (note blocks, mushroom stems) without their custom functionality.
+
+The project already implements a **capture-and-restore pattern** via `NovaIntegration.java` that:
+1. Captures Nova block IDs and positions before WorldEdit operations
+2. Restores Nova blocks at new positions after WorldEdit paste
+
+This research identifies what features users expect from such integration, categorized by priority for the upcoming milestone.
 
 ---
 
 ## Table Stakes
 
-Features that MUST be implemented correctly for these changes to work properly.
+Features users expect when Nova is installed. Missing these = Nova integration feels broken.
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Config toggle for slot system | Server admins expect feature toggles to fully disable features they don't want | Low | Standard BentoBox pattern using `@ConfigEntry` |
-| GUI button hidden when slots disabled | Showing a button that doesn't work is confusing UX | Low | Conditional check in `MainGridGUI.populateControlButtons()` |
-| Command blocked when slots disabled | Running a disabled command must fail gracefully with clear message | Low | Check in `SlotsCommand.execute()` |
-| Helpful error message when blocked | Players need to understand why a feature isn't available | Low | Message like "Slot system is disabled on this server" |
-| `/map` command alias registration | Aliases are standard BentoBox feature via constructor | Low | Add "map" to `IslandSelectorCommand` constructor |
-| Clean removal of neighbors code | Dead code should not remain in codebase | Medium | Remove files + all references |
+| Feature | Why Expected | Complexity | Current Status |
+|---------|--------------|------------|----------------|
+| **Block type preservation** | Nova blocks must remain Nova blocks after move | LOW | ✅ IMPLEMENTED via `captureNovaBlocks()` + `restoreNovaBlocks()` |
+| **Block position accuracy** | Nova blocks must appear in correct relative positions | LOW | ✅ IMPLEMENTED via relative coordinates (relX, relY, relZ) |
+| **Graceful degradation** | Operations work even when Nova not installed | LOW | ✅ IMPLEMENTED via `isAvailable()` check and reflection |
+| **Version resilience** | Handle Nova API changes across versions | MEDIUM | ✅ PARTIALLY IMPLEMENTED (tries multiple API paths) |
+| **Multi-dimension support** | Nova blocks preserved in nether/end during operations | MEDIUM | ⚠️ NEEDS VERIFICATION - integration exists but untested |
 
-## Table Stakes Details
+### Why These Are Table Stakes
 
-### 1. Config Toggle Implementation
+**Block type preservation** - Without this, Nova machines disappear entirely or become vanilla blocks. This is catastrophic data loss.
 
-**Pattern from existing codebase (HIGH confidence):**
+**Position accuracy** - If a Pulverizer ends up 3 blocks away from where it was, users will assume the integration is buggy.
 
-The addon already uses this pattern extensively. See `Settings.java`:
-- `multiDimensionEnabled` (line 217) - feature toggle
-- `backupsEnabled` (line 78) - feature toggle
-- `vaultEnabled` (line 159) - integration toggle
+**Graceful degradation** - Servers without Nova should not experience errors or broken functionality. Integration must be optional.
 
-**Required implementation:**
-```java
-@ConfigComment("Enable the multi-slot island system")
-@ConfigComment("When disabled, players can only have one island (no slot switching)")
-@ConfigEntry(path = "slots.enabled")
-private boolean slotsEnabled = true;
-```
+**Version resilience** - Nova is actively developed. API changes between versions must not break the integration.
 
-With getter:
-```java
-public boolean isSlotsEnabled() {
-    return slotsEnabled;
-}
-```
-
-### 2. GUI Button Hiding
-
-**Pattern from existing codebase (HIGH confidence):**
-
-`MainGridGUI.java` line 722-728 already does conditional button display:
-```java
-// Slot Selection - only show if FAWE is available
-if (addon.isSchematicOperationsAvailable()) {
-    ItemStack slots = createButton(Material.CHEST, "&6Island Slots",
-        "&7Manage your slots");
-    inventory.setItem(BOT_SLOTS_SLOT, slots);
-}
-// If FAWE not available, slot 50 will be filled with filler later
-```
-
-**Required change:** Add `&& addon.getSettings().isSlotsEnabled()` to the condition.
-
-### 3. Command Blocking
-
-**Pattern from existing codebase (HIGH confidence):**
-
-`SlotsCommand.java` lines 31-35 already has feature checking:
-```java
-// Check if FAWE is available
-if (!addon.isSchematicOperationsAvailable()) {
-    user.sendMessage("&cThis feature requires FastAsyncWorldEdit (FAWE) to be installed.");
-    return false;
-}
-```
-
-**Required addition:** Add similar check at start of `execute()`:
-```java
-// Check if slot system is enabled
-if (!addon.getSettings().isSlotsEnabled()) {
-    user.sendMessage("&cThe slot system is disabled on this server.");
-    return false;
-}
-```
-
-### 4. Command Alias
-
-**Pattern from BentoBox (HIGH confidence):**
-
-From `IslandSelectorCommand.java` line 19-21:
-```java
-public IslandSelectorCommand(IslandSelector addon) {
-    super(addon, "islandselector", "is", "isgrid");
-}
-```
-
-BentoBox `CompositeCommand` constructor accepts varargs for aliases. Simply add "map":
-```java
-super(addon, "islandselector", "is", "isgrid", "map");
-```
-
-**Source:** [BentoBox CompositeCommand.java](https://github.com/BentoBoxWorld/BentoBox/blob/master/src/main/java/world/bentobox/bentobox/api/commands/CompositeCommand.java)
-
-### 5. Neighbors Removal
-
-**Files to delete:**
-- `src/main/java/world/bentobox/islandselector/gui/NeighborhoodGUI.java`
-- `src/main/java/world/bentobox/islandselector/commands/NeighborsCommand.java`
-
-**References to remove:**
-- `IslandSelectorCommand.java` line 37: `new NeighborsCommand(this);`
-- `MainGridGUI.java`: `BOT_NEIGHBORHOOD_SLOT` constant and related code
-- `SharedGridGUIListener.java`: neighborhood button click handling
-- `addon.yml`: `islandselector.neighbors` permission
+**Multi-dimension support** - IslandSelector supports multi-dimension islands. If Nova works in overworld but breaks in nether, users lose expensive machines.
 
 ---
 
-## Nice-to-Haves
+## Differentiators
 
-Features that would improve the implementation but aren't strictly required.
+Features that make the integration excellent, not just functional. Not expected, but highly valued when present.
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Tab completion respects disabled commands | Cleaner UX - don't show commands that won't work | Low | Override `tabComplete()` to filter |
-| Config comment explaining implications | Helps admins understand what disabling does | Trivial | Add `@ConfigComment` lines |
-| Reload applies toggle immediately | Avoid server restart for config changes | Low | Already have reload command that reloads settings |
-| Log message when feature is disabled | Helps debugging/confirmation | Trivial | Add log in `onEnable()` |
-| Permission check before config check | Allow admins to override via permission | Low | Optional bypass permission |
+| Feature | Value Proposition | Complexity | Priority |
+|---------|-------------------|------------|----------|
+| **Inventory preservation** | Machines keep their items after move | HIGH | 🔴 CRITICAL |
+| **Energy/progress preservation** | Furnaces keep smelting progress, machines keep energy | HIGH | 🟡 HIGH |
+| **Machine upgrade preservation** | Speed/efficiency upgrades persist after move | HIGH | 🟡 HIGH |
+| **Owner preservation** | Machine ownership data maintained | MEDIUM | 🟢 MEDIUM |
+| **Visual feedback** | Show count of Nova blocks captured/restored | LOW | 🟢 MEDIUM |
+| **Error reporting** | Warn players if Nova blocks couldn't be restored | LOW | 🟢 MEDIUM |
+| **Async operation** | Non-blocking capture with chunk pre-loading | LOW | ✅ IMPLEMENTED |
+| **Network preservation** | Cable networks and connections maintained | VERY HIGH | ⚫ NOT FEASIBLE |
 
-### Nice-to-Have Details
+### Why These Matter
 
-**Tab completion filtering:**
-```java
-@Override
-public Optional<List<String>> tabComplete(User user, String alias, List<String> args) {
-    // Filter out disabled commands from suggestions
-    if (args.size() == 1) {
-        List<String> suggestions = new ArrayList<>();
-        for (CompositeCommand sub : getSubCommands().values()) {
-            // Skip slots if disabled
-            if (sub.getLabel().equals("slots") && !addon.getSettings().isSlotsEnabled()) {
-                continue;
-            }
-            // ... rest of logic
-        }
-    }
-}
-```
+**Inventory preservation** (CRITICAL):
+- Most impactful missing feature
+- Users store valuable items in Nova machines (Storage Units, Quarries, etc.)
+- Losing inventories feels like data loss, not state reset
+- Common scenario: Player has Pulverizer with 500 diamonds queued → relocates island → diamonds vanish
 
-**Config comments:**
-```java
-@ConfigComment("")
-@ConfigComment("==========================================")
-@ConfigComment("SLOT SYSTEM SETTINGS")
-@ConfigComment("==========================================")
-@ConfigComment("Enable the multi-slot island system.")
-@ConfigComment("When DISABLED:")
-@ConfigComment("  - Players can only have one island")
-@ConfigComment("  - /islandselector slots command is blocked")
-@ConfigComment("  - Slots button is hidden from grid GUI")
-@ConfigComment("  - Slot switching features are unavailable")
-@ConfigEntry(path = "slots.enabled")
-private boolean slotsEnabled = true;
-```
+**Energy/progress preservation** (HIGH):
+- Machines from [Nova Machines addon](https://www.spigotmc.org/resources/nova-addon-machines.102712/) (Furnace Generators, Pulverizers, Quarries) have energy buffers and processing progress
+- Less critical than inventories (users accept some state reset on major operations)
+- But noticeable quality difference - professional integration preserves state
+
+**Machine upgrade preservation** (HIGH):
+- Nova machines support Simple Upgrades addon for speed/efficiency boosts
+- Upgrades are expensive (crafted/purchased)
+- Losing upgrades on relocation feels like a penalty for moving
+
+**Owner preservation** (MEDIUM):
+- Nova blocks track ownership via `getOwner()` ([Nova API docs](https://docs.xenondevs.xyz/nova/api/tileentity/tileentity/))
+- Affects multi-player islands where ownership determines permissions
+- Lower priority than inventories/energy but important for teams
+
+**Visual feedback** (MEDIUM):
+- Simple UX win: "✓ Preserved 23 Nova machines with inventories"
+- Builds confidence that integration is working
+- Low effort, high perceived quality
+
+**Error reporting** (MEDIUM):
+- Currently failures are silent to players (only logged to console)
+- Players should know if something went wrong: "⚠ 3 Nova machines couldn't be restored"
+- Prevents confusion when machines are missing
+
+**Async operation** (IMPLEMENTED):
+- Already done via `captureNovaBlocksAsync()` ([NovaIntegration.java](C:\Users\Administrator\Desktop\VSCode\IslandSelector\src\main\java\world\bentobox\islandselector\integrations\NovaIntegration.java) lines 175-220)
+- Pre-loads chunks before capture to avoid missing blocks
+- Critical for reliability
+
+**Network preservation** (NOT FEASIBLE):
+- Nova Logistics addon provides cable networks for item/energy transport
+- Networks are complex spatial structures with connection state
+- Attempting automatic reconnection would be extremely complex and error-prone
+- **Recommendation:** Document that networks need manual re-wiring after moves
 
 ---
 
 ## Anti-Features
 
-Features to explicitly NOT implement. Common mistakes in this type of change.
+Features to explicitly NOT build. Common mistakes in this domain.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Silently failing commands | Confuses players - they don't know why it doesn't work | Always send a clear message explaining the feature is disabled |
-| Hiding command from help but still executable | Inconsistent behavior frustrates users | Either fully disable (block execution) or fully enable |
-| Breaking existing slot data when disabled | Players who had slots would lose data | Keep slot data intact; just prevent new slot operations |
-| Removing neighbors without updating translations | Leaves orphaned translation keys | Also remove from `locales/` if present |
-| Hardcoding the alias | Admins may want to customize | Consider making it configurable (optional nice-to-have) |
-| Leaving dead imports/references | Causes compilation warnings, confusion | Clean up all imports and references |
-| Removing permission from addon.yml only | Permission still referenced in code | Remove from both addon.yml AND code |
+| **Perfect state replication** | Impossible without deep Nova API cooperation. Tile entity internal state (tick counters, animations, internal buffers) is opaque and not exposed via API. | Focus on preserving **user-visible state**: inventories, energy levels, upgrades, ownership. Accept that animations/tick counters/internal timers will reset. Document this limitation. |
+| **Schematic data embedding** | WorldEdit/FAWE schematics use NBT format. Nova uses a separate data storage system. Attempting to embed Nova data in FAWE schematics creates format incompatibility and corruption risk. | Keep Nova data separate (as currently done with `NovaBlockData` serialized list) and restore post-paste in a second pass. |
+| **Manual block-by-block copy** | Replacing WorldEdit's efficient bulk copy with slow Nova block-by-block placement would destroy performance for large islands. | Use WorldEdit for vanilla blocks (fast), then overlay Nova-specific data restoration (targeted). |
+| **Hard Nova dependency** | Requiring Nova to be installed breaks servers that don't use Nova and creates plugin conflicts. | Continue using reflection-based soft dependency (current approach is correct). |
+| **Network auto-reconnection** | Nova Logistics cable networks are spatial graphs with connection state. Attempting to automatically reconnect cables across potentially large distances (relocated islands) is complex, error-prone, and may produce unexpected connections. | Document that networks need manual re-wiring. Possibly add helper command to clear broken connections. |
+| **GUI-based restoration** | Making players manually select what to restore adds friction and is error-prone (players forget, partial restores create confusion). | Automatic restoration (current approach correct). Provide feedback about what was restored. |
+| **Drop-based restoration** | Original research plan suggested using TileEntity.getDrops() to get items, then re-placing blocks with item data. This is more complex than needed and loses structure. | Use Nova API to read state, restore blocks, then populate state via API if available. |
 
-### Anti-Feature Details
+### Why These Are Anti-Features
 
-**Do NOT do this - silent failure:**
-```java
-// BAD: Silently does nothing
-if (!addon.getSettings().isSlotsEnabled()) {
-    return false;  // No message!
-}
-```
+**Perfect state replication**: Based on [Nova TileEntity API research](https://docs.xenondevs.xyz/nova/api/tileentity/tileentity/), the API exposes `getOwner()` and `getDrops(boolean includeSelf)`, but not methods to directly read internal machine state like tick progress or animation frames. Attempting to replicate these would require reflection into internal Nova classes, which is fragile and breaks across versions.
 
-**Do NOT do this - data destruction:**
-```java
-// BAD: Deleting player slot data when feature disabled
-if (!addon.getSettings().isSlotsEnabled()) {
-    slotManager.deleteAllSlots();  // NEVER DO THIS
-}
-```
+**Schematic data embedding**: Research shows [WorldEdit/FAWE has issues with tile entities](https://github.com/IntellectualSites/FastAsyncWorldEdit/issues/517) even for vanilla blocks. Adding custom data formats would compound this. The [IA-Edit plugin](https://github.com/EpicPlayerA10/IA-Edit) for ItemsAdder shows the pattern: use `-e` flag for entities but custom blocks still require separate handling.
 
-**Do NOT do this - partial removal:**
-```java
-// BAD: Removing command registration but leaving GUI button
-// setup() {
-//     // new NeighborsCommand(this);  // Commented out
-// }
-// But MainGridGUI still has the button!
-```
+**Manual block-by-block copy**: Nova blocks are placed via `BlockUtils.placeBlock()` which is not batched. For a typical island with 50-200 Nova machines, this is acceptable. For 10,000+ blocks, it would be unacceptably slow.
+
+**Hard Nova dependency**: BentoBox ecosystem pattern is soft dependencies via reflection. The [existing NovaIntegration.java](C:\Users\Administrator\Desktop\VSCode\IslandSelector\src\main\java\world\bentobox\islandselector\integrations\NovaIntegration.java) correctly implements this pattern.
 
 ---
 
 ## Feature Dependencies
 
+Current implementation provides foundation for enhancements:
+
 ```
-Config Toggle (slots.enabled)
-    |
-    +---> SlotsCommand (checks toggle before executing)
-    |
-    +---> MainGridGUI (checks toggle before showing button)
-    |
-    +---> SlotSelectionGUI (checks toggle in various places)
-    |
-    +---> Tab completion (filters "slots" from suggestions)
+IMPLEMENTED (Table Stakes):
+├─ Block type preservation
+│   └─ captureNovaBlocks() captures block IDs
+│   └─ restoreNovaBlocks() re-places via BlockUtils
+├─ Position accuracy
+│   └─ NovaBlockData stores relative coords
+├─ Graceful degradation
+│   └─ Soft dependency via reflection
+│   └─ isAvailable() checks
+├─ Async chunk loading
+│   └─ captureNovaBlocksAsync() with CompletableFuture
+└─ Version resilience (partial)
+    └─ Tries xyz.xenondevs.nova.world.* and .data.world.* paths
 
-Command Alias (/map)
-    |
-    +---> No dependencies, additive change
-
-Neighbors Removal
-    |
-    +---> NeighborsCommand.java (DELETE)
-    +---> NeighborhoodGUI.java (DELETE)
-    +---> IslandSelectorCommand.java (remove registration)
-    +---> MainGridGUI.java (remove button)
-    +---> SharedGridGUIListener.java (remove click handler)
-    +---> addon.yml (remove permission)
+MISSING (Differentiators):
+├─ Inventory preservation
+│   └─ BLOCKED: Need Nova API method to read/write TileEntity inventory
+│   └─ getDrops() exists but is destructive
+│   └─ Need non-destructive inventory access
+├─ Energy/progress preservation
+│   └─ BLOCKED: Need Nova's custom NBT-equivalent storage format
+│   └─ Not exposed in current API surface
+├─ Upgrade preservation
+│   └─ BLOCKED: Need Simple Upgrades addon API research
+│   └─ Unknown how upgrades are stored
+├─ Owner preservation
+│   └─ BLOCKED: Have getOwner() but need setOwner() or equivalent
+│   └─ May require placing block with specific Context
+└─ Visual feedback & error reporting
+    └─ NOT BLOCKED: Just need to add messages to player
 ```
 
 ---
 
-## Affected Files Summary
+## User Expectations by Scenario
 
-### Files to Modify
+### Scenario 1: Slot Switching (Most Common)
 
-| File | Change |
-|------|--------|
-| `Settings.java` | Add `slotsEnabled` field with getter |
-| `IslandSelectorCommand.java` | Add "map" alias, remove NeighborsCommand |
-| `SlotsCommand.java` | Add enabled check at start of execute() |
-| `MainGridGUI.java` | Add enabled check for slots button, remove neighborhood button |
-| `SharedGridGUIListener.java` | Remove neighborhood click handling |
-| `addon.yml` | Remove `islandselector.neighbors` permission |
+**User mental model**: "Switching slots is like switching save files in a video game - everything should be exactly as I left it"
 
-### Files to Delete
+**Current reality**:
+- ✅ Nova blocks appear correctly
+- ❌ Inventories are empty
+- ❌ Energy/progress is reset
+- ❌ Upgrades are lost
 
-| File | Reason |
-|------|--------|
-| `NeighborsCommand.java` | Feature removed |
-| `NeighborhoodGUI.java` | Feature removed |
+**Acceptable compromise**: Energy/progress reset is tolerable (users understand it's a major operation), but **inventories must persist** or it feels like data loss, not a save/load.
 
----
+**Priority**: Inventory preservation is CRITICAL for this scenario.
 
-## User Experience Considerations
+### Scenario 2: Island Relocation
 
-### When Slots Are Disabled
+**User mental model**: "Moving my island should feel like teleportation, not rebuilding"
 
-**Command attempt:**
-```
-Player: /islandselector slots
-Server: The slot system is disabled on this server.
-```
+**Current reality**: Same as slot switching
 
-**GUI experience:**
-- Slot button simply doesn't appear in bottom control bar
-- No indication it was ever there (clean absence)
+**Acceptable compromise**: Same as slot switching. Users tolerate MORE state loss for relocation (it's rarer and more dramatic), but inventory loss is still unacceptable.
 
-**Help command:**
-- `/islandselector help` should NOT list "slots" subcommand
-- Requires filtering in help output
+**Priority**: Inventory preservation is CRITICAL. Energy/upgrades are HIGH but tolerable if documented.
 
-### When Using /map Alias
+### Scenario 3: Multi-Dimension Operations
 
-**Expected behavior:**
-- `/map` works exactly like `/islandselector`
-- `/map slots` works like `/islandselector slots`
-- Tab completion works for both
-- Help shows both aliases
+**User mental model**: "If it works in overworld, it should work in nether/end"
+
+**Current reality**:
+- NovaIntegration exists
+- RelocationManager and SlotSwitchManager handle multi-dimension
+- But no explicit testing for Nova + multi-dimension
+
+**Risk**: Users may lose expensive machines in nether/end if integration fails there
+
+**Priority**: Verification is MEDIUM (likely works, but must be tested)
 
 ---
 
-## Implementation Checklist
+## Feature Complexity Assessment
 
-- [ ] Add `slotsEnabled` config option to Settings.java
-- [ ] Add enabled check to SlotsCommand.execute()
-- [ ] Add enabled check to MainGridGUI button display
-- [ ] Add "map" alias to IslandSelectorCommand constructor
-- [ ] Remove NeighborsCommand registration from IslandSelectorCommand
-- [ ] Remove neighborhood button from MainGridGUI
-- [ ] Remove neighborhood click handling from SharedGridGUIListener
-- [ ] Delete NeighborsCommand.java
-- [ ] Delete NeighborhoodGUI.java
-- [ ] Remove islandselector.neighbors permission from addon.yml
-- [ ] Test: /islandselector slots blocked when disabled
-- [ ] Test: Slots button hidden when disabled
-- [ ] Test: /map opens grid GUI
-- [ ] Test: /map slots works (when enabled)
-- [ ] Test: neighbors command no longer exists
-- [ ] Test: Build succeeds with no compilation errors
+| Feature | Dev Effort | Testing Effort | Risk | API Research Needed |
+|---------|-----------|----------------|------|---------------------|
+| Visual feedback | 1 hour | 1 hour | None | No |
+| Error reporting | 2 hours | 2 hours | None | No |
+| Multi-dimension verification | 2 hours | 4 hours | Low | No |
+| Owner preservation | 4 hours | 2 hours | Medium | Yes - need setOwner equivalent |
+| Inventory preservation | 16 hours | 8 hours | High | Yes - need inventory read/write API |
+| Energy preservation | 16 hours | 8 hours | High | Yes - need custom storage format |
+| Upgrade preservation | 8 hours | 4 hours | Medium | Yes - need Simple Upgrades API |
+| Network preservation | 40+ hours | 20+ hours | VERY HIGH | Yes - complex spatial graph |
+
+**Effort notes**:
+- **Visual feedback**: Just add player messages with counts
+- **Error reporting**: Catch failures, show warning to player
+- **Multi-dimension verification**: Test existing code with Nova blocks in nether/end
+- **Owner preservation**: Research if BlockUtils.placeBlock() accepts owner Context parameter
+- **Inventory preservation**: Requires API method discovery, serialization format, test with various machine types
+- **Energy preservation**: Same as inventory but may not be exposed via API at all
+- **Network preservation**: Spatial graph analysis, connection validation, cross-dimension handling - essentially building a Nova Logistics mini-plugin
+
+---
+
+## MVP Recommendation
+
+**Current implementation (v1.1.1) IS the MVP** - it solves the critical problem (blocks disappearing completely).
+
+**For next milestone (v1.2), prioritize**:
+
+### Phase 1: Quick Wins (Low-hanging fruit)
+1. **Visual feedback** - "✓ Preserved 23 Nova machines"
+2. **Error reporting** - "⚠ 3 machines couldn't be restored"
+3. **Multi-dimension verification** - Test + document current behavior
+
+**Rationale**: Low effort, immediate UX improvement, builds user confidence
+
+### Phase 2: API Research (Exploratory)
+4. **Nova API deep-dive** - Find inventory/energy/owner access methods
+5. **Simple Upgrades research** - Understand upgrade storage format
+
+**Rationale**: Must be done before implementation, may discover blockers
+
+### Phase 3: Critical Features (If APIs exist)
+6. **Inventory preservation** - Most user-visible impact
+7. **Owner preservation** - If simple (Context-based)
+
+**Rationale**: Transforms integration from "basic" to "production-ready"
+
+### Deferred to v1.3+:
+- **Energy/progress preservation** - Nice to have, but users accept reset
+- **Upgrade preservation** - Affects fewer players (requires addon)
+- **Network preservation** - Too complex, document manual re-wiring instead
+
+---
+
+## Implementation Gaps Analysis
+
+Based on existing `NovaIntegration.java`:
+
+### Currently Missing:
+
+1. **Inventory capture** ([line 102-170](C:\Users\Administrator\Desktop\VSCode\IslandSelector\src\main\java\world\bentobox\islandselector\integrations\NovaIntegration.java#L102-L170))
+   - `NovaBlockData` only stores blockId
+   - No inventory ItemStack list
+   - No serialization of inventory contents
+
+2. **Inventory restore** ([line 228-330](C:\Users\Administrator\Desktop\VSCode\IslandSelector\src\main\java\world\bentobox\islandselector\integrations\NovaIntegration.java#L228-L330))
+   - `restoreNovaBlocks()` places blocks
+   - No inventory population after placement
+   - No method to access placed block's TileEntity
+
+3. **Player feedback** (entire file)
+   - Operations are silent to player
+   - Success/failure only logged to console
+   - No "X Nova blocks preserved" message
+
+4. **Error visibility** ([line 317-319](C:\Users\Administrator\Desktop\VSCode\IslandSelector\src\main\java\world\bentobox\islandselector\integrations\NovaIntegration.java#L317-L319))
+   - Failures in restore loop caught but silently skipped
+   - Player never knows if restoration was partial
+
+5. **Owner restoration** ([line 289-320](C:\Users\Administrator\Desktop\VSCode\IslandSelector\src\main\java\world\bentobox\islandselector\integrations\NovaIntegration.java#L289-L320))
+   - `getOwner()` method exists in TileEntity API
+   - Not captured during captureNovaBlocks()
+   - Not restored during restoreNovaBlocks()
+
+### Research Needed:
+
+**Priority 1: How to access Nova TileEntity inventory (CRITICAL)**
+
+Questions:
+- Is there a non-destructive inventory read method?
+- Nova docs show `getDrops(boolean includeSelf)` returns ItemStacks ([TileEntity API](https://docs.xenondevs.xyz/nova/api/tileentity/tileentity/))
+- Can inventory be set on a placed block?
+- Do we get TileEntity reference after `BlockUtils.placeBlock()`?
+
+Research approach:
+- Check Nova GitHub for inventory access examples
+- Look for NovaBlock or NovaBlockState inventory methods
+- Check if WorldDataManager exposes inventory access
+- Contact Nova developers if API is not public
+
+**Priority 2: How to preserve ownership (HIGH)**
+
+Questions:
+- How to capture owner UUID during captureNovaBlocks()?
+- How to set owner during restoreNovaBlocks()?
+- Does `BlockUtils.placeBlock(Context, Location, NovaBlock, boolean)` Context parameter include owner?
+- Is there a separate setOwner method?
+
+Research approach:
+- Review Context class for owner field
+- Check BlockUtils for owner-setting methods
+- Look for player-placement simulation in Nova
+
+**Priority 3: How to access energy/progress data (MEDIUM)**
+
+Questions:
+- Where does Nova store custom block state (energy levels, progress)?
+- Is it in WorldDataManager?
+- Is it exposed via TileEntity or NovaBlockState?
+- Can it be serialized separately?
+
+Research approach:
+- Inspect NovaBlockState class for state getters
+- Check if energy is stored in a standard format
+- May not be feasible if internal-only
+
+**Priority 4: Simple Upgrades addon API (MEDIUM)**
+
+Questions:
+- How are upgrades stored? (NBT-like? Separate database?)
+- Is there an API to read/write upgrades?
+- Are upgrades part of the block or stored globally?
+
+Research approach:
+- Check Simple Upgrades addon source if available
+- Contact addon developer
+- May need to treat as separate integration
 
 ---
 
 ## Sources
 
-- **Existing codebase patterns:** Settings.java, SlotsCommand.java, MainGridGUI.java (HIGH confidence)
-- **BentoBox CompositeCommand:** [GitHub](https://github.com/BentoBoxWorld/BentoBox/blob/master/src/main/java/world/bentobox/bentobox/api/commands/CompositeCommand.java) (HIGH confidence)
-- **BentoBox addon documentation:** [docs.bentobox.world](https://docs.bentobox.world) (MEDIUM confidence)
+### HIGH Confidence:
+- [Nova TileEntity Documentation](https://docs.xenondevs.xyz/nova/api/tileentity/tileentity/) - Official API reference showing TileEntity.getDrops(), getOwner(), and limitations
+- [Nova TileEntityManager Documentation](https://docs.xenondevs.xyz/nova/api/tileentity/tileentitymanager/) - Official API reference for getTileEntityAt()
+- Existing implementation: [NovaIntegration.java](C:\Users\Administrator\Desktop\VSCode\IslandSelector\src\main\java\world\bentobox\islandselector\integrations\NovaIntegration.java) - Current capture/restore pattern, lines 1-365
+- [IslandSelector README.md](C:\Users\Administrator\Desktop\VSCode\IslandSelector\README.md) - Documents multi-dimension support, slot switching, relocation features
+
+### MEDIUM Confidence:
+- [Nova Machines Addon](https://www.spigotmc.org/resources/nova-addon-machines.102712/) - Confirms machines exist (Pulverizers, Generators, Quarries) requiring inventory/energy preservation
+- [Nova GitHub Repository](https://github.com/xenondevs/Nova) - Active development, server-side framework
+- [Nova Changelog](https://modrinth.com/plugin/nova-framework/changelog) - Recent fixes show BlockUtils#placeBlock behavior and getDrops() context parameters (BLOCK_DROPS, BLOCK_STORAGE_DROPS, BLOCK_EXP_DROPS)
+- [FAWE Tile Entity Issues](https://github.com/IntellectualSites/FastAsyncWorldEdit/issues/517) - Documents that WorldEdit/FAWE cannot handle custom tile entities, validating need for separate handling
+
+### LOW Confidence (WebSearch only, needs verification):
+- Nova blocks support Simple Upgrades addon (mentioned in SpigotMC addon description)
+- Nova Logistics addon provides cable networks (mentioned in [SpigotMC](https://www.spigotmc.org/resources/nova-addon-logistics.102713/))
+- BlockBehavior#getDrops context parameters (from Nova changelog)
+
+### Context from Related Integrations:
+- [IA-Edit for ItemsAdder](https://github.com/EpicPlayerA10/IA-Edit) - Similar problem space (ItemsAdder custom blocks + WorldEdit), uses `-e` flag and separate handling pattern
+- [Minecraft TileEntity NBT patterns](https://minecraft.fandom.com/wiki/Tutorials/Command_NBT_tags) - Shows what data is typically preserved (inventory, energy, progress)
+
+### Verification Needed:
+- Nova TileEntity inventory access methods (non-destructive read/write)
+- Nova energy/progress data storage format and API exposure
+- Simple Upgrades addon API for reading/writing upgrade data
+- Owner-setting method in BlockUtils or Context system
+- Multi-dimension behavior of current NovaIntegration (untested)

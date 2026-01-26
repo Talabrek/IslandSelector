@@ -1,458 +1,517 @@
-# Domain Pitfalls
+# Nova Integration Pitfalls
 
-**Domain:** BentoBox addon configuration, command, and feature removal changes
-**Project:** IslandSelector modifications
-**Researched:** 2026-01-20
-**Focus:** Config toggle, command alias, feature removal
+**Domain:** Nova custom block integration for world manipulation plugins
+**Researched:** 2026-01-26
+**Confidence:** MEDIUM
+
+This document catalogs common mistakes when integrating Nova custom blocks with world manipulation systems like island relocation, slot switching, and backup/restore operations.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause functionality breaks, runtime errors, or confusing user experience.
+Mistakes that cause data loss or require rewrites.
 
-### Pitfall 1: Incomplete Feature Toggle - GUI Button Still Visible
+### Pitfall 1: Using WorldEdit/FAWE to Copy Nova Blocks
 
-**What goes wrong:** Adding a config toggle like `slots-enabled: false` but only blocking the command. The GUI button in MainGridGUI remains visible and clickable, confusing users when nothing happens or they get an error.
+**What goes wrong:** WorldEdit and FastAsyncWorldEdit cannot copy Nova blocks. Nova stores custom block data separately from Minecraft's NBT system, so schematic operations will lose all Nova blocks, converting them to air or base Minecraft blocks.
 
-**Why it happens:** Feature toggles need to be enforced at multiple entry points:
-1. Command execution (`SlotsCommand.execute()`)
-2. GUI button visibility (`MainGridGUI.populateControlButtons()`)
-3. GUI click handlers (`SharedGridGUIListener.onInventoryClick()`)
+**Why it happens:** Nova uses a custom NBT format (CBFCompoundTag) that WorldEdit doesn't recognize. The incompatibility is documented in [Nova GitHub Issue #252](https://github.com/xenondevs/Nova/issues/252). WorldEdit's type checking expects standard Minecraft tag types and throws `IllegalArgumentException: Don't know how to make native xyz.xenondevs.nova.data.serialization.cbf.CBFCompoundTag`.
 
 **Consequences:**
-- Users see "Island Slots" button but clicking does nothing
-- Inconsistent experience between command and GUI
-- Support tickets asking why slots feature is "broken"
+- All Nova machines, custom blocks, and stored data disappear during island operations
+- Player inventory items and energy stored in machines are lost
+- No error messages - operations appear successful but data is silently lost
 
 **Prevention:**
-When adding a feature toggle, grep for ALL references to the feature. Check:
-- `SlotsCommand.java` - command execution (add check at line ~28)
-- `MainGridGUI.java` lines 720-728 - button rendering (currently checks only FAWE availability)
-- `SharedGridGUIListener.java` lines 84-89 - click handler
+1. Implement separate Nova block capture system that runs alongside FAWE operations
+2. Use Nova's `WorldDataManager.getBlockState()` to scan regions for Nova blocks
+3. Store Nova block locations and IDs separately from schematics
+4. Restore Nova blocks AFTER FAWE paste completes
 
-In MainGridGUI, the slots button rendering must check the new config:
+**Detection:**
+- Players report machines disappearing after relocation/slot switch
+- Nova blocks present before operation, air blocks after
+- Console shows no errors (silent data loss)
+
+**Phase Impact:** Must be implemented in initial Nova integration phase. Cannot be retrofitted without causing data loss.
+
+---
+
+### Pitfall 2: Missing TileEntity Inventory State
+
+**What goes wrong:** Nova blocks store inventory, energy, and progress state in TileEntity data. Capturing only the block ID without TileEntity state loses all stored items and machine progress.
+
+**Why it happens:** The current implementation only captures block IDs via `NovaBlockState.getId()`. Nova TileEntities have complex state (inventories, energy storage, processing progress) that requires `TileEntity.getDrops(includeSelf=true)` to properly preserve.
+
+**Consequences:**
+- Machine inventories empty after restoration
+- Energy storage reset to zero
+- Processing progress (smelting, crafting) lost
+- Upgrade modules and configurations reset
+
+**Prevention:**
 ```java
-if (settings.isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
-    // render button
+// WRONG - Only captures block type
+Object blockState = worldDataManager.getBlockState(location);
+String blockId = blockState.getId();
+
+// RIGHT - Capture full TileEntity state
+Object tileEntity = tileEntityManager.getTileEntityAt(location);
+if (tileEntity != null) {
+    List<ItemStack> drops = tileEntity.getDrops(true); // Includes inventory + block
+    // Store drops for restoration
 }
 ```
 
-In SharedGridGUIListener, the click handler must also check before opening SlotSelectionGUI.
-
 **Detection:**
-- Test disabled state by setting config to `false`
-- Click everywhere in GUI to find orphaned buttons
-- Run all related commands
+- Players report empty machines after slot switch
+- Energy levels reset after relocation
+- Crafting progress lost mid-operation
 
-**Applies to:** `slots-enabled` config toggle
+**Phase Impact:** Critical for Phase 2 (TileEntity state preservation). Current implementation incomplete.
 
 ---
 
-### Pitfall 2: Config Reload Does Not Apply to Open GUIs
+### Pitfall 3: Not Using BlockManager for Removal
 
-**What goes wrong:** Admin reloads config with `/islandselector admin reload`, but players with GUIs already open see stale state. Toggle changes don't apply until they close and reopen.
+**What goes wrong:** Using Bukkit's `Block.setType(Material.AIR)` or WorldEdit operations to remove Nova blocks leaves orphaned TileEntity data in Nova's internal storage, causing memory leaks and ghost blocks.
 
-**Why it happens:** The `onReload()` method (IslandSelector.java lines 254-271) reloads the Settings object, but existing GUI instances may:
-- Hold references to the old Settings object
-- Have cached values during construction
-- Never re-check settings after initial render
+**Why it happens:** Nova maintains separate data structures for TileEntity state. Only Nova's BlockManager knows how to properly clean up all associated data.
 
 **Consequences:**
-- Admin disables slots, but player with open GUI can still access it
-- Race condition between config reload and user actions
-- Difficult to debug "sometimes works, sometimes doesn't" reports
+- Memory leaks from orphaned TileEntity data
+- Ghost blocks that appear in Nova's data but not in world
+- Chunk data corruption over time
+- Nova's WorldDataManager size grows unbounded
 
 **Prevention:**
-- Option A (Recommended): GUIs should always read fresh from `addon.getSettings()` at render/action time, not cache settings in constructor
-- Option B: Close all open IslandSelector GUIs when config reloads (heavyweight)
-- Option C: Document that config reload requires players to close GUIs
+```java
+// WRONG - Leaves orphaned data
+block.setType(Material.AIR);
 
-For this project, MainGridGUI already calls `addon.getSettings()` in methods - verify the toggle check follows this pattern.
+// RIGHT - Use Nova's BlockManager
+Class<?> blockManagerClass = Class.forName("xyz.xenondevs.nova.world.block.BlockManager");
+Object blockManager = blockManagerClass.getField("INSTANCE").get(null);
+Method removeBlockMethod = blockManagerClass.getMethod(
+    "removeBlock",
+    Location.class,
+    Class.forName("xyz.xenondevs.nova.context.Context"),
+    boolean.class // breakEffects
+);
+removeBlockMethod.invoke(blockManager, location, context, false);
+```
 
 **Detection:**
-1. Open GUI as player
-2. As admin, run reload command
-3. Click feature that was just toggled - does it respect new config?
+- Nova data files grow continuously
+- Performance degrades over time
+- `/nova debug` shows TileEntities at locations with air blocks
 
-**Applies to:** `slots-enabled` config toggle, any future toggles
+**Phase Impact:** Must be implemented in Phase 3 (proper cleanup). Current implementation does not remove Nova blocks before WorldEdit operations.
 
 ---
 
-### Pitfall 3: Orphaned References After Feature Removal
+### Pitfall 4: Chunk Unload During Async Operations
 
-**What goes wrong:** Removing the neighbors feature but leaving references scattered across the codebase:
+**What goes wrong:** Nova TileEntity state can be lost if chunks unload during async capture operations. Nova 0.18 fixed an issue where "tile entity data was not saved properly" and "energy side configuration of tile entities would reset on every chunk load."
 
-**Known reference locations for neighbors:**
-| File | Location | Type |
-|------|----------|------|
-| `addon.yml` | Lines 43-45 | Permission node |
-| `en-US.yml` | Lines 65, 100-106, 113 | Locale strings |
-| `PlaceholderAPIIntegration.java` | Lines 94-96, 186-228 | Placeholder + method |
-| `MainGridGUI.java` | BOT_NEIGHBORHOOD_SLOT (line 68), populateControlButtons() | GUI constant + rendering |
-| `SharedGridGUIListener.java` | Lines 79-82 | Click handler |
-| `IslandSelectorCommand.java` | Line 37 | Subcommand registration |
-| `NeighborsCommand.java` | Entire file | Command class |
-| `NeighborhoodGUI.java` | Entire file | GUI class |
-
-**Why it happens:** Features have tentacles throughout the codebase. Simple grep for class name misses:
-- GUI slot constants
-- Locale keys
-- Permission nodes
-- Placeholder identifiers
-- Alternative spellings (neighbourhood vs neighborhood)
+**Why it happens:** Async operations take time (5-30 seconds for large islands). If chunks unload during capture, TileEntity state may not be fully serialized to Nova's storage yet, resulting in partial or missing data.
 
 **Consequences:**
-- Compile errors if class is deleted but references remain (imports)
-- Runtime NPE if placeholder calls deleted method
-- Orphaned permissions in addon.yml waste space and confuse admins
-- Locale strings for non-existent features confuse translators
+- Intermittent data loss (works sometimes, fails other times)
+- Hard to reproduce bugs
+- Players lose progress seemingly at random
 
 **Prevention:**
-Search checklist before removing a feature:
-```bash
-grep -ri "NeighborhoodGUI" src/
-grep -ri "neighbors" src/ --include="*.java" --include="*.yml"
-grep -ri "neighbourhood" src/
-grep -ri "neighborhood" src/
-grep -ri "NEIGHBORHOOD" src/
+1. Pre-load all chunks before starting capture
+2. Keep chunks loaded during entire operation
+3. Add timeout protection (30 seconds max)
+4. Verify chunks still loaded before each block access
+
+```java
+// Current implementation already does this correctly
+List<CompletableFuture<Chunk>> chunkFutures = new ArrayList<>();
+for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+    for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+        chunkFutures.add(world.getChunkAtAsync(cx, cz));
+    }
+}
+CompletableFuture.allOf(chunkFutures.toArray(new CompletableFuture[0]))
+    .orTimeout(30, TimeUnit.SECONDS)
+    .thenRun(() -> {
+        // Perform capture on main thread
+    });
 ```
 
 **Detection:**
-- Compile after removal - catches import/reference errors
-- Run placeholder tests - catches runtime errors
-- grep for the feature name variants
+- Players report "sometimes machines keep items, sometimes they don't"
+- No consistent reproduction steps
+- Issues more common on busy servers (more chunk unloads)
 
-**Applies to:** Removing neighbors GUI and command
-
----
-
-### Pitfall 4: Broken Back Navigation After Feature Removal
-
-**What goes wrong:** NeighborhoodGUI has navigation buttons that create a GUI graph. Removing NeighborhoodGUI breaks inbound navigation.
-
-**Navigation graph:**
-```
-MainGridGUI ----[slot 49]----> NeighborhoodGUI
-     ^                              |
-     |<----[slot 18 "Back"]---------|
-     |                              |
-     |<----[slot 20 "Slots"]------> SlotSelectionGUI
-```
-
-**Key locations:**
-- MainGridGUI line 68: `BOT_NEIGHBORHOOD_SLOT = 49`
-- MainGridGUI lines 717-720: "Neighborhood" button rendering
-- SharedGridGUIListener lines 79-82: Click handler opens NeighborhoodGUI
-
-**Why it happens:** Removing NeighborhoodGUI requires updating inbound links but these are in different files from the removed feature.
-
-**Consequences:**
-- Clicking "Neighborhood" button after removal causes NPE (class not found)
-- Or silent failure if import is removed but button remains
-- Users get confused by non-functional button
-
-**Prevention:**
-1. Map the navigation graph before removal
-2. Update MainGridGUI to not render the button (or render filler)
-3. Update SharedGridGUIListener to remove the click handler
-4. Decide: Should slot 49 become empty/filler or be repurposed?
-
-**Detection:**
-- Navigate to every GUI and click every button
-- Check SharedGridGUIListener for references to removed GUI class
-
-**Applies to:** Removing neighbors GUI
+**Phase Impact:** Already handled in current implementation. Verify in testing phase.
 
 ---
 
 ## Moderate Pitfalls
 
-Mistakes that cause confusion, technical debt, or minor bugs.
+Mistakes that cause delays or technical debt.
 
-### Pitfall 5: Command Alias Conflicts
+### Pitfall 5: Missing Context Parameter for Block Placement
 
-**What goes wrong:** Adding `/map` alias conflicts with existing server plugins.
+**What goes wrong:** Nova's `BlockUtils.placeBlock()` requires a `Context` parameter. Using null or wrong context causes blocks to place without proper initialization, missing drop tables, storage configurations, or network endpoints.
 
-BentoBox CompositeCommand constructor takes varargs for aliases:
+**Why it happens:** Nova 0.17+ migration changed API to require Context for all block operations. The Context provides environment information needed for proper block initialization.
+
+**Consequences:**
+- Blocks place but don't function correctly
+- Drop tables not initialized (blocks drop nothing when broken)
+- Network-connected blocks don't connect to adjacent blocks
+- Storage configurations missing
+
+**Prevention:**
 ```java
-// Current (IslandSelectorCommand.java line 19)
-super(addon, "islandselector", "is", "isgrid");
+// WRONG - No context
+BlockUtils.placeBlock(location, novaBlock, false);
 
-// Proposed
-super(addon, "islandselector", "is", "isgrid", "map");
+// RIGHT - Provide proper context
+Class<?> contextClass = Class.forName("xyz.xenondevs.nova.context.Context");
+Object context = contextClass.getMethod("empty").invoke(null);
+BlockUtils.placeBlock(context, location, novaBlock, false);
 ```
 
-**Why it happens:** Short, memorable aliases like `/map` are commonly used by:
-- Dynmap (`/map`, `/dynmap`)
-- BlueMap (`/map`, `/bluemap`)
-- squaremap, Pl3xMap
-- Server-specific commands
-
-**Consequences:**
-- Command conflict warnings at startup
-- Unpredictable behavior - which plugin gets the command?
-- Player confusion when `/map` does unexpected thing
-
-**Prevention:**
-1. Before adding alias, check for conflicts on test server:
-   ```
-   /plugins
-   /map
-   ```
-2. Use more specific aliases: `/ismap`, `/gridmap`, `/islandmap`
-3. Document the alias in README so admins know it exists
-4. Consider making alias configurable in config.yml
-
 **Detection:**
-- Server startup logs show "Command map is already defined by [plugin]"
-- Testing `/map` produces wrong behavior
+- Nova blocks place but are "non-interactive"
+- Breaking Nova blocks drops nothing
+- Logistics pipes don't connect after restoration
 
-**Applies to:** Adding `/map` alias
+**Phase Impact:** Fix in Phase 2 (proper restoration). Current implementation attempts to find Context but uses unsafe fallback.
 
 ---
 
-### Pitfall 6: Locale Key Mismatch After Feature Changes
+### Pitfall 6: API Version Detection Without Fallbacks
 
-**What goes wrong:** Removing neighbors feature but not removing locale keys creates orphaned strings.
+**What goes wrong:** Nova API location changed between versions (0.16 → 0.17). Code that only checks one location fails on older/newer Nova versions.
 
-**Locale keys related to neighbors:**
-| Key | Line | Purpose |
-|-----|------|---------|
-| `gui.controls.neighborhood` | 64 | Button name |
-| `gui.controls.neighborhood-desc` | 65 | Button tooltip |
-| `gui.neighborhood.title` | 102 | GUI title |
-| `gui.neighborhood.your-island` | 103 | Center label |
-| `gui.neighborhood.back` | 104 | Back button |
-| `gui.neighborhood.slots` | 105 | Slots button |
-| `gui.neighborhood.close` | 106 | Close button |
-| `gui.confirmation.claim-neighbors` | 113 | May still be needed! |
-
-**Why it happens:** BentoBox uses locale paths like `commands.islandselector.neighbors.description` - these are strings, not compile-time checked.
+**Why it happens:** Nova underwent major refactoring in 0.17:
+- `xyz.xenondevs.nova.data.world.block.BlockManager` → `xyz.xenondevs.nova.world.block.BlockManager`
+- Plugin-API (nova-api module) converted from Kotlin to Java
+- Early initialization phases moved to Bootstrap phase
 
 **Consequences:**
-- Orphaned strings in locale file (minor - just clutter)
-- Missing strings cause "[missing translation]" in-game
-- Locale file grows with dead keys over time
-- `claim-neighbors` might still be used in ConfirmationGUI - verify before removing!
+- Integration works on some server versions but not others
+- Hard to diagnose ("works on my server")
+- Support burden from version mismatches
 
 **Prevention:**
-1. After removal, grep locale file for feature name
-2. Check if `claim-neighbors` is used elsewhere before removing
-3. Consider keeping locale strings for one release cycle (deprecated)
-
-**Detection:**
-- grep locale file for removed feature name
-- Test in-game for "[missing translation]" messages
-
-**Applies to:** Removing neighbors feature
-
----
-
-### Pitfall 7: Permission Node Removal Breaking Server Configs
-
-**What goes wrong:** Removing `islandselector.neighbors` permission from addon.yml (lines 43-45). Server admins who granted this permission to groups now have orphaned permission in their LuckPerms/GroupManager config.
-
-**Current permission in addon.yml:**
-```yaml
-islandselector.neighbors:
-  description: Can use neighborhood view
-  default: true
-```
-
-**Why it happens:** Permission removal is a breaking change for server configurations.
-
-**Consequences:**
-- LuckPerms warnings about unknown permissions (depends on config)
-- Admin confusion when permission check shows "undefined"
-- Documentation/wiki references outdated permissions
-
-**Prevention:**
-1. Document permission removal in changelog/release notes
-2. Consider deprecation period: keep permission but make it no-op
-3. Communicate to server admins in update notes
-4. Add migration note: "Remove `islandselector.neighbors` from your permission configs"
-
-**Detection:**
-- Check addon.yml for removed feature's permissions
-- Review LuckPerms verbose output after removal
-
-**Applies to:** Removing neighbors feature
-
----
-
-### Pitfall 8: PlaceholderAPI Placeholder Removal
-
-**What goes wrong:** `PlaceholderAPIIntegration` provides `%islandselector_neighbors_online%` placeholder (lines 94-96, method 186-228). Removing neighbors feature should address this.
-
-**Current implementation:**
 ```java
-// Line 94-96
-if (identifier.equals("neighbors_online")) {
-    return String.valueOf(getOnlineNeighborsCount(playerUUID));
+// Current implementation already does this correctly
+try {
+    blockManagerClass = Class.forName("xyz.xenondevs.nova.world.block.BlockManager");
+} catch (ClassNotFoundException e) {
+    // Try older API location
+    try {
+        blockManagerClass = Class.forName("xyz.xenondevs.nova.data.world.block.BlockManager");
+    } catch (ClassNotFoundException e2) {
+        addon.logWarning("Nova detected but BlockManager class not found");
+        return false;
+    }
 }
-
-// Lines 186-228: getOnlineNeighborsCount() method
 ```
 
-**Decision point:** The placeholder calculates online players in 8 adjacent grid locations. This could work without the NeighborhoodGUI - it's mathematically independent.
+**Detection:**
+- `ClassNotFoundException` in logs
+- Integration works on test server but fails on production
+- Different Nova versions between environments
 
-**Options:**
-1. **Remove entirely:** Delete lines 94-96 and method 186-228
-2. **Keep independent:** Document that it works without the GUI
-3. **Deprecate:** Return "0" or empty string with console warning
+**Phase Impact:** Already handled in current implementation. Document in compatibility matrix.
+
+---
+
+### Pitfall 7: Synchronous Operations on Main Thread
+
+**What goes wrong:** Nova block operations (especially `TileEntity.getDrops()`) can be expensive. Running synchronously on main thread during large island operations causes server freezes.
+
+**Why it happens:** Scanning 400x400 region with 256 height = 40.96M blocks to check. Even if only 1% are Nova blocks, that's 409K TileEntity queries.
 
 **Consequences:**
-- If removed without updating: Runtime error when placeholder requested
-- If kept: Works but creates inconsistency (no GUI but placeholder exists)
-- Server admins using placeholder in scoreboard/tab get broken display
+- Server TPS drops during relocation/slot switch
+- Players experience lag
+- Timeouts on slower servers
 
 **Prevention:**
-1. Decide: Remove placeholder or keep it independent of GUI?
-2. If removing: Delete the handler and method
-3. If keeping: Document in changelog that it's independent
-4. Either way: Note in changelog
+1. Async chunk loading (already implemented)
+2. Batch block checking (100 blocks per tick)
+3. Progress reporting to prevent timeout detection
+4. Offload scanning to async thread where safe
+
+**Current Implementation Status:** Chunk loading is async, but block scanning runs synchronously after chunks load. Could be optimized further.
 
 **Detection:**
-- Test `%islandselector_neighbors_online%` placeholder after removal
-- Check PlaceholderAPIIntegration for references to removed feature
+- `/timings` shows high CPU in IslandSelector during operations
+- Players report "server freezes when I relocate"
+- TPS drops from 20 to 10-15 during operations
 
-**Applies to:** Removing neighbors feature
+**Phase Impact:** Optimization phase (Phase 4). Not critical for MVP but needed for production.
+
+---
+
+### Pitfall 8: Serialization Format Not Future-Proof
+
+**What goes wrong:** Current `NovaBlockData` only stores block ID and position. No version field. If Nova changes block ID format or adds required metadata, old serialized data becomes incompatible.
+
+**Why it happens:** Simple serialization design didn't account for schema evolution.
+
+**Consequences:**
+- Can't migrate old slot data after Nova updates
+- Players lose saved slots after server updates
+- No way to detect or handle incompatible data
+
+**Prevention:**
+```java
+public static class NovaBlockData implements Serializable {
+    private static final long serialVersionUID = 2L; // Bump version
+
+    public final int version = 2; // Schema version
+    public final int relX, relY, relZ;
+    public final String blockId;
+    public final Map<String, Object> metadata; // Future extensibility
+
+    // Add migration logic
+    private Object readResolve() {
+        if (version == 1) {
+            // Migrate from v1 to v2
+        }
+        return this;
+    }
+}
+```
+
+**Detection:**
+- `InvalidClassException` when loading old slot data
+- Players report "cannot restore slot after update"
+
+**Phase Impact:** Fix in Phase 5 (schema versioning). Breaking change requires data migration.
 
 ---
 
 ## Minor Pitfalls
 
-Mistakes that cause annoyance but are easily fixable.
+Mistakes that cause annoyance but are fixable.
 
-### Pitfall 9: Inconsistent Config Key Naming
+### Pitfall 9: No Verification of Restored Blocks
 
-**What goes wrong:** New config key doesn't follow existing naming patterns.
+**What goes wrong:** Current implementation counts `restored++` for each block placed but doesn't verify the block actually placed successfully. Nova block placement can fail silently if registry lookup fails or block is no longer registered.
 
-**Existing patterns in Settings.java:**
-```java
-@ConfigEntry(path = "slots.default-slots")     // slots group
-@ConfigEntry(path = "slots.max-slots")         // slots group
-@ConfigEntry(path = "slots.switch-cooldown")   // slots group
-@ConfigEntry(path = "backups.enabled")         // feature toggle in category
-@ConfigEntry(path = "integration.vault.enabled") // integration toggle
-```
-
-**Good naming:** `slots.enabled` - follows existing `slots.*` group and `*.enabled` pattern
-**Bad naming:** `slots-enabled` - inconsistent with nested structure
+**Why it happens:** Missing error handling in restoration loop.
 
 **Consequences:**
-- Config file looks inconsistent
-- Harder to find related settings
-- Future confusion about where to add new settings
+- Misleading success messages ("Restored 50/50 blocks" when only 30 succeeded)
+- Players don't know which blocks failed to restore
+- No way to diagnose restoration failures
 
 **Prevention:**
-Use: `@ConfigEntry(path = "slots.enabled")` - consistent with existing patterns
-
-**Detection:**
-- Review Settings.java patterns before adding new field
-- Config file visual inspection
-
-**Applies to:** `slots-enabled` config toggle
-
----
-
-### Pitfall 10: Default Value Choices for New Config
-
-**What goes wrong:** Adding `slots.enabled` with default `true` or `false` without considering existing servers.
-
-**Upgrade scenarios:**
-- **Default `true`:** Matches current behavior - slots work - backward compatible
-- **Default `false`:** Existing servers upgrade and slots feature suddenly disappears
-
-**Prevention:**
-- Default should match current behavior for backward compatibility
-- `slots.enabled: true` preserves current functionality for upgrades
-- Document the new setting in changelog
-
-**Detection:**
-- Consider upgrade scenario before committing default value
-
-**Applies to:** `slots-enabled` config toggle
-
----
-
-### Pitfall 11: Slots Button Uses FAWE Check - Need Both Checks
-
-**What goes wrong:** MainGridGUI already conditionally shows slots button based on FAWE availability (lines 722-728). Adding a config toggle means TWO conditions must be true.
-
-**Current code:**
 ```java
-// Slot Selection - only show if FAWE is available
-if (addon.isSchematicOperationsAvailable()) {
-    ItemStack slots = createButton(Material.CHEST, "&6Island Slots", ...);
-    inventory.setItem(BOT_SLOTS_SLOT, slots);
+Object result = placeBlockMethod.invoke(null, finalContext, loc, novaBlock, false);
+// Check if placement succeeded
+Object verifyState = worldDataManager.getBlockState(loc);
+if (verifyState != null && verifyState.getId().equals(data.blockId)) {
+    restored++;
+} else {
+    failed.add(data.blockId);
 }
 ```
 
-**Needed code:**
+**Detection:**
+- Player reports match log messages (says restored 50, player sees 30)
+- Specific Nova blocks consistently missing after restoration
+
+**Phase Impact:** Quality improvement (Phase 6). Not critical but improves user experience.
+
+---
+
+### Pitfall 10: Reflection Method Caching Not Implemented
+
+**What goes wrong:** Every block operation re-looks up reflection methods. For 1000 Nova blocks, that's 1000 redundant `Class.forName()` and `getMethod()` calls.
+
+**Why it happens:** Reflection lookups happen inside loops instead of being cached at initialization.
+
+**Consequences:**
+- Slower operations (each reflection lookup takes ~0.1ms)
+- For 1000 blocks: +100ms overhead
+- CPU waste on repeated class loading
+
+**Prevention:**
 ```java
-// Slot Selection - only show if enabled AND FAWE is available
-if (addon.getSettings().isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
-    // ...
+// Cache at initialization
+private Method placeBlockMethod;
+private Method getBlockStateMethod;
+private Object blockRegistry;
+
+private void initializeReflectionCache() {
+    Class<?> blockUtilsClass = Class.forName("xyz.xenondevs.nova.util.BlockUtils");
+    this.placeBlockMethod = blockUtilsClass.getMethod("placeBlock", ...);
+    // Cache other methods
+}
+
+// Use cached methods in loops
+for (NovaBlockData data : novaBlocks) {
+    placeBlockMethod.invoke(null, ...); // No lookup!
 }
 ```
 
-**Why it matters:** Don't replace the FAWE check - both conditions matter. Slots require both:
-1. Admin has enabled the feature (new toggle)
-2. FAWE is installed (existing requirement)
+**Detection:**
+- Profiling shows high time in `Class.forName()`
+- Operations slower than expected on large islands
 
-**Applies to:** `slots-enabled` config toggle
+**Phase Impact:** Optimization phase (Phase 4). Easy win for performance.
+
+---
+
+### Pitfall 11: No Rate Limiting for Block Placement
+
+**What goes wrong:** Placing hundreds of Nova blocks at once (synchronously on main thread) can cause TPS drops. Nova's block placement triggers multiple events and updates per block.
+
+**Why it happens:** Current restoration runs all placements in single tick.
+
+**Consequences:**
+- TPS spikes during restoration
+- Players experience momentary lag
+- Server watchdog warnings on slower servers
+
+**Prevention:**
+```java
+// Batch block placement: 50 blocks per tick
+int batchSize = 50;
+List<List<NovaBlockData>> batches = Lists.partition(novaBlocks, batchSize);
+
+AtomicInteger batchIndex = new AtomicInteger(0);
+BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+    int index = batchIndex.getAndIncrement();
+    if (index >= batches.size()) {
+        task.cancel();
+        callback.accept(true);
+        return;
+    }
+
+    List<NovaBlockData> batch = batches.get(index);
+    for (NovaBlockData data : batch) {
+        // Place block
+    }
+}, 0L, 1L); // 1 tick between batches
+```
+
+**Detection:**
+- TPS drops from 20 to 18-19 during restoration
+- Watchdog warnings: "Task took Xms"
+
+**Phase Impact:** Optimization phase (Phase 4). Not critical for small islands.
+
+---
+
+### Pitfall 12: Silent Failures in Reflection
+
+**What goes wrong:** Reflection exceptions caught with empty catch blocks or generic "Failed to restore" messages don't provide actionable information.
+
+**Why it happens:** Reflection is fragile and can fail for many reasons (class not found, method signature changed, security manager, etc.).
+
+**Consequences:**
+- Difficult debugging ("it just doesn't work")
+- No way to diagnose which reflection call failed
+- Can't distinguish between "Nova not installed" and "Nova API changed"
+
+**Prevention:**
+```java
+// BAD
+try {
+    // Reflection operations
+} catch (Exception e) {
+    addon.logWarning("Failed to restore Nova blocks");
+}
+
+// GOOD
+try {
+    // Reflection operations
+} catch (ClassNotFoundException e) {
+    addon.logWarning("Nova class not found - API may have changed: " + e.getMessage());
+    addon.logWarning("Please report this to IslandSelector developers with Nova version");
+} catch (NoSuchMethodException e) {
+    addon.logWarning("Nova method not found - expected: " + e.getMessage());
+} catch (IllegalAccessException e) {
+    addon.logWarning("Cannot access Nova API - security issue: " + e.getMessage());
+}
+```
+
+**Detection:**
+- Generic error messages in logs
+- Users report "doesn't work" without details
+- Multiple possible root causes
+
+**Phase Impact:** Quality improvement (Phase 6). Helps support and debugging.
 
 ---
 
 ## Phase-Specific Warnings
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Config toggle (slots-enabled) | #1 Incomplete toggle, #2 Reload issues, #11 Both checks needed | Check ALL entry points (command + GUI + listener), verify both FAWE and config are checked |
-| Command alias (/map) | #5 Alias conflicts | Test for conflicts, consider server-specific prefix |
-| Feature removal (neighbors) | #3 Orphaned refs, #4 Broken nav, #6 Locale, #7 Perms, #8 Placeholders | Comprehensive grep with all spelling variants, map navigation graph |
+| Phase | Likely Pitfall | Mitigation |
+|-------|---------------|------------|
+| Phase 1: Basic Integration | Pitfall #1 (FAWE incompatibility) | Implement separate Nova capture system |
+| Phase 2: TileEntity State | Pitfall #2 (Missing inventory), Pitfall #5 (Context) | Use `TileEntity.getDrops()`, proper Context |
+| Phase 3: Cleanup | Pitfall #3 (BlockManager removal) | Call Nova's removeBlock before FAWE operations |
+| Phase 4: Optimization | Pitfall #7 (Sync operations), Pitfall #10 (Caching) | Batch operations, cache reflection |
+| Phase 5: Data Schema | Pitfall #8 (Serialization) | Add versioning to NovaBlockData |
+| Phase 6: Quality | Pitfall #9 (Verification), Pitfall #12 (Error handling) | Verify placements, detailed logging |
 
 ---
 
-## Pre-Implementation Checklist
+## Testing Checklist
 
-Before making these changes, verify:
+Before marking Nova integration complete, verify:
 
-**For Config Toggle:**
-- [ ] Settings.java: Add field with `@ConfigEntry(path = "slots.enabled")` and default `true`
-- [ ] SlotsCommand.java: Check `getSettings().isSlotsEnabled()` before executing
-- [ ] MainGridGUI.java: Check settings AND FAWE before rendering button
-- [ ] SharedGridGUIListener.java: Check settings before opening SlotSelectionGUI
-- [ ] Test reload behavior with GUI open
-
-**For Command Alias:**
-- [ ] Check `/map` availability on test server
-- [ ] Consider more specific alias if conflict exists
-- [ ] Document alias in README/changelog
-
-**For Neighbors Removal:**
-- [ ] Grep all variations: `neighbors`, `neighbourhood`, `neighborhood`, `NeighborhoodGUI`, `NeighborsCommand`, `NEIGHBORHOOD`
-- [ ] List files to modify: IslandSelectorCommand, MainGridGUI, SharedGridGUIListener
-- [ ] List files to delete: NeighborsCommand.java, NeighborhoodGUI.java
-- [ ] Decide on placeholder: remove or keep independent?
-- [ ] Decide on locale: remove or deprecate?
-- [ ] Update addon.yml permissions
-- [ ] Update en-US.yml locales
-- [ ] Test GUI navigation after removal
+- [ ] Nova blocks survive island relocation (all types tested)
+- [ ] Machine inventories preserved during slot switch
+- [ ] Energy levels maintained after backup/restore
+- [ ] Processing progress (furnaces, etc.) preserved
+- [ ] Multiple Nova addons tested (Machines, Logistics, etc.)
+- [ ] Chunk unload during operation doesn't cause data loss
+- [ ] Works with both Nova 0.16 and 0.17+ APIs
+- [ ] No memory leaks after 100 relocations
+- [ ] TPS remains above 19 during operations
+- [ ] Error messages provide actionable information
 
 ---
 
 ## Sources
 
-- Direct code analysis of IslandSelector codebase
-- Settings.java: Existing config patterns (lines 42-59 for slots group)
-- MainGridGUI.java: GUI button rendering (lines 68, 717-728)
-- SharedGridGUIListener.java: Click handlers (lines 79-94)
-- IslandSelectorCommand.java: Subcommand registration (line 37)
-- PlaceholderAPIIntegration.java: Placeholder definitions (lines 94-96, 186-228)
-- addon.yml: Permission definitions (lines 43-45)
-- en-US.yml: Locale strings (lines 64-65, 100-106, 113)
-- BentoBox CompositeCommand API: Alias handling via constructor varargs
-- HIGH confidence - based on actual project code review
+**HIGH Confidence:**
+- [Nova GitHub Issue #252 - FAWE Incompatibility](https://github.com/xenondevs/Nova/issues/252)
+- [Nova 0.17-0.18 Migration Guide](https://docs.xenondevs.xyz/nova/addon/migration-guide/0.17-0.18/)
+- [Nova TileEntity Documentation](https://docs.xenondevs.xyz/nova/api/tileentity/tileentity/)
+
+**MEDIUM Confidence:**
+- [Nova 0.18 Changelog - TileEntity save fix](https://hangar.papermc.io/xenondevs/Nova/versions/0.18)
+- [Nova 0.16-0.17 Migration - API refactoring](https://docs.xenondevs.xyz/nova/addon/migration-guide/0.16-0.17/)
+- [FAWE Race Condition Discussion](https://www.spigotmc.org/threads/async-race-conditions.439592/)
+
+**LOW Confidence (requires validation):**
+- General Minecraft TileEntity chunk unload behavior patterns
+- Performance characteristics based on typical island sizes
+- Reflection caching impact estimates
+
+---
+
+## Recommended Implementation Order
+
+Based on severity and dependencies:
+
+1. **Phase 1:** Separate Nova capture (Pitfall #1) - CRITICAL
+2. **Phase 2:** TileEntity state preservation (Pitfall #2) - CRITICAL
+3. **Phase 3:** Proper cleanup via BlockManager (Pitfall #3) - CRITICAL
+4. **Phase 2:** Context parameter handling (Pitfall #5) - HIGH
+5. **Phase 1:** Version fallbacks (Pitfall #6) - Already done
+6. **Phase 4:** Async optimization (Pitfall #7) - MEDIUM
+7. **Phase 5:** Schema versioning (Pitfall #8) - MEDIUM
+8. **Phase 4:** Reflection caching (Pitfall #10) - LOW
+9. **Phase 6:** Verification & error handling (Pitfall #9, #12) - LOW
+10. **Phase 4:** Rate limiting (Pitfall #11) - LOW
+
+Critical items must be done before release. Medium items should be done for production. Low items are quality-of-life improvements.

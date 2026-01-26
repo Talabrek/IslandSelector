@@ -1,367 +1,648 @@
-# Architecture Patterns for IslandSelector Config/Command Changes
+# Architecture: Nova Integration for IslandSelector
 
-**Domain:** BentoBox addon configuration, command registration, feature removal
-**Researched:** 2026-01-20
-**Confidence:** HIGH (based on direct codebase analysis)
+**Domain:** BentoBox addon custom block integration
+**Researched:** 2026-01-26
+**Overall Confidence:** MEDIUM
 
-## Overview
+## Executive Summary
 
-This document describes how to integrate three changes into the existing IslandSelector addon architecture:
+Nova integration follows IslandSelector's established pattern: reflection-based integration classes that avoid hard dependencies, with capture/restore logic parallel to EntityStorage. The integration must hook into existing slot switching, relocation, and backup workflows at the same points where EntityStorage operates.
 
-1. **Config Toggle:** Add `slots-enabled` to Settings.java with checks in GUI and command
-2. **Command Alias:** Add `/map` alias for the main command
-3. **Feature Removal:** Remove NeighborhoodGUI and related references
+**Key Finding:** Nova stores custom block data outside Minecraft's NBT system, making it invisible to WorldEdit/FAWE. The integration must explicitly capture and restore Nova blocks during island operations, similar to how EntityStorage handles entities that FAWE misses.
 
-## Current Architecture Summary
+## Current Architecture Overview
 
-### Configuration Pattern (Settings.java)
+IslandSelector uses a modular integration architecture:
 
-The addon uses BentoBox's ConfigObject pattern:
-- `Settings.java` implements `ConfigObject` interface
-- Configuration entries use `@ConfigEntry(path = "...")` annotations
-- Config comments use `@ConfigComment("...")` annotations
-- File is stored at `addons/IslandSelector/config.yml` via `@StoreAt` annotation
+```
+IslandSelector.java (main addon)
+├── Initializes integrations on load
+├── Provides accessor methods
+└── No business logic in main class
 
-**Existing toggle example (line 166-167 in Settings.java):**
-```java
-@ConfigComment("Enable Level addon integration")
-@ConfigEntry(path = "integration.level-addon.enabled")
-private boolean levelAddonEnabled = true;
+integrations/
+├── WorldEditIntegration - Detection + async wrappers for FAWE
+├── NovaIntegration - Detection + reflection-based capture/restore (BROKEN)
+├── LevelIntegration - Optional addon integration
+└── PlaceholderAPIIntegration - Optional plugin integration
+
+managers/
+├── SlotSwitchManager - Orchestrates slot switch workflow
+├── RelocationManager - Orchestrates island relocation workflow
+├── BackupManager - Orchestrates backup creation
+└── Others - Grid, Slot, Dimension management
+
+utils/
+├── SchematicUtils - Safe FAWE operations wrapper
+└── EntityStorage - Entity capture/restore (FAWE can't handle these reliably)
 ```
 
-### Command Registration Pattern
+**Integration Philosophy:**
+- Use reflection to avoid hard dependencies
+- Detect availability at runtime
+- Graceful degradation if not available
+- Operations are "best effort" - failures are logged but don't block the main operation
 
-Commands are registered in `IslandSelectorCommand.java`:
-- Main command: `new IslandSelectorCommand(addon)` in `IslandSelector.registerCommands()`
-- Aliases defined in constructor: `super(addon, "islandselector", "is", "isgrid")`
-- Subcommands registered in `setup()` method by instantiation
+## Nova Block Storage Model
 
-**Current aliases (line 20):**
-```java
-super(addon, "islandselector", "is", "isgrid");
+Nova stores custom block data in a separate world data system:
+
+```
+Minecraft World
+├── Chunk data (blocks, biomes)
+├── Tile entities (vanilla)
+└── [Nova's separate storage]
+    ├── WorldDataManager - Global manager
+    ├── NovaBlockState per-block - Block ID + state
+    └── TileEntity instances - Full state including inventory/data
 ```
 
-### Feature Integration Points
+**Why WorldEdit/FAWE Can't Copy Nova Blocks:**
+- WorldEdit copies Minecraft's chunk data only
+- Nova's block data is stored outside chunks
+- When pasted, blocks appear as vanilla (often note blocks/mushrooms)
+- Nova tile entity data (inventory, progress, etc.) is completely lost
 
-The NeighborhoodGUI feature has the following integration points:
+## Required API Changes (Nova 0.17+)
 
-| File | Integration | Lines |
-|------|-------------|-------|
-| `IslandSelectorCommand.java` | Subcommand registration | Line 37 |
-| `NeighborsCommand.java` | Command implementation | Entire file |
-| `NeighborhoodGUI.java` | GUI implementation | Entire file |
-| `SharedGridGUIListener.java` | Button click handler | Lines 79-82 |
-| `MainGridGUI.java` | Button creation | Lines 717-720 |
-| `addon.yml` | Permission definition | Lines 43-45 |
-| `en-US.yml` | Locale strings | Lines 64-65, 100-106, 113 |
-| `PlaceholderAPIIntegration.java` | Placeholder (optional) | Lines 30, 94-95, 187-188 |
+The current NovaIntegration.java uses outdated Nova 0.16 API paths. Nova 0.17 changed the API significantly:
 
----
-
-## Change 1: Add `slots-enabled` Config Toggle
-
-### Files to Modify
-
-| File | Change | Purpose |
-|------|--------|---------|
-| `Settings.java` | Add field, getter, setter | Config storage |
-| `SlotsCommand.java` | Add config check | Block command when disabled |
-| `SharedGridGUIListener.java` | Add config check | Hide/disable button |
-| `MainGridGUI.java` | Conditionally show button | Hide button when disabled |
-
-### Implementation Pattern
-
-**1. Settings.java - Add after line 56 (under slots section):**
+### Old API (0.16) - Current Code
 ```java
-@ConfigComment("Enable slot management feature")
-@ConfigComment("When false, /islandselector slots command and GUI button are disabled")
-@ConfigEntry(path = "slots.enabled")
-private boolean slotsEnabled = true;
+// BlockManager class exists
+Object blockManager = Class.forName("xyz.xenondevs.nova.data.world.block.BlockManager");
 
-// Add getter/setter in the slots section (around line 310)
-public boolean isSlotsEnabled() {
-    return slotsEnabled;
+// TileEntityManager exists
+Object tileEntityManager = Class.forName("xyz.xenondevs.nova.world.block.tileentity.TileEntityManager");
+```
+
+### New API (0.17+) - Required
+```java
+// BlockManager removed, use BlockUtils
+Class.forName("xyz.xenondevs.nova.util.BlockUtils");
+
+// TileEntityManager removed, use WorldDataManager
+Class.forName("xyz.xenondevs.nova.world.format.WorldDataManager");
+
+// Get tile entity: WorldDataManager.INSTANCE.getTileEntity(location)
+// Place block: BlockUtils.placeBlock(context, location, novaBlock, playEffects)
+// Break block: BlockUtils.breakBlock(context, location, playEffects)
+```
+
+### Key Differences
+- Managers removed in favor of utility classes
+- TileEntity functions now prefixed with `stored...` instead of `get...`
+- Block states now use Kotlin-style extension properties
+- Tile entities may instantiate off main thread
+
+**Sources:**
+- [Nova 0.16 to 0.17 Migration Guide](https://docs.xenondevs.xyz/nova/addon/migration-guide/0.16-0.17/)
+- [Nova GitHub Repository](https://github.com/xenondevs/Nova)
+
+## Integration Points with Existing Components
+
+### 1. SlotSwitchManager Integration
+
+**Current Flow:**
+```
+switchSlot()
+  → performSlotSwitchAsync()
+    → saveAllDimensionIslands()
+      → SchematicUtils.copyAndSave()
+      → EntityStorage.saveEntities()
+    → clearAllDimensionIslands()
+      → WorldEditIntegration.removeEntities()
+      → SchematicUtils.clearRegion()
+    → loadAllDimensionIslands()
+      → SchematicUtils.loadAndPaste()
+      → EntityStorage.loadEntities()
+```
+
+**Nova Integration Points:**
+```
+switchSlot()
+  → performSlotSwitchAsync()
+    → saveAllDimensionIslands()
+      → SchematicUtils.copyAndSave()
+      → EntityStorage.saveEntities()
+      → NovaIntegration.captureNovaBlocks() ← ADD HERE
+    → clearAllDimensionIslands()
+      → WorldEditIntegration.removeEntities()
+      → SchematicUtils.clearRegion()
+      → NovaIntegration.removeNovaBlocks() ← ADD HERE
+    → loadAllDimensionIslands()
+      → SchematicUtils.loadAndPaste()
+      → EntityStorage.loadEntities()
+      → NovaIntegration.restoreNovaBlocks() ← ADD HERE
+```
+
+**Threading Requirements:**
+- `captureNovaBlocks()` - Can run async (WorldDataManager is thread-safe for reads)
+- `removeNovaBlocks()` - Must run on main thread (modifies world state)
+- `restoreNovaBlocks()` - Must run on main thread (places blocks)
+
+### 2. RelocationManager Integration
+
+**Current Flow (in-memory capture):**
+```
+relocateIsland()
+  → captureIslandData()
+    → entities = EntityStorage.captureEntitiesInMemory()
+  → removeBlocks()
+    → WorldEditIntegration.removeEntities()
+    → SchematicUtils.clearRegion()
+  → pasteAtNewLocation()
+    → SchematicUtils.pasteFromClipboard()
+    → EntityStorage.restoreEntitiesInMemory(entities)
+```
+
+**Nova Integration Points:**
+```
+relocateIsland()
+  → captureIslandData()
+    → entities = EntityStorage.captureEntitiesInMemory()
+    → novaBlocks = NovaIntegration.captureNovaBlocksInMemory() ← ADD HERE
+  → removeBlocks()
+    → WorldEditIntegration.removeEntities()
+    → SchematicUtils.clearRegion()
+    → NovaIntegration.removeNovaBlocks() ← ADD HERE
+  → pasteAtNewLocation()
+    → SchematicUtils.pasteFromClipboard()
+    → EntityStorage.restoreEntitiesInMemory(entities)
+    → NovaIntegration.restoreNovaBlocksInMemory(novaBlocks) ← ADD HERE
+```
+
+**Key Difference:** Relocation uses in-memory capture (no file I/O) because the source and destination are in the same operation. SlotSwitch/Backup use file-based storage because data persists across operations.
+
+### 3. BackupManager Integration
+
+**Current Flow:**
+```
+createBackup()
+  → saveSlotToBackup()
+    → SchematicUtils.copyAndSave()
+    → (EntityStorage handled by SchematicUtils)
+
+restoreBackup()
+  → loadBackupToWorld()
+    → SchematicUtils.loadAndPaste()
+    → (EntityStorage handled by SchematicUtils)
+```
+
+**Nova Integration Points:**
+```
+createBackup()
+  → saveSlotToBackup()
+    → SchematicUtils.copyAndSave()
+    → NovaIntegration.saveNovaBlocks(schematicFile) ← ADD HERE
+
+restoreBackup()
+  → loadBackupToWorld()
+    → SchematicUtils.loadAndPaste()
+    → NovaIntegration.loadNovaBlocks(schematicFile) ← ADD HERE
+```
+
+**Note:** BackupManager calls for both single-dimension and multi-dimension cases. Nova integration must handle dimension-specific file paths.
+
+## New Components vs Modifications
+
+### Components to Modify
+
+**1. NovaIntegration.java (MAJOR REWRITE)**
+- Update reflection paths for Nova 0.17 API
+- Fix `captureNovaBlocks()` to use WorldDataManager.getTileEntity()
+- Fix `restoreNovaBlocks()` to use BlockUtils.placeBlock()
+- Add `removeNovaBlocks()` method (currently missing)
+- Add in-memory capture/restore for relocation
+- Improve serialization to capture full tile entity state (not just block ID)
+
+**2. SlotSwitchManager.java (MINOR ADDITIONS)**
+- Add Nova capture after entity save (lines ~365)
+- Add Nova removal after entity removal (lines ~481)
+- Add Nova restore after entity restore (lines ~433)
+- Handle dimension-aware Nova file paths
+- Error handling: log failures but continue operation
+
+**3. RelocationManager.java (MINOR ADDITIONS)**
+- Add in-memory Nova capture (parallel to entity capture)
+- Add Nova removal in clearRegion
+- Add Nova restore in pasteRegion
+- Pass captured Nova blocks through the workflow
+
+**4. BackupManager.java (MINOR ADDITIONS)**
+- Add Nova block save after schematic save
+- Add Nova block load after schematic load
+- Handle multi-dimension Nova file paths
+- No change to backup retention/cleanup logic
+
+### New Components Needed
+
+**None.** The existing NovaIntegration.java class provides the right architecture. It needs API updates and feature additions, not replacement.
+
+### Shared Utility: NovaBlockData Storage
+
+Nova blocks need to be serialized to files (for backups/slot switch) and held in memory (for relocation).
+
+**Storage Format (File-Based):**
+```
+Format: .nova.dat file alongside .schem
+Path: slots/uuid/slot-1.schem → slots/uuid/slot-1.nova.dat
+Encoding: Gzipped Java serialization
+Content: List<NovaBlockData>
+  - relX, relY, relZ (int) - Relative position
+  - blockId (String) - Nova block identifier
+  - tileEntityData (byte[]) - Serialized tile entity state (if applicable)
+```
+
+**Current Implementation Problem:**
+The existing `NovaBlockData` class only stores `blockId` (String). It doesn't capture tile entity state (inventories, progress bars, stored energy, etc.). This must be expanded.
+
+**Required Data Structure:**
+```java
+class NovaBlockData implements Serializable {
+    int relX, relY, relZ;           // Position relative to center
+    String blockId;                  // Nova block type ID
+    byte[] tileEntityData;           // Serialized tile entity state (nullable)
+    String blockStateData;           // Block state properties (nullable)
 }
-
-public void setSlotsEnabled(boolean slotsEnabled) {
-    this.slotsEnabled = slotsEnabled;
-}
 ```
 
-**2. SlotsCommand.java - Add check at start of execute() (before line 32):**
+## Data Flow During Operations
+
+### Slot Switch Data Flow
+
+```
+SAVE PHASE (Async Thread)
+┌─────────────────────────────────────┐
+│ island @ grid (5,3)                 │
+│ ├─ FAWE copies blocks → slot-1.schem│
+│ ├─ EntityStorage → slot-1.entities │
+│ └─ NovaIntegration → slot-1.nova.dat│
+└─────────────────────────────────────┘
+              ↓
+CLEAR PHASE (Main Thread)
+┌─────────────────────────────────────┐
+│ island @ grid (5,3)                 │
+│ ├─ Remove entities                  │
+│ ├─ FAWE clears blocks               │
+│ └─ NovaIntegration removes Nova blocks
+└─────────────────────────────────────┘
+              ↓
+LOAD PHASE (Async Thread)
+┌─────────────────────────────────────┐
+│ island @ grid (5,3)                 │
+│ ├─ FAWE pastes slot-2.schem         │
+│ ├─ EntityStorage ← slot-2.entities  │
+│ └─ NovaIntegration ← slot-2.nova.dat│
+└─────────────────────────────────────┘
+```
+
+### Relocation Data Flow
+
+```
+CAPTURE PHASE (Main Thread)
+┌─────────────────────────────────────┐
+│ Source island @ grid (5,3)          │
+│ ├─ FAWE copies to clipboard         │
+│ ├─ EntityStorage → List<Entity>    │
+│ └─ NovaIntegration → List<NovaBlock>│
+└─────────────────────────────────────┘
+              ↓
+CLEAR PHASE (Main Thread)
+┌─────────────────────────────────────┐
+│ Source island @ grid (5,3)          │
+│ ├─ Remove entities                  │
+│ ├─ FAWE clears blocks               │
+│ └─ NovaIntegration removes Nova blocks
+└─────────────────────────────────────┘
+              ↓
+PASTE PHASE (Async/Main)
+┌─────────────────────────────────────┐
+│ Destination island @ grid (10,-2)   │
+│ ├─ FAWE pastes from clipboard       │
+│ ├─ EntityStorage ← List<Entity>     │
+│ └─ NovaIntegration ← List<NovaBlock>│
+└─────────────────────────────────────┘
+```
+
+**Key Insight:** Nova blocks follow the same capture → clear → restore pattern as entities. The integration hooks into existing workflows at the same points.
+
+## Threading and Synchronization
+
+### Thread Safety Requirements
+
+**WorldDataManager (Nova):**
+- Read operations (getTileEntity): Thread-safe, can run async
+- Write operations (place/remove blocks): Main thread only
+
+**BlockUtils (Nova):**
+- All operations: Main thread only (modifies world state)
+
+**IslandSelector Operations:**
+- Capture: Can run async (reads only)
+- Remove: Must run on main thread (modifies world)
+- Restore: Must run on main thread (modifies world)
+
+### Execution Flow in SlotSwitchManager
+
+```
+Main Thread: Fire event, teleport to spawn
+     ↓
+Async Thread: Save operations
+     ├─ FAWE schematic save (async)
+     ├─ Entity save (sync via callSyncMethod)
+     └─ Nova capture (async - WorldDataManager reads are safe)
+     ↓
+Main Thread: Clear operations (via CompletableFuture)
+     ├─ Entity removal (main thread)
+     ├─ FAWE clear (async)
+     └─ Nova removal (main thread)
+     ↓
+Async Thread: Load operations
+     ├─ FAWE schematic paste (async)
+     ↓
+Main Thread: Restore operations
+     ├─ Entity restore (main thread)
+     └─ Nova restore (main thread)
+     ↓
+Main Thread: Teleport players, completion
+```
+
+**Implementation Pattern:**
 ```java
-@Override
-public boolean execute(User user, String label, List<String> args) {
-    IslandSelector addon = (IslandSelector) getAddon();
-
-    // Check if slots feature is enabled
-    if (!addon.getSettings().isSlotsEnabled()) {
-        user.sendMessage("&cSlot management is disabled on this server.");
-        return false;
-    }
-
-    // Existing FAWE check...
+// In async context, schedule main-thread Nova operations:
+CompletableFuture<List<NovaBlockData>> captureNovaFuture = new CompletableFuture<>();
+Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+    List<NovaBlockData> blocks = novaIntegration.captureNovaBlocks(center, range);
+    captureNovaFuture.complete(blocks);
+});
+List<NovaBlockData> novaBlocks = captureNovaFuture.get(30, TimeUnit.SECONDS);
 ```
 
-**3. MainGridGUI.java - Modify slot button creation (lines 722-728):**
+## Error Handling Strategy
+
+**Philosophy:** Nova integration is a "best effort" feature. Failures should be logged but must not break the primary operation (slot switch, relocation, backup).
+
+### Failure Scenarios
+
+**1. Nova Plugin Not Installed**
+- Detection: `novaIntegration.isAvailable()` returns false
+- Handling: Skip all Nova operations silently
+- User Impact: None (Nova blocks weren't being copied anyway)
+
+**2. Nova API Changed (Future Version)**
+- Detection: ClassNotFoundException during reflection
+- Handling: Log warning, disable integration
+- User Impact: Log message suggesting addon update
+
+**3. Capture Fails During Operation**
+- Detection: captureNovaBlocks() returns empty list or throws exception
+- Handling: Log warning, continue with operation
+- User Impact: Nova blocks not copied (same as current behavior)
+
+**4. Restore Fails During Operation**
+- Detection: restoreNovaBlocks() throws exception or returns false
+- Handling: Log warning, continue with operation
+- User Impact: Nova blocks not restored, but vanilla blocks + entities are
+
+**5. Tile Entity Data Corruption**
+- Detection: Deserialization exception when loading .nova.dat
+- Handling: Skip corrupted blocks, restore others
+- User Impact: Some Nova blocks missing, most restored
+
+### Logging Strategy
+
 ```java
-// Slot Selection - only show if enabled and FAWE is available
-if (addon.getSettings().isSlotsEnabled() && addon.isSchematicOperationsAvailable()) {
-    ItemStack slots = createButton(Material.CHEST, "&6Island Slots",
-        "&7Manage your slots");
-    inventory.setItem(BOT_SLOTS_SLOT, slots);
-}
-// If disabled or FAWE not available, slot 50 will be filled with filler later
+// Initialization
+addon.log("Nova detected - custom block support enabled");
+
+// Operation start
+addon.log("Capturing Nova blocks for slot switch...");
+
+// Success
+addon.log("Captured 47 Nova blocks (12 with tile entities)");
+
+// Partial failure
+addon.logWarning("Failed to capture 3 Nova blocks - continuing anyway");
+
+// Complete failure
+addon.logError("Nova capture failed completely: " + ex.getMessage());
+// → Still continue with slot switch
+
+// API incompatibility
+addon.logError("Nova API incompatible - disabling Nova integration");
 ```
-
-**4. SharedGridGUIListener.java - Add config check (lines 84-89):**
-```java
-if (slot == gui.getSlotsSlot()) {
-    if (gui.getAddon().getSettings().isSlotsEnabled() &&
-        gui.getAddon().isSchematicOperationsAvailable()) {
-        player.closeInventory();
-        new SlotSelectionGUI(gui.getAddon(), player).open();
-    }
-    return;
-}
-```
-
-### Config Output
-
-Results in `config.yml`:
-```yaml
-slots:
-  # Enable slot management feature
-  # When false, /islandselector slots command and GUI button are disabled
-  enabled: true
-  # Default number of slots
-  default-slots: 2
-```
-
----
-
-## Change 2: Add `/map` Command Alias
-
-### Files to Modify
-
-| File | Change | Purpose |
-|------|--------|---------|
-| `IslandSelectorCommand.java` | Add alias to constructor | Register `/map` |
-
-### Implementation
-
-**IslandSelectorCommand.java - Modify line 20:**
-```java
-// Before:
-super(addon, "islandselector", "is", "isgrid");
-
-// After:
-super(addon, "islandselector", "is", "isgrid", "map");
-```
-
-### Notes
-
-- BentoBox handles alias registration automatically
-- No addon.yml changes needed (aliases are not permissions)
-- The first argument is the primary label, others are aliases
-- All aliases share the same permission (`islandselector.use`)
-
----
-
-## Change 3: Remove NeighborhoodGUI Feature
-
-### Files to Delete
-
-| File | Reason |
-|------|--------|
-| `src/main/java/.../gui/NeighborhoodGUI.java` | Feature implementation |
-| `src/main/java/.../commands/NeighborsCommand.java` | Command implementation |
-
-### Files to Modify
-
-| File | Change | Lines |
-|------|--------|-------|
-| `IslandSelectorCommand.java` | Remove subcommand registration | Line 37 |
-| `SharedGridGUIListener.java` | Remove button click handler | Lines 79-82 |
-| `MainGridGUI.java` | Remove button creation | Lines 717-720 |
-| `addon.yml` | Remove permission definition | Lines 43-45 |
-| `en-US.yml` | Remove locale strings | Lines 64-65, 100-106 |
-| `PlaceholderAPIIntegration.java` | Remove placeholder (optional) | Lines 94-95 |
-
-### Implementation Details
-
-**1. IslandSelectorCommand.java - Remove line 37:**
-```java
-// Delete this line:
-new NeighborsCommand(this);
-```
-
-**2. SharedGridGUIListener.java - Remove lines 79-82:**
-```java
-// Delete these lines:
-if (slot == gui.getNeighborhoodSlot()) {
-    player.closeInventory();
-    new NeighborhoodGUI(gui.getAddon(), player).open();
-    return;
-}
-```
-
-Also remove the import at top of file (if present).
-
-**3. MainGridGUI.java - Remove lines 717-720:**
-```java
-// Delete these lines:
-// Neighborhood View
-ItemStack neighborhood = createButton(Material.FILLED_MAP, "&bNeighborhood",
-    "&7View your neighbors");
-inventory.setItem(BOT_NEIGHBORHOOD_SLOT, neighborhood);
-```
-
-Also remove or repurpose the constant:
-```java
-// Line 67 - can leave or remove (unused constant is harmless)
-private static final int BOT_NEIGHBORHOOD_SLOT = 49;
-```
-
-And remove the getter method:
-```java
-// Lines 980-982 - remove:
-public int getNeighborhoodSlot() {
-    return BOT_NEIGHBORHOOD_SLOT;
-}
-```
-
-**4. addon.yml - Remove lines 43-45:**
-```yaml
-# Delete these lines:
-islandselector.neighbors:
-  description: Can use neighborhood view
-  default: true
-```
-
-**5. en-US.yml - Remove relevant sections:**
-```yaml
-# Delete lines 64-65:
-neighborhood: "&aNeighborhood View"
-neighborhood-desc: "&7View your neighbors"
-
-# Delete lines 100-106:
-# Neighborhood GUI
-neighborhood:
-  title: "Your Neighborhood"
-  your-island: "&a&l YOUR ISLAND"
-  back: "&aBack to Grid"
-  slots: "&eSlot Selection"
-  close: "&cClose"
-```
-
-**6. PlaceholderAPIIntegration.java - Remove neighbors placeholder (optional):**
-```java
-// Lines 94-95 - Delete:
-if (identifier.equals("neighbors_online")) {
-    return String.valueOf(getOnlineNeighborsCount(player));
-}
-
-// Lines 187-200 - Delete the getOnlineNeighborsCount method
-```
-
----
 
 ## Suggested Build Order
 
-### Phase 1: Config Toggle (Independent)
+The integration touches three managers in a dependent chain. Build order matters to enable incremental testing.
 
-1. Add field, getter, setter to `Settings.java`
-2. Add check to `SlotsCommand.java`
-3. Modify button logic in `MainGridGUI.java`
-4. Add check to `SharedGridGUIListener.java`
-5. **Test:** Reload config, verify toggle works
+### Phase 1: Core Integration (NovaIntegration.java)
+**Goal:** Update to Nova 0.17 API, basic capture/restore working
 
-### Phase 2: Command Alias (Independent)
+1. Update detection logic for Nova 0.17 class paths
+2. Implement `captureNovaBlocks()` using WorldDataManager.getTileEntity()
+3. Implement `restoreNovaBlocks()` using BlockUtils.placeBlock()
+4. Add `removeNovaBlocks()` method (new)
+5. Expand NovaBlockData to include tile entity state
+6. Add file I/O methods (saveToFile/loadFromFile)
+7. Add in-memory methods (for relocation)
 
-1. Add `"map"` to alias list in `IslandSelectorCommand.java`
-2. **Test:** Verify `/map` opens grid GUI
+**Testing:** Standalone unit tests with mock island regions
 
-### Phase 3: Feature Removal (Dependent on compile success)
+**Deliverable:** NovaIntegration.isAvailable() returns true, capture/restore methods work
 
-1. Remove subcommand registration from `IslandSelectorCommand.java`
-2. Remove button handler from `SharedGridGUIListener.java`
-3. Remove button creation from `MainGridGUI.java`
-4. Remove getter method from `MainGridGUI.java`
-5. Delete `NeighborsCommand.java`
-6. Delete `NeighborhoodGUI.java`
-7. Remove permission from `addon.yml`
-8. Remove locale strings from `en-US.yml`
-9. (Optional) Remove placeholder from `PlaceholderAPIIntegration.java`
-10. **Test:** Verify compile, verify grid GUI works without neighborhood button
+### Phase 2: Backup Integration (BackupManager.java)
+**Goal:** Nova blocks saved/restored in backups
 
-### Build Order Rationale
+1. Add NovaIntegration.saveNovaBlocks() call after SchematicUtils.copyAndSave()
+2. Add NovaIntegration.loadNovaBlocks() call after SchematicUtils.loadAndPaste()
+3. Handle multi-dimension file paths (.nova.dat per dimension)
+4. Update backup cleanup to include .nova.dat files
 
-- **Phase 1 first:** Self-contained, lowest risk, quick to verify
-- **Phase 2 second:** Single-line change, trivial verification
-- **Phase 3 last:** Most files affected, compile must succeed, requires careful cleanup
+**Testing:** Create backup → verify .nova.dat exists → restore backup → verify Nova blocks present
 
----
+**Deliverable:** Backups include Nova block data, restoration works
 
-## Dependencies Between Changes
+### Phase 3: Slot Switch Integration (SlotSwitchManager.java)
+**Goal:** Nova blocks preserved during slot switching
 
+1. Add Nova capture in saveIslandToSchematic() (after entity save)
+2. Add Nova removal in clearIslandBlocksAndEntities() (after entity removal)
+3. Add Nova restore in loadSchematicToWorld() (after entity restore)
+4. Handle multi-dimension Nova operations in saveAllDimensionIslands/loadAllDimensionIslands
+5. Add error handling and progress messages
+
+**Testing:** Build test islands with Nova blocks → switch slots → verify Nova blocks move
+
+**Deliverable:** Slot switching preserves Nova blocks completely
+
+### Phase 4: Relocation Integration (RelocationManager.java)
+**Goal:** Nova blocks preserved during island relocation
+
+1. Add Nova in-memory capture in captureRegion()
+2. Add Nova removal in removeBlocks()
+3. Add Nova restore in pasteAtNewLocation()
+4. Pass Nova block list through workflow (parallel to entities)
+
+**Testing:** Create island with Nova blocks → relocate → verify blocks at new location
+
+**Deliverable:** Relocation preserves Nova blocks completely
+
+### Phase 5: Testing and Refinement
+**Goal:** Edge case handling, performance validation
+
+1. Test with large numbers of Nova blocks (100+ blocks)
+2. Test with complex Nova tile entities (machines with inventories)
+3. Test async timeout scenarios
+4. Performance profiling (capture/restore timing)
+5. Multi-dimension test coverage
+
+**Testing:** Stress tests, edge cases, performance benchmarks
+
+**Deliverable:** Robust integration handling edge cases gracefully
+
+## Performance Considerations
+
+### Scanning Performance
+
+**Current Approach (NovaIntegration.java lines 135-161):**
+```java
+// Triple nested loop - scans entire island volume
+for (int x = centerX - range; x <= centerX + range; x++) {
+    for (int z = centerZ - range; z <= centerZ + range; z++) {
+        for (int y = minY; y < maxY; y++) {
+            // Check every block for Nova blocks
+        }
+    }
+}
 ```
-Config Toggle (Phase 1)      Command Alias (Phase 2)
-       |                            |
-       v                            v
-    (independent)              (independent)
 
-Feature Removal (Phase 3)
-       |
-       v
-    (must compile after)
-```
+**Performance Impact:**
+- Island size: 400x400 blocks = 160,000 blocks per dimension
+- Height range: -64 to 320 = 384 blocks
+- Total blocks scanned: 61,440,000 per dimension
+- At ~1µs per check: ~60 seconds per dimension (unacceptable)
 
-- **No dependencies between Phase 1 and Phase 2** - can be done in parallel
-- **Phase 3 should be done last** - has most impact, benefits from stable base
+**Optimization Strategy:**
+1. Use Nova's internal registry if available (ask Nova for all blocks in region)
+2. If not, maintain a cache of known Nova block locations
+3. Async chunk loading before scan
+4. Parallel scanning across chunks
+5. Early exit if no Nova blocks found in first few chunks
 
----
+**Target:** < 5 seconds for typical island with 50 Nova blocks
 
-## Testing Checklist
+### Serialization Performance
 
-### Config Toggle
-- [ ] `slots.enabled: true` allows `/islandselector slots` command
-- [ ] `slots.enabled: false` blocks command with message
-- [ ] `slots.enabled: false` hides GUI button
-- [ ] Config reload picks up changes
+**Tile Entity Data:**
+- Complex tile entities may have large NBT structures
+- Compression (GZIP) is essential for file storage
+- In-memory operations skip compression for speed
 
-### Command Alias
-- [ ] `/map` opens grid GUI
-- [ ] `/map` tab completion works
-- [ ] `/islandselector` still works
-- [ ] `/is` and `/isgrid` aliases still work
+**File Size Estimates:**
+- 50 Nova blocks without tile entities: ~5KB
+- 50 Nova blocks with tile entities: ~50-500KB (depends on inventories)
+- Compressed: ~10-50KB typical
 
-### Feature Removal
-- [ ] Project compiles without errors
-- [ ] Grid GUI opens without neighborhood button
-- [ ] No errors in console on startup
-- [ ] `/islandselector neighbors` returns unknown command
-- [ ] Clicking slot 49 (former neighborhood) does nothing or has filler
+### Threading Strategy
 
----
+- **Capture:** Async with chunk preloading
+- **Save to file:** Async (I/O heavy)
+- **Remove:** Main thread (world modification)
+- **Restore:** Main thread (world modification)
+- **Load from file:** Async (I/O), then sync restore
 
-## Risk Assessment
+## Risk Factors
 
-| Change | Risk | Mitigation |
-|--------|------|------------|
-| Config Toggle | LOW | Self-contained, well-established pattern |
-| Command Alias | LOW | Single line, BentoBox handles registration |
-| Feature Removal | MEDIUM | Multiple files, must remove all references to compile |
+### HIGH Risk
 
----
+**1. Nova API Stability**
+- **Risk:** Nova 0.18+ may change API again
+- **Mitigation:** Use try-catch around all reflection, version detection
+- **Impact:** Integration breaks on Nova update
+
+**2. TileEntity Serialization**
+- **Risk:** Nova's internal tile entity format may not be serializable via standard Java
+- **Mitigation:** Use Nova's own serialization if available, fallback to partial state
+- **Impact:** Complex Nova blocks may lose state
+
+### MEDIUM Risk
+
+**3. Performance with Large Islands**
+- **Risk:** Scanning 60M blocks takes too long
+- **Mitigation:** Optimize scanning, async operations, progress feedback
+- **Impact:** Slot switch/relocation takes minutes instead of seconds
+
+**4. Multi-Dimension Complexity**
+- **Risk:** Nova tile entities may reference blocks in other dimensions
+- **Mitigation:** Capture all dimensions atomically, restore in order
+- **Impact:** Cross-dimension Nova structures may break
+
+### LOW Risk
+
+**5. Block Placement Order**
+- **Risk:** Nova blocks may depend on other Nova blocks being placed first
+- **Mitigation:** Place in Y-order (bottom to top), check Nova docs for dependencies
+- **Impact:** Some Nova multi-block structures may not restore correctly
+
+**6. Chunk Loading Race Conditions**
+- **Risk:** Nova blocks placed in unloaded chunks may not initialize
+- **Mitigation:** Pre-load chunks before restoration, add delay after paste
+- **Impact:** Nova blocks appear but don't function
+
+## Dependencies
+
+### Hard Dependencies
+- BentoBox (provided by parent addon)
+- BSkyBlock (required by IslandSelector)
+- FAWE (required by IslandSelector for schematic operations)
+
+### Soft Dependencies
+- Nova plugin (detected at runtime via reflection)
+  - Minimum version: 0.17 (API changed significantly)
+  - Recommended: Latest stable
+  - Detection method: Class.forName() with try-catch
+
+### Integration Order
+1. WorldEditIntegration must initialize first (FAWE detection)
+2. NovaIntegration initializes after WorldEditIntegration
+3. Managers depend on both integrations being available
+
+## Alternative Approaches Considered
+
+### Approach 1: WorldEdit Native Nova Support
+**Description:** Wait for WorldEdit/FAWE to add native Nova support
+**Pros:** No custom code needed, guaranteed compatibility
+**Cons:** No ETA, may never happen, doesn't solve the problem
+**Verdict:** Not viable
+
+### Approach 2: Nova Schematic Format Extension
+**Description:** Create a new schematic format that includes Nova data
+**Pros:** Clean separation, could be shared with other plugins
+**Cons:** Requires coordinating with WorldEdit/Nova teams, major undertaking
+**Verdict:** Too complex for this use case
+
+### Approach 3: Database-Based Storage
+**Description:** Store Nova block data in BentoBox database instead of .nova.dat files
+**Pros:** Cleaner for large numbers of blocks, better query capabilities
+**Cons:** Increases database size, harder to debug, doesn't match existing pattern
+**Verdict:** Over-engineered for typical usage (50-100 blocks per island)
+
+### Approach 4: Hook Nova Events Instead of Capture/Restore
+**Description:** Listen to Nova block place/break events and maintain a live registry
+**Pros:** No scanning needed, always up-to-date
+**Cons:** Event overhead, memory overhead, doesn't handle existing islands
+**Verdict:** Good optimization for future, not suitable for initial implementation
+
+**Selected Approach:** File-based capture/restore parallel to EntityStorage (matches existing architecture)
 
 ## Sources
 
-- Direct codebase analysis (HIGH confidence)
-- `IslandSelector.java` - Main addon class, line 134: `registerCommands()`
-- `Settings.java` - Configuration class implementing ConfigObject
-- `IslandSelectorCommand.java` - Command registration patterns
-- `SharedGridGUIListener.java` - GUI event handling patterns
-- `MainGridGUI.java` - GUI layout and button constants
-- `addon.yml` - Permission definitions
-- `en-US.yml` - Locale string organization
+Research based on:
+- [Nova 0.16 to 0.17 Migration Guide](https://docs.xenondevs.xyz/nova/addon/migration-guide/0.16-0.17/) - API changes
+- [Nova GitHub Repository](https://github.com/xenondevs/Nova) - Source code reference
+- [Nova Modrinth Page](https://modrinth.com/plugin/nova-framework) - Plugin overview
+- IslandSelector codebase analysis - Existing patterns
+- FAWE documentation - WorldEdit limitations
+- EntityStorage.java implementation - Parallel pattern reference
