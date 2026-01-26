@@ -172,10 +172,10 @@ Plans:
   1. Nova block scanning completes in under 5 seconds for typical islands
   2. Reflection method calls cached (not re-looked-up on every operation)
   3. Large islands (100+ Nova blocks) process without server lag
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 15-01: TBD
+- [ ] 15-01-PLAN.md — Cache reflection lookups and add performance timing
 
 ## Progress
 
@@ -198,4 +198,4 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 15
 | 12. Core Capture and Restore | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 13. State Preservation | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 14. Operation Integration | v1.2 | 3/3 | Complete | 2026-01-27 |
-| 15. Performance and Polish | v1.2 | 0/TBD | Not started | - |
+| 15. Performance and Polish | v1.2 | 0/1 | Not started | - |
