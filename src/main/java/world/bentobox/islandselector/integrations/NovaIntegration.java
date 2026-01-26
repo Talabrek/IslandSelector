@@ -379,6 +379,156 @@ public class NovaIntegration {
     }
 
     /**
+     * Remove Nova blocks before WorldEdit operations.
+     * Must be called AFTER captureNovaBlocks and BEFORE WorldEdit paste.
+     * Uses BlockUtils.breakBlock() for proper Nova lifecycle cleanup.
+     *
+     * @param novaBlocks List of Nova blocks captured earlier
+     * @param center Center location where blocks were captured
+     */
+    public void removeNovaBlocks(List<NovaBlockData> novaBlocks, Location center) {
+        if (!available || novaBlocks == null || novaBlocks.isEmpty()) {
+            return;
+        }
+
+        World world = center.getWorld();
+        if (world == null) {
+            return;
+        }
+
+        int centerX = center.getBlockX();
+        int centerY = center.getBlockY();
+        int centerZ = center.getBlockZ();
+        int removed = 0;
+
+        try {
+            // Get BlockUtils class
+            Class<?> blockUtilsClass = Class.forName("xyz.xenondevs.nova.util.BlockUtils");
+
+            // Get Context.EMPTY for automated operations (no player involved)
+            Class<?> contextClass = Class.forName("xyz.xenondevs.nova.context.Context");
+            Object emptyContext = null;
+
+            // Try EMPTY field first (companion object in Kotlin)
+            try {
+                java.lang.reflect.Field emptyField = contextClass.getDeclaredField("EMPTY");
+                emptyContext = emptyField.get(null);
+            } catch (NoSuchFieldException e1) {
+                // Try empty() method as fallback
+                try {
+                    java.lang.reflect.Method emptyMethod = contextClass.getMethod("empty");
+                    emptyContext = emptyMethod.invoke(null);
+                } catch (NoSuchMethodException e2) {
+                    addon.logWarning("Cannot get empty Nova context - skipping block removal");
+                    return;
+                }
+            }
+
+            if (emptyContext == null) {
+                addon.logWarning("Nova context is null - skipping block removal");
+                return;
+            }
+
+            // Get breakBlock method: breakBlock(Context, Location, boolean breakEffects)
+            java.lang.reflect.Method breakBlockMethod = blockUtilsClass.getMethod(
+                "breakBlock",
+                contextClass,
+                Location.class,
+                boolean.class
+            );
+
+            final Object finalContext = emptyContext;
+
+            for (NovaBlockData data : novaBlocks) {
+                try {
+                    Location loc = new Location(world,
+                        centerX + data.relX,
+                        centerY + data.relY,
+                        centerZ + data.relZ);
+
+                    // Break the block silently (no effects, no drops - we already captured them)
+                    breakBlockMethod.invoke(null, finalContext, loc, false);
+                    removed++;
+
+                } catch (Exception e) {
+                    // Skip blocks that fail - may have been removed already or aren't Nova blocks
+                    if (addon.getSettings().isDebugEnabled()) {
+                        addon.log("Failed to remove Nova block at " + data.relX + "," + data.relY + "," + data.relZ + ": " + e.getMessage());
+                    }
+                }
+            }
+
+            addon.log("Removed " + removed + "/" + novaBlocks.size() + " Nova blocks before WorldEdit operation");
+
+        } catch (ClassNotFoundException e) {
+            addon.logWarning("Nova BlockUtils class not found - cannot remove blocks: " + e.getMessage());
+        } catch (NoSuchMethodException e) {
+            addon.logWarning("Nova breakBlock method not found - API may have changed: " + e.getMessage());
+        } catch (Exception e) {
+            addon.logWarning("Failed to remove Nova blocks: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove Nova blocks asynchronously (ensures chunks are loaded first)
+     */
+    public void removeNovaBlocksAsync(List<NovaBlockData> novaBlocks, Location center, Consumer<Boolean> callback) {
+        if (!available || novaBlocks == null || novaBlocks.isEmpty()) {
+            callback.accept(true);
+            return;
+        }
+
+        World world = center.getWorld();
+        if (world == null) {
+            callback.accept(false);
+            return;
+        }
+
+        int centerX = center.getBlockX();
+        int centerZ = center.getBlockZ();
+
+        // Find the range from captured blocks
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        for (NovaBlockData data : novaBlocks) {
+            minX = Math.min(minX, centerX + data.relX);
+            maxX = Math.max(maxX, centerX + data.relX);
+            minZ = Math.min(minZ, centerZ + data.relZ);
+            maxZ = Math.max(maxZ, centerZ + data.relZ);
+        }
+
+        // Calculate chunks to load
+        int minChunkX = minX >> 4;
+        int maxChunkX = maxX >> 4;
+        int minChunkZ = minZ >> 4;
+        int maxChunkZ = maxZ >> 4;
+
+        List<CompletableFuture<org.bukkit.Chunk>> chunkFutures = new ArrayList<>();
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                chunkFutures.add(world.getChunkAtAsync(cx, cz));
+            }
+        }
+
+        CompletableFuture.allOf(chunkFutures.toArray(new CompletableFuture[0]))
+            .orTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .thenRun(() -> {
+                // Chunks loaded, now remove on main thread
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                    removeNovaBlocks(novaBlocks, center);
+                    callback.accept(true);
+                });
+            })
+            .exceptionally(throwable -> {
+                addon.logWarning("Nova block removal timed out: " + throwable.getMessage());
+                Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
+                    callback.accept(false);
+                });
+                return null;
+            });
+    }
+
+    /**
      * Data class for storing Nova block information
      */
     public static class NovaBlockData implements Serializable {
