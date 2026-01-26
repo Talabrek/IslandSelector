@@ -16,6 +16,8 @@ import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.RelocationData;
 import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.events.IslandRelocateEvent;
+import world.bentobox.islandselector.integrations.NovaIntegration.NovaBlockData;
+import world.bentobox.islandselector.integrations.NovaIntegration.RestoreResult;
 import world.bentobox.islandselector.models.DimensionConfig;
 import world.bentobox.islandselector.utils.CustomCommandExecutor;
 import world.bentobox.islandselector.utils.GridCoordinate;
@@ -25,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manager for handling island relocation operations
@@ -34,6 +37,9 @@ public class RelocationManager {
     private final IslandSelector addon;
     private final Database<RelocationData> database;
     private Economy economy;
+
+    // Track Nova blocks during relocation (per-dimension)
+    private final Map<UUID, Map<String, List<NovaBlockData>>> relocationNovaBlocks = new ConcurrentHashMap<>();
 
     public RelocationManager(IslandSelector addon) {
         this.addon = addon;
@@ -1573,6 +1579,216 @@ public class RelocationManager {
     private String colorize(String text) {
         return text.replace("&", "\u00A7");
     }
+
+    // ==================== NOVA INTEGRATION ====================
+
+    /**
+     * Check if multi-dimension support is enabled
+     */
+    private boolean isMultiDimensionEnabled() {
+        DimensionManager dimManager = addon.getDimensionManager();
+        return dimManager != null && dimManager.isEnabled();
+    }
+
+    /**
+     * Check if Nova integration is available and enabled
+     */
+    private boolean isNovaEnabled() {
+        return addon.getNovaIntegration() != null
+            && addon.getNovaIntegration().isAvailable()
+            && addon.getSettings().isNovaEnabled();
+    }
+
+    /**
+     * Capture Nova blocks from source island for all dimensions.
+     * Stores captured blocks in relocationNovaBlocks map for later restoration.
+     *
+     * @param playerUUID Player's UUID
+     * @param player Player for progress messages
+     * @return true if capture succeeded (or Nova not enabled)
+     */
+    private boolean captureNovaBlocksForRelocation(UUID playerUUID, Player player) {
+        if (!isNovaEnabled()) {
+            return true;
+        }
+
+        Map<String, List<NovaBlockData>> dimensionBlocks = new HashMap<>();
+
+        if (!isMultiDimensionEnabled()) {
+            // Single dimension: process overworld only
+            World world = addon.getGridManager().getBSkyBlockWorld();
+            if (world != null) {
+                List<NovaBlockData> blocks = captureNovaBlocksForDimension(playerUUID, world);
+                if (blocks != null && !blocks.isEmpty()) {
+                    dimensionBlocks.put("overworld", blocks);
+                }
+            }
+        } else {
+            // Multi-dimension: process all enabled dimensions
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                World world = dimManager.getWorld(config.getDimensionKey());
+                if (world != null) {
+                    List<NovaBlockData> blocks = captureNovaBlocksForDimension(playerUUID, world);
+                    if (blocks != null && !blocks.isEmpty()) {
+                        dimensionBlocks.put(config.getDimensionKey(), blocks);
+                    }
+                }
+            }
+        }
+
+        if (!dimensionBlocks.isEmpty()) {
+            relocationNovaBlocks.put(playerUUID, dimensionBlocks);
+            int totalBlocks = dimensionBlocks.values().stream().mapToInt(List::size).sum();
+            addon.log("Captured " + totalBlocks + " Nova blocks across " + dimensionBlocks.size() + " dimension(s) for relocation");
+        }
+
+        return true;
+    }
+
+    /**
+     * Capture Nova blocks for a single dimension
+     */
+    private List<NovaBlockData> captureNovaBlocksForDimension(UUID playerUUID, World world) {
+        Island island = addon.getIslands().getIsland(world, playerUUID);
+        if (island == null) {
+            return null;
+        }
+
+        Location center = island.getCenter();
+        if (center == null || center.getWorld() == null) {
+            return null;
+        }
+
+        int islandSpacing = addon.getIslandSpacing();
+        int protectionRange = island.getProtectionRange();
+        int range = Math.max(islandSpacing / 2, protectionRange);
+
+        return addon.getNovaIntegration().captureNovaBlocks(center, range);
+    }
+
+    /**
+     * Remove Nova blocks from source island before WorldEdit copy.
+     * Must be called AFTER captureNovaBlocksForRelocation.
+     *
+     * @param playerUUID Player's UUID
+     */
+    private void removeNovaBlocksForRelocation(UUID playerUUID) {
+        if (!isNovaEnabled()) {
+            return;
+        }
+
+        Map<String, List<NovaBlockData>> dimensionBlocks = relocationNovaBlocks.get(playerUUID);
+        if (dimensionBlocks == null || dimensionBlocks.isEmpty()) {
+            return;
+        }
+
+        if (!isMultiDimensionEnabled()) {
+            // Single dimension
+            World world = addon.getGridManager().getBSkyBlockWorld();
+            if (world != null) {
+                List<NovaBlockData> blocks = dimensionBlocks.get("overworld");
+                if (blocks != null && !blocks.isEmpty()) {
+                    removeNovaBlocksForDimension(playerUUID, world, blocks);
+                }
+            }
+        } else {
+            // Multi-dimension
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                List<NovaBlockData> blocks = dimensionBlocks.get(config.getDimensionKey());
+                if (blocks != null && !blocks.isEmpty()) {
+                    World world = dimManager.getWorld(config.getDimensionKey());
+                    if (world != null) {
+                        removeNovaBlocksForDimension(playerUUID, world, blocks);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove Nova blocks for a single dimension
+     */
+    private void removeNovaBlocksForDimension(UUID playerUUID, World world, List<NovaBlockData> blocks) {
+        Island island = addon.getIslands().getIsland(world, playerUUID);
+        if (island == null || island.getCenter() == null) {
+            return;
+        }
+
+        addon.getNovaIntegration().removeNovaBlocks(blocks, island.getCenter());
+    }
+
+    /**
+     * Restore Nova blocks at target location after WorldEdit paste.
+     * Uses blocks captured from source location.
+     *
+     * @param playerUUID Player's UUID
+     * @param player Player for feedback messages
+     * @param targetCenter Target island center location (for offset calculation)
+     */
+    private void restoreNovaBlocksForRelocation(UUID playerUUID, Player player, Location targetCenter) {
+        if (!isNovaEnabled()) {
+            return;
+        }
+
+        Map<String, List<NovaBlockData>> dimensionBlocks = relocationNovaBlocks.remove(playerUUID);
+        if (dimensionBlocks == null || dimensionBlocks.isEmpty()) {
+            return;
+        }
+
+        int totalMachinesRestored = 0;
+        int totalMachinesFailed = 0;
+
+        if (!isMultiDimensionEnabled()) {
+            // Single dimension
+            List<NovaBlockData> blocks = dimensionBlocks.get("overworld");
+            if (blocks != null && !blocks.isEmpty()) {
+                World world = addon.getGridManager().getBSkyBlockWorld();
+                if (world != null) {
+                    // Get the NEW island center after relocation
+                    Island island = addon.getIslands().getIsland(world, playerUUID);
+                    if (island != null && island.getCenter() != null) {
+                        RestoreResult result = addon.getNovaIntegration().restoreNovaBlocks(blocks, island.getCenter());
+                        totalMachinesRestored += result.machinesRestored;
+                        totalMachinesFailed += result.machinesFailed;
+                    }
+                }
+            }
+        } else {
+            // Multi-dimension
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                List<NovaBlockData> blocks = dimensionBlocks.get(config.getDimensionKey());
+                if (blocks != null && !blocks.isEmpty()) {
+                    World world = dimManager.getWorld(config.getDimensionKey());
+                    if (world != null) {
+                        // Get the NEW island center after relocation
+                        Island island = addon.getIslands().getIsland(world, playerUUID);
+                        if (island != null && island.getCenter() != null) {
+                            RestoreResult result = addon.getNovaIntegration().restoreNovaBlocks(blocks, island.getCenter());
+                            totalMachinesRestored += result.machinesRestored;
+                            totalMachinesFailed += result.machinesFailed;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Send feedback to player
+        RestoreResult combinedResult = new RestoreResult(totalMachinesRestored, totalMachinesFailed);
+        String message = combinedResult.getFeedbackMessage();
+        if (message != null) {
+            player.sendMessage(colorize("&a" + message));
+        }
+
+        // Log warnings if failures occurred
+        if (combinedResult.hasFailures()) {
+            addon.logWarning("Some Nova machines failed to restore during relocation for " + playerUUID);
+        }
+    }
+
+    // ==================== CUSTOM COMMANDS ====================
 
     /**
      * Execute custom commands after relocation completes.
