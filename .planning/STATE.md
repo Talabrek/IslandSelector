@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-26)
 
 Milestone: v1.2 Nova Integration
 Phase: 14 of 15 (Operation Integration)
-Plan: 3 of 4 complete (14-01, 14-02, 14-03)
+Plan: 2 of 4 complete (14-01, 14-02)
 Status: In progress
-Last activity: 2026-01-27 — Completed 14-03-PLAN.md (BackupManager integration)
+Last activity: 2026-01-27 — Completed 14-02-PLAN.md (RelocationManager integration)
 
 Progress: [█████████████░░░░░░░] 87% (13/15 phases complete from all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19 (5 v1.0 + 4 v1.1 + 5 v1.1.1 + 5 v1.2)
-- Average duration: 4.0 minutes
-- Total execution time: ~74 minutes
+- Total plans completed: 18 (5 v1.0 + 4 v1.1 + 5 v1.1.1 + 4 v1.2)
+- Average duration: 4.2 minutes
+- Total execution time: ~76 minutes
 
 ## Accumulated Context
 
@@ -68,10 +68,11 @@ Full decision log in PROJECT.md Key Decisions table.
 - Target slot's Nova blocks loaded from storage (not copied from source)
 - Combined RestoreResult feedback from all dimensions for single player message
 
-**Phase 14 decisions (14-03 BackupManager):**
-- Nova blocks stored in separate .nova files alongside .schem files
-- Capture/restore happens AFTER schematic operation succeeds (fail-safe)
-- Machine restoration feedback logged to console only (not propagated to player)
+**Phase 14 decisions (14-02 RelocationManager):**
+- Nova blocks captured before WorldEdit copy, removed after capture, restored after paste
+- Temporary storage in relocationNovaBlocks map (per-dimension) during relocation
+- Error cleanup on all error and exception paths prevents memory leaks
+- Admin feedback routes to target player if online, otherwise admin player
 
 ### Pending Todos
 
@@ -83,10 +84,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-27T02:56:30Z
-Stopped at: Completed 14-03-PLAN.md (BackupManager integration)
+Last session: 2026-01-27T03:05:30Z
+Stopped at: Completed 14-02-PLAN.md (RelocationManager integration)
 Resume file: None
-Resume: Continue Phase 14 (remaining plan: 14-04 Multi-dimension)
+Resume: Continue Phase 14 (remaining plans: 14-03 BackupManager, 14-04 Multi-dimension)
 
 ---
-*State updated: 2026-01-27 after 14-03 completion*
+*State updated: 2026-01-27 after 14-02 completion*
