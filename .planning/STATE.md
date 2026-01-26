@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-01-26)
 
 **Core value:** Players can visually select their island location from a grid-based GUI
-**Current focus:** v1.2 Nova Integration - Phase 13 (State Preservation)
+**Current focus:** v1.2 Nova Integration - Phase 14 (Operation Integration)
 
 ## Current Position
 
 Milestone: v1.2 Nova Integration
-Phase: 13 of 15 (State Preservation)
+Phase: 14 of 15 (Operation Integration)
 Plan: 1 of 1 complete
-Status: Phase complete - ready for Phase 14
-Last activity: 2026-01-26 — Completed 13-01-PLAN.md (RestoreResult feedback)
+Status: In progress
+Last activity: 2026-01-27 — Completed 14-01-PLAN.md (SlotSwitchManager integration)
 
 Progress: [█████████████░░░░░░░] 87% (13/15 phases complete from all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17 (5 v1.0 + 4 v1.1 + 5 v1.1.1 + 3 v1.2)
-- Average duration: 3.5 minutes
-- Total execution time: ~61 minutes
+- Total plans completed: 18 (5 v1.0 + 4 v1.1 + 5 v1.1.1 + 4 v1.2)
+- Average duration: 3.6 minutes
+- Total execution time: ~66 minutes
 
 ## Accumulated Context
 
@@ -62,6 +62,12 @@ Full decision log in PROJECT.md Key Decisions table.
 - Separate tracking of machinesRestored and machinesFailed
 - getFeedbackMessage returns null when no machines (callers can skip message)
 
+**Phase 14 decisions (14-01 SlotSwitchManager):**
+- Nova blocks captured after home saving (Step 1.8) for timing consistency
+- Nova blocks removed before WorldEdit save for clean schematic operations
+- Target slot's Nova blocks loaded from storage (not copied from source)
+- Combined RestoreResult feedback from all dimensions for single player message
+
 ### Pending Todos
 
 None.
@@ -72,10 +78,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-26T17:24:06Z
-Stopped at: Completed 13-01-PLAN.md (RestoreResult feedback)
+Last session: 2026-01-27T03:00:34Z
+Stopped at: Completed 14-01-PLAN.md (SlotSwitchManager integration)
 Resume file: None
-Resume: Begin Phase 14 (Operation Integration)
+Resume: Continue Phase 14 (remaining plans: 14-02 RelocationManager, 14-03 BackupManager)
 
 ---
-*State updated: 2026-01-26 after Phase 13 completion*
+*State updated: 2026-01-27 after 14-01 completion*
