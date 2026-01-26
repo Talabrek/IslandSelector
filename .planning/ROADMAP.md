@@ -5,7 +5,7 @@
 - ✅ **v1.0 Cleanup** - Phases 1-5 (shipped 2026-01-17)
 - ✅ **v1.1 Simplification** - Phases 6-8 (shipped 2026-01-19)
 - ✅ **v1.1.1 Bugfixes** - Phases 9-10 (shipped 2026-01-21)
-- ✅ **v1.2 Nova Integration** - Phases 11-15 (shipped 2026-01-27)
+- ✅ **v1.2 Nova Integration** - Phases 11-15 (shipped 2026-01-27) → [archive](milestones/v1.2-ROADMAP.md)
 
 ## Phases
 
@@ -102,80 +102,47 @@ Plans:
 
 </details>
 
-### 🚧 v1.2 Nova Integration (In Progress)
+<details>
+<summary>✅ v1.2 Nova Integration (Phases 11-15) - SHIPPED 2026-01-27</summary>
 
-**Milestone Goal:** Preserve Nova machine state (inventory, energy, owner) during island operations
-
-#### Phase 11: Foundation
+### Phase 11: Foundation
 **Goal**: Nova 0.17+ API integration functional with config control
-**Depends on**: Phase 10
-**Requirements**: NOVA-01, NOVA-14
-**Success Criteria** (what must be TRUE):
-  1. NovaIntegration detects Nova 0.17+ correctly using updated reflection paths
-  2. Player sees "Nova integration enabled" message when available
-  3. Config option `nova.enabled` controls whether Nova integration runs
-  4. System gracefully degrades when Nova not installed or disabled
 **Plans**: 1 plan
 
 Plans:
-- [x] 11-01-PLAN.md — Add Nova config toggle and verify 0.17+ API paths
+- [x] 11-01: Add Nova config toggle and verify 0.17+ API paths
 
-#### Phase 12: Core Capture and Restore
+### Phase 12: Core Capture and Restore
 **Goal**: Nova blocks captured and restored with proper lifecycle management
-**Depends on**: Phase 11
-**Requirements**: NOVA-02, NOVA-03, NOVA-04
-**Success Criteria** (what must be TRUE):
-  1. System captures all Nova blocks in island region before operations
-  2. Nova blocks properly removed via BlockUtils.breakBlock() before WorldEdit operations
-  3. Nova blocks restore at correct positions after WorldEdit paste completes
-  4. Backing block state preserved (no blocks become air or vanilla materials)
 **Plans**: 1 plan
 
 Plans:
-- [x] 12-01-PLAN.md — Enhance capture with TileEntity drops, add removeNovaBlocks method
+- [x] 12-01: Enhance capture with TileEntity drops, add removeNovaBlocks method
 
-#### Phase 13: State Preservation
+### Phase 13: State Preservation
 **Goal**: Nova machine inventories and owners preserved through operations
-**Depends on**: Phase 12
-**Requirements**: NOVA-05, NOVA-06, NOVA-07, NOVA-08
-**Success Criteria** (what must be TRUE):
-  1. Machine inventory contents preserved (items don't disappear)
-  2. Machine owner preserved (ownership doesn't reset)
-  3. Player sees "Preserved 23 Nova machines" feedback message after operations
-  4. Player sees "3 machines couldn't be restored" error message if restoration fails
 **Plans**: 1 plan
 
 Plans:
-- [x] 13-01-PLAN.md — Add RestoreResult return type with feedback message generation
+- [x] 13-01: Add RestoreResult return type with feedback message generation
 
-#### Phase 14: Operation Integration
+### Phase 14: Operation Integration
 **Goal**: Nova integration hooks into all island operation workflows
-**Depends on**: Phase 13
-**Requirements**: NOVA-09, NOVA-10, NOVA-11, NOVA-12
-**Success Criteria** (what must be TRUE):
-  1. Island relocation preserves Nova machines (RelocationManager integration)
-  2. Slot switching preserves Nova machines (SlotSwitchManager integration)
-  3. Backup creation includes Nova machines (BackupManager integration)
-  4. Multi-dimension islands process Nova blocks in all dimensions (overworld, nether, end)
 **Plans**: 3 plans
 
 Plans:
-- [x] 14-01-PLAN.md — Integrate Nova preservation into SlotSwitchManager workflow
-- [x] 14-02-PLAN.md — Integrate Nova preservation into RelocationManager workflow
-- [x] 14-03-PLAN.md — Integrate Nova preservation into BackupManager workflow
+- [x] 14-01: Integrate Nova preservation into SlotSwitchManager workflow
+- [x] 14-02: Integrate Nova preservation into RelocationManager workflow
+- [x] 14-03: Integrate Nova preservation into BackupManager workflow
 
-#### Phase 15: Performance and Polish
+### Phase 15: Performance and Polish
 **Goal**: Nova integration optimized for production use
-**Depends on**: Phase 14
-**Requirements**: NOVA-13
-**Success Criteria** (what must be TRUE):
-  1. Nova block scanning completes in under 5 seconds for typical islands
-  2. Reflection method calls cached (not re-looked-up on every operation)
-  3. Large islands (100+ Nova blocks) process without server lag
 **Plans**: 1 plan
 
 Plans:
-- [x] 15-01-PLAN.md — Cache reflection lookups and add performance timing
+- [x] 15-01: Cache reflection lookups and add performance timing
+
+</details>
 
 ## Progress
 

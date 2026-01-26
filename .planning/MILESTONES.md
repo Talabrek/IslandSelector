@@ -1,5 +1,33 @@
 # Project Milestones: IslandSelector
 
+## v1.2 Nova Integration (Shipped: 2026-01-27)
+
+**Delivered:** Full Nova machine state preservation (inventory, owner) during island operations with performance-optimized reflection caching.
+
+**Phases completed:** 11-15 (7 plans total)
+
+**Key accomplishments:**
+
+- Nova 0.17+ API integration with config control and graceful degradation
+- Full machine state preservation via TileEntity.getDrops(true) serialization
+- Slot switching, relocation, and backup operations all preserve Nova machines
+- Multi-dimension support across all island operations (overworld, nether, end)
+- ReflectionCache implementation eliminates 5-10x reflection overhead
+- Player feedback messages show preserved machine counts
+
+**Stats:**
+
+- 80 Java source files
+- 29,946 lines of Java code (+1,024 net)
+- 5 phases, 7 plans
+- 7-day completion (2026-01-20 → 2026-01-27)
+
+**Git range:** `a2af05c` → `bb182ca`
+
+**What's next:** Planning next milestone.
+
+---
+
 ## v1.1.1 Bugfixes (Shipped: 2026-01-21)
 
 **Delivered:** Fixed three independent bugs: level display accuracy, warp sign-based visit controls, and relocation safety.
