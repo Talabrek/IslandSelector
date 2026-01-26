@@ -8,8 +8,9 @@ import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.islandselector.IslandSelector;
 import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.models.DimensionConfig;
+import world.bentobox.islandselector.integrations.NovaIntegration.NovaBlockData;
 
-import java.io.File;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -989,6 +990,77 @@ public class SlotManager {
         } catch (NumberFormatException e) {
             addon.logError("Failed to deserialize home offset: " + serialized);
             return null;
+        }
+    }
+
+    /**
+     * Save Nova blocks for a slot.
+     * Stores to: slots/{playerUUID}/slot-{number}.nova
+     *
+     * @param playerUUID Player UUID
+     * @param slotNumber Slot number
+     * @param novaBlocks Map of dimension key to Nova block list
+     */
+    public void saveNovaBlocks(UUID playerUUID, int slotNumber, Map<String, List<NovaBlockData>> novaBlocks) {
+        if (novaBlocks == null || novaBlocks.isEmpty()) {
+            return;
+        }
+
+        File novaFile = getNovaBlocksFile(playerUUID, slotNumber);
+        novaFile.getParentFile().mkdirs();
+
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(novaFile))) {
+            oos.writeObject(novaBlocks);
+            addon.log("Saved Nova blocks for player " + playerUUID + " slot " + slotNumber);
+        } catch (IOException e) {
+            addon.logError("Failed to save Nova blocks for slot " + slotNumber + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load Nova blocks for a slot.
+     *
+     * @param playerUUID Player UUID
+     * @param slotNumber Slot number
+     * @return Map of dimension key to Nova block list, or null if none saved
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, List<NovaBlockData>> loadNovaBlocks(UUID playerUUID, int slotNumber) {
+        File novaFile = getNovaBlocksFile(playerUUID, slotNumber);
+        if (!novaFile.exists()) {
+            return null;
+        }
+
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(novaFile))) {
+            Object obj = ois.readObject();
+            if (obj instanceof Map) {
+                addon.log("Loaded Nova blocks for player " + playerUUID + " slot " + slotNumber);
+                return (Map<String, List<NovaBlockData>>) obj;
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            addon.logError("Failed to load Nova blocks for slot " + slotNumber + ": " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the file path for Nova blocks storage
+     */
+    private File getNovaBlocksFile(UUID playerUUID, int slotNumber) {
+        File slotDir = new File(addon.getDataFolder(), "slots" + File.separator + playerUUID.toString());
+        return new File(slotDir, "slot-" + slotNumber + ".nova");
+    }
+
+    /**
+     * Delete Nova blocks file when slot is deleted
+     */
+    public void deleteNovaBlocks(UUID playerUUID, int slotNumber) {
+        File novaFile = getNovaBlocksFile(playerUUID, slotNumber);
+        if (novaFile.exists()) {
+            if (novaFile.delete()) {
+                addon.log("Deleted Nova blocks file for player " + playerUUID + " slot " + slotNumber);
+            }
         }
     }
 

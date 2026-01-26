@@ -11,8 +11,11 @@ import world.bentobox.islandselector.database.SlotData;
 import world.bentobox.islandselector.events.SlotSwitchEvent;
 import world.bentobox.islandselector.models.DimensionConfig;
 import world.bentobox.islandselector.utils.CustomCommandExecutor;
+import world.bentobox.islandselector.integrations.NovaIntegration.NovaBlockData;
+import world.bentobox.islandselector.integrations.NovaIntegration.RestoreResult;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +35,9 @@ public class SlotSwitchManager {
 
     // Track players currently in a switch operation to prevent concurrent switches
     private final Set<UUID> switchingPlayers = ConcurrentHashMap.newKeySet();
+
+    // Track Nova blocks during slot switch (per-dimension)
+    private final Map<UUID, Map<String, List<NovaBlockData>>> switchNovaBlocks = new ConcurrentHashMap<>();
 
     public SlotSwitchManager(IslandSelector addon) {
         this.addon = addon;
@@ -87,6 +93,8 @@ public class SlotSwitchManager {
             // Check if event was cancelled
             if (event.isCancelled()) {
                 switchingPlayers.remove(playerUUID);
+                // Clean up any captured Nova blocks on cancellation
+                switchNovaBlocks.remove(playerUUID);
                 addon.log("SlotSwitchEvent cancelled for " + player.getName() +
                          " from slot " + fromSlot.getSlotNumber() + " to " + toSlot.getSlotNumber());
                 if (event.getCancellationReason() != null) {
@@ -166,6 +174,19 @@ public class SlotSwitchManager {
                             }
                         }
                     }
+                }
+
+                // Step 1.8: Capture and remove Nova blocks before schematic save
+                if (isNovaEnabled()) {
+                    sendProgress(player, "&eCapturing Nova machines...");
+                    captureNovaBlocksForSwitch(playerUUID, player);
+                    removeNovaBlocksForSwitch(playerUUID);
+                }
+
+                // Save captured Nova blocks for the current slot (for later restoration when switching back)
+                Map<String, List<NovaBlockData>> capturedNova = switchNovaBlocks.remove(playerUUID);
+                if (capturedNova != null && !capturedNova.isEmpty()) {
+                    addon.getSlotManager().saveNovaBlocks(playerUUID, fromSlot.getSlotNumber(), capturedNova);
                 }
 
                 // Step 2: Save current island to schematic (multi-dimension aware)
@@ -256,6 +277,12 @@ public class SlotSwitchManager {
                     }
                 }
 
+                // Step 4.65: Restore Nova blocks for the target slot
+                if (isNovaEnabled()) {
+                    sendProgress(player, "&eRestoring Nova machines...");
+                    restoreNovaBlocksForSwitch(playerUUID, player, toSlot.getSlotNumber());
+                }
+
                 // Step 4.7: Update blueprint permissions for the target slot
                 // This must run on main thread as it modifies player permissions
                 String blueprintName = toSlot.getBlueprintBundle();
@@ -295,6 +322,8 @@ public class SlotSwitchManager {
                 addon.logError("Error during slot switch for " + player.getName() + ": " + e.getMessage());
                 e.printStackTrace();
                 switchingPlayers.remove(playerUUID);
+                // Clean up any captured Nova blocks on error
+                switchNovaBlocks.remove(playerUUID);
                 sendError(player, "&cAn error occurred during slot switch. Please contact an admin.");
             }
         });
@@ -1004,6 +1033,206 @@ public class SlotSwitchManager {
             addon.getSettings().getSlotSwitchCommandScope(),
             placeholders
         );
+    }
+
+    /**
+     * Check if Nova integration is available and enabled
+     */
+    private boolean isNovaEnabled() {
+        return addon.getNovaIntegration() != null
+            && addon.getNovaIntegration().isAvailable()
+            && addon.getSettings().isNovaEnabled();
+    }
+
+    /**
+     * Capture Nova blocks for all dimensions during slot save.
+     * Stores captured blocks in switchNovaBlocks map for later restoration.
+     *
+     * @param playerUUID Player's UUID
+     * @param player Player for progress messages
+     * @return true if capture succeeded (or Nova not enabled)
+     */
+    private boolean captureNovaBlocksForSwitch(UUID playerUUID, Player player) {
+        if (!isNovaEnabled()) {
+            return true;
+        }
+
+        Map<String, List<NovaBlockData>> dimensionBlocks = new HashMap<>();
+
+        if (!isMultiDimensionEnabled()) {
+            // Single dimension: process overworld only
+            World world = addon.getGridManager().getBSkyBlockWorld();
+            if (world != null) {
+                List<NovaBlockData> blocks = captureNovaBlocksForDimension(playerUUID, world);
+                if (blocks != null && !blocks.isEmpty()) {
+                    dimensionBlocks.put("overworld", blocks);
+                }
+            }
+        } else {
+            // Multi-dimension: process all enabled dimensions
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                World world = dimManager.getWorld(config.getDimensionKey());
+                if (world != null) {
+                    List<NovaBlockData> blocks = captureNovaBlocksForDimension(playerUUID, world);
+                    if (blocks != null && !blocks.isEmpty()) {
+                        dimensionBlocks.put(config.getDimensionKey(), blocks);
+                    }
+                }
+            }
+        }
+
+        if (!dimensionBlocks.isEmpty()) {
+            switchNovaBlocks.put(playerUUID, dimensionBlocks);
+            int totalBlocks = dimensionBlocks.values().stream().mapToInt(List::size).sum();
+            addon.log("Captured " + totalBlocks + " Nova blocks across " + dimensionBlocks.size() + " dimension(s) for slot switch");
+        }
+
+        return true;
+    }
+
+    /**
+     * Capture Nova blocks for a single dimension
+     */
+    private List<NovaBlockData> captureNovaBlocksForDimension(UUID playerUUID, World world) {
+        Island island = addon.getIslands().getIsland(world, playerUUID);
+        if (island == null) {
+            return null;
+        }
+
+        Location center = island.getCenter();
+        if (center == null || center.getWorld() == null) {
+            return null;
+        }
+
+        int islandSpacing = addon.getIslandSpacing();
+        int protectionRange = island.getProtectionRange();
+        int range = Math.max(islandSpacing / 2, protectionRange);
+
+        return addon.getNovaIntegration().captureNovaBlocks(center, range);
+    }
+
+    /**
+     * Remove Nova blocks for all dimensions before WorldEdit save.
+     * Must be called AFTER captureNovaBlocksForSwitch.
+     *
+     * @param playerUUID Player's UUID
+     */
+    private void removeNovaBlocksForSwitch(UUID playerUUID) {
+        if (!isNovaEnabled()) {
+            return;
+        }
+
+        Map<String, List<NovaBlockData>> dimensionBlocks = switchNovaBlocks.get(playerUUID);
+        if (dimensionBlocks == null || dimensionBlocks.isEmpty()) {
+            return;
+        }
+
+        if (!isMultiDimensionEnabled()) {
+            // Single dimension
+            World world = addon.getGridManager().getBSkyBlockWorld();
+            if (world != null) {
+                List<NovaBlockData> blocks = dimensionBlocks.get("overworld");
+                if (blocks != null && !blocks.isEmpty()) {
+                    removeNovaBlocksForDimension(playerUUID, world, blocks);
+                }
+            }
+        } else {
+            // Multi-dimension
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                List<NovaBlockData> blocks = dimensionBlocks.get(config.getDimensionKey());
+                if (blocks != null && !blocks.isEmpty()) {
+                    World world = dimManager.getWorld(config.getDimensionKey());
+                    if (world != null) {
+                        removeNovaBlocksForDimension(playerUUID, world, blocks);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove Nova blocks for a single dimension
+     */
+    private void removeNovaBlocksForDimension(UUID playerUUID, World world, List<NovaBlockData> blocks) {
+        Island island = addon.getIslands().getIsland(world, playerUUID);
+        if (island == null || island.getCenter() == null) {
+            return;
+        }
+
+        addon.getNovaIntegration().removeNovaBlocks(blocks, island.getCenter());
+    }
+
+    /**
+     * Restore Nova blocks for all dimensions after WorldEdit load.
+     * Uses blocks stored from the target slot (not the source slot).
+     *
+     * @param playerUUID Player's UUID
+     * @param player Player for feedback messages
+     * @param toSlotNumber Target slot number (to load Nova blocks from storage)
+     */
+    private void restoreNovaBlocksForSwitch(UUID playerUUID, Player player, int toSlotNumber) {
+        if (!isNovaEnabled()) {
+            return;
+        }
+
+        // Load Nova blocks from slot storage (if any were saved for this slot)
+        Map<String, List<NovaBlockData>> dimensionBlocks = addon.getSlotManager()
+            .loadNovaBlocks(playerUUID, toSlotNumber);
+
+        if (dimensionBlocks == null || dimensionBlocks.isEmpty()) {
+            return;
+        }
+
+        int totalMachinesRestored = 0;
+        int totalMachinesFailed = 0;
+
+        if (!isMultiDimensionEnabled()) {
+            // Single dimension
+            List<NovaBlockData> blocks = dimensionBlocks.get("overworld");
+            if (blocks != null && !blocks.isEmpty()) {
+                World world = addon.getGridManager().getBSkyBlockWorld();
+                if (world != null) {
+                    RestoreResult result = restoreNovaBlocksForDimension(playerUUID, world, blocks);
+                    totalMachinesRestored += result.machinesRestored;
+                    totalMachinesFailed += result.machinesFailed;
+                }
+            }
+        } else {
+            // Multi-dimension
+            DimensionManager dimManager = addon.getDimensionManager();
+            for (DimensionConfig config : dimManager.getEnabledDimensions()) {
+                List<NovaBlockData> blocks = dimensionBlocks.get(config.getDimensionKey());
+                if (blocks != null && !blocks.isEmpty()) {
+                    World world = dimManager.getWorld(config.getDimensionKey());
+                    if (world != null) {
+                        RestoreResult result = restoreNovaBlocksForDimension(playerUUID, world, blocks);
+                        totalMachinesRestored += result.machinesRestored;
+                        totalMachinesFailed += result.machinesFailed;
+                    }
+                }
+            }
+        }
+
+        // Send feedback to player
+        RestoreResult combinedResult = new RestoreResult(totalMachinesRestored, totalMachinesFailed);
+        String message = combinedResult.getFeedbackMessage();
+        if (message != null) {
+            sendProgress(player, "&a" + message);
+        }
+    }
+
+    /**
+     * Restore Nova blocks for a single dimension
+     */
+    private RestoreResult restoreNovaBlocksForDimension(UUID playerUUID, World world, List<NovaBlockData> blocks) {
+        Island island = addon.getIslands().getIsland(world, playerUUID);
+        if (island == null || island.getCenter() == null) {
+            return new RestoreResult(0, 0);
+        }
+
+        return addon.getNovaIntegration().restoreNovaBlocks(blocks, island.getCenter());
     }
 
     // ==================== MULTI-DIMENSION SUPPORT ====================

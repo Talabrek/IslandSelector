@@ -97,6 +97,11 @@ public class BackupManager {
 
             if (success) {
                 addon.log("Backup created for player " + playerUUID + " slot " + slotNumber + ": " + backupFile.getName());
+
+                // Also capture Nova blocks if available
+                if (isNovaEnabled()) {
+                    captureAndSaveNovaBlocksForBackup(playerUUID, world, backupFile);
+                }
             } else {
                 return false;
             }
@@ -245,6 +250,13 @@ public class BackupManager {
 
             if (success) {
                 addon.log("Auto-backup created for player " + playerUUID + " slot " + slotNumber);
+
+                // Also capture Nova blocks if available
+                if (isNovaEnabled()) {
+                    if (world != null) {
+                        captureAndSaveNovaBlocksForBackup(playerUUID, world, backupFile);
+                    }
+                }
             }
             return success;
 
@@ -605,6 +617,11 @@ public class BackupManager {
             if (success) {
                 addon.log("Backup created for player " + playerUUID + " slot " + slotNumber +
                         " dimension " + dimensionKey + ": " + backupFile.getName());
+
+                // Also capture Nova blocks for this dimension
+                if (isNovaEnabled()) {
+                    captureAndSaveNovaBlocksForBackup(playerUUID, world, backupFile);
+                }
             }
 
             // Clean up old backups for this dimension
@@ -686,6 +703,11 @@ public class BackupManager {
             if (success) {
                 addon.log("Auto-backup created for player " + playerUUID + " slot " + slotNumber +
                         " dimension " + dimensionKey);
+
+                // Also capture Nova blocks for this dimension
+                if (isNovaEnabled()) {
+                    captureAndSaveNovaBlocksForBackup(playerUUID, world, backupFile);
+                }
             }
 
             return success;
