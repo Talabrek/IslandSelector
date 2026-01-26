@@ -367,11 +367,30 @@ public class RelocationManager {
             final java.util.Map<String, RelativeHome> capturedHomes = captureHomesRelativeToCenter(island, oldCenter);
             addon.log("Admin relocation: Captured " + capturedHomes.size() + " island homes");
 
+            // Capture Nova blocks before WorldEdit copy (admin relocation)
+            if (isNovaEnabled()) {
+                sendProgressToAdmin(adminUUID, "&eCapturing Nova machines...");
+                // Get the online target player if available for progress messages
+                Player targetPlayer = Bukkit.getPlayer(targetUUID);
+                if (targetPlayer != null && targetPlayer.isOnline()) {
+                    captureNovaBlocksForRelocation(targetUUID, targetPlayer);
+                } else {
+                    // Admin is performing relocation for offline player - use admin for messages
+                    Player adminPlayer = Bukkit.getPlayer(adminUUID);
+                    if (adminPlayer != null) {
+                        captureNovaBlocksForRelocation(targetUUID, adminPlayer);
+                    }
+                }
+                removeNovaBlocksForRelocation(targetUUID);
+            }
+
             // Save island as schematic
             sendProgressToAdmin(adminUUID, "&eSaving island...");
             Object clipboard = saveIslandToClipboard(island, oldCenter);
             if (clipboard == null) {
                 sendErrorToAdmin(adminUUID, "&cFailed to save island!");
+                // Clean up any captured Nova blocks on error
+                relocationNovaBlocks.remove(targetUUID);
                 return;
             }
 
@@ -396,6 +415,25 @@ public class RelocationManager {
             sendProgressToAdmin(adminUUID, "&ePasting island at new location...");
             pasteIslandFromClipboard(clipboard, newCenter);
             Thread.sleep(1000);
+
+            // Restore Nova blocks at new location (admin relocation)
+            if (isNovaEnabled()) {
+                sendProgressToAdmin(adminUUID, "&eRestoring Nova machines...");
+                // Get the online target player if available for feedback messages
+                Player targetPlayer = Bukkit.getPlayer(targetUUID);
+                if (targetPlayer != null && targetPlayer.isOnline()) {
+                    restoreNovaBlocksForRelocation(targetUUID, targetPlayer, newCenter);
+                } else {
+                    // Admin is performing relocation for offline player - use admin for messages
+                    Player adminPlayer = Bukkit.getPlayer(adminUUID);
+                    if (adminPlayer != null) {
+                        restoreNovaBlocksForRelocation(targetUUID, adminPlayer, newCenter);
+                    } else {
+                        // Both offline - just restore without feedback
+                        relocationNovaBlocks.remove(targetUUID);
+                    }
+                }
+            }
 
             // Update BSkyBlock island data (on main thread)
             final int finalNewWorldX = newWorldX;
@@ -524,6 +562,8 @@ public class RelocationManager {
             addon.logError("Error during admin island relocation for " + targetName + ": " + e.getMessage());
             e.printStackTrace();
             sendErrorToAdmin(adminUUID, "&cAn error occurred during relocation.");
+            // Clean up any captured Nova blocks on error
+            relocationNovaBlocks.remove(targetUUID);
         }
     }
 
@@ -707,9 +747,18 @@ public class RelocationManager {
             final CapturedSpawnPoints capturedSpawnPoints = captureSpawnPoints(island, oldCenter);
             addon.log("Captured " + capturedSpawnPoints.spawnPoints.size() + " spawn points for relocation");
 
+            // Capture Nova blocks before WorldEdit copy
+            if (isNovaEnabled()) {
+                sendProgress(player, "&eCapturing Nova machines...");
+                captureNovaBlocksForRelocation(playerUUID, player);
+                removeNovaBlocksForRelocation(playerUUID);
+            }
+
             saveIslandToClipboardAsync(island, oldCenter, clipboard -> {
                 if (clipboard == null) {
                     sendError(player, "&cFailed to save island!");
+                    // Clean up any captured Nova blocks on error
+                    relocationNovaBlocks.remove(playerUUID);
                     return;
                 }
 
@@ -724,6 +773,8 @@ public class RelocationManager {
                     clearIslandBlocksAsync(island, oldCenter, clearSuccess -> {
                         if (!clearSuccess) {
                             sendError(player, "&cFailed to clear old location!");
+                            // Clean up any captured Nova blocks on error
+                            relocationNovaBlocks.remove(playerUUID);
                             return;
                         }
 
@@ -732,6 +783,8 @@ public class RelocationManager {
                         pasteIslandFromClipboardAsync(clipboard, newCenter, pasteSuccess -> {
                             if (!pasteSuccess) {
                                 sendError(player, "&cFailed to paste island at new location!");
+                                // Clean up any captured Nova blocks on error
+                                relocationNovaBlocks.remove(playerUUID);
                                 return;
                             }
 
@@ -741,6 +794,12 @@ public class RelocationManager {
                                 // Use EntityStorage for full data restoration (villager professions, trades, etc.)
                                 int restoredCount = addon.getEntityStorage().restoreEntitiesInMemory(capturedEntities, newCenter);
                                 addon.log("Restored " + restoredCount + " entities at new location");
+
+                                // Restore Nova blocks at new location
+                                if (isNovaEnabled()) {
+                                    sendProgress(player, "&eRestoring Nova machines...");
+                                    restoreNovaBlocksForRelocation(playerUUID, player, newCenter);
+                                }
 
                                 // Step 5: Relocate dimension blocks (nether/end)
                                 sendProgress(player, "&eRelocating dimension islands...");
