@@ -160,9 +160,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Integrate Nova preservation into SlotSwitchManager workflow
-- [ ] 14-02-PLAN.md — Integrate Nova preservation into RelocationManager workflow
-- [ ] 14-03-PLAN.md — Integrate Nova preservation into BackupManager workflow
+- [x] 14-01-PLAN.md — Integrate Nova preservation into SlotSwitchManager workflow
+- [x] 14-02-PLAN.md — Integrate Nova preservation into RelocationManager workflow
+- [x] 14-03-PLAN.md — Integrate Nova preservation into BackupManager workflow
 
 #### Phase 15: Performance and Polish
 **Goal**: Nova integration optimized for production use
@@ -197,5 +197,5 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 15
 | 11. Foundation | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 12. Core Capture and Restore | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 13. State Preservation | v1.2 | 1/1 | Complete | 2026-01-27 |
-| 14. Operation Integration | v1.2 | 0/3 | Not started | - |
+| 14. Operation Integration | v1.2 | 3/3 | Complete | 2026-01-27 |
 | 15. Performance and Polish | v1.2 | 0/TBD | Not started | - |

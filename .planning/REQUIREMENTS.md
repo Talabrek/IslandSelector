@@ -20,10 +20,10 @@ Requirements for Nova Integration milestone. Each maps to roadmap phases.
 
 ### Operation Integration
 
-- [ ] **NOVA-09**: RelocationManager calls NovaIntegration before/after island move
-- [ ] **NOVA-10**: SlotSwitchManager calls NovaIntegration during slot save/load
-- [ ] **NOVA-11**: BackupManager calls NovaIntegration during backup/restore
-- [ ] **NOVA-12**: Nova integration handles multi-dimension islands (all dimensions processed)
+- [x] **NOVA-09**: RelocationManager calls NovaIntegration before/after island move
+- [x] **NOVA-10**: SlotSwitchManager calls NovaIntegration during slot save/load
+- [x] **NOVA-11**: BackupManager calls NovaIntegration during backup/restore
+- [x] **NOVA-12**: Nova integration handles multi-dimension islands (all dimensions processed)
 - [ ] **NOVA-13**: Nova block scanning optimized with caching for performance
 
 ### Configuration
@@ -71,10 +71,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NOVA-06 | Phase 13 | Complete |
 | NOVA-07 | Phase 13 | Complete |
 | NOVA-08 | Phase 13 | Complete |
-| NOVA-09 | Phase 14 | Pending |
-| NOVA-10 | Phase 14 | Pending |
-| NOVA-11 | Phase 14 | Pending |
-| NOVA-12 | Phase 14 | Pending |
+| NOVA-09 | Phase 14 | Complete |
+| NOVA-10 | Phase 14 | Complete |
+| NOVA-11 | Phase 14 | Complete |
+| NOVA-12 | Phase 14 | Complete |
 | NOVA-13 | Phase 15 | Pending |
 | NOVA-14 | Phase 11 | Complete |
 
@@ -85,4 +85,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-26*
-*Last updated: 2026-01-27 after Phase 13 completion*
+*Last updated: 2026-01-27 after Phase 14 completion*
