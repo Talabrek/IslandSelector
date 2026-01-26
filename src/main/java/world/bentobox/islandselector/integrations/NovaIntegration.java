@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.inventory.ItemStack;
 import world.bentobox.islandselector.IslandSelector;
 
 import java.io.*;
@@ -138,6 +139,17 @@ public class NovaIntegration {
                 "getBlockState", Location.class
             );
 
+            // Get getTileEntity method for drop capture
+            java.lang.reflect.Method getTileEntityMethod = worldDataManagerClass.getMethod(
+                "getTileEntity", Location.class
+            );
+
+            // Get TileEntity class for getDrops method
+            Class<?> tileEntityClass = Class.forName("xyz.xenondevs.nova.world.block.tileentity.TileEntity");
+            java.lang.reflect.Method getDropsMethod = tileEntityClass.getMethod("getDrops", boolean.class);
+
+            int blocksWithTileData = 0;
+
             for (int x = centerX - range; x <= centerX + range; x++) {
                 for (int z = centerZ - range; z <= centerZ + range; z++) {
                     for (int y = minY; y < maxY; y++) {
@@ -152,10 +164,25 @@ public class NovaIntegration {
                                 java.lang.reflect.Method getIdMethod = blockState.getClass().getMethod("getId");
                                 Object blockId = getIdMethod.invoke(blockState);
 
-                                // Store relative position and block ID
+                                // Capture TileEntity drops if this is a tile entity block
+                                List<ItemStack> drops = null;
+                                try {
+                                    Object tileEntity = getTileEntityMethod.invoke(worldDataManager, loc);
+                                    if (tileEntity != null) {
+                                        @SuppressWarnings("unchecked")
+                                        List<ItemStack> capturedDrops = (List<ItemStack>) getDropsMethod.invoke(tileEntity, true);
+                                        drops = capturedDrops;
+                                        blocksWithTileData++;
+                                    }
+                                } catch (Exception te) {
+                                    // Not a tile entity or getDrops failed - drops stays null
+                                }
+
+                                // Store relative position, block ID, and drops
                                 NovaBlockData data = new NovaBlockData(
                                     x - centerX, y - centerY, z - centerZ,
-                                    blockId.toString()
+                                    blockId.toString(),
+                                    drops
                                 );
                                 novaBlocks.add(data);
                             }
@@ -166,7 +193,7 @@ public class NovaIntegration {
                 }
             }
 
-            addon.log("Captured " + novaBlocks.size() + " Nova blocks");
+            addon.log("Captured " + novaBlocks.size() + " Nova blocks (" + blocksWithTileData + " with tile entity data)");
 
         } catch (Exception e) {
             addon.logWarning("Failed to capture Nova blocks: " + e.getMessage());
@@ -355,16 +382,23 @@ public class NovaIntegration {
      * Data class for storing Nova block information
      */
     public static class NovaBlockData implements Serializable {
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 2L;
 
         public final int relX, relY, relZ;
         public final String blockId;
+        public final List<ItemStack> drops;
 
-        public NovaBlockData(int relX, int relY, int relZ, String blockId) {
+        public NovaBlockData(int relX, int relY, int relZ, String blockId, List<ItemStack> drops) {
             this.relX = relX;
             this.relY = relY;
             this.relZ = relZ;
             this.blockId = blockId;
+            this.drops = drops;
+        }
+
+        // Backward compatibility constructor (for existing data without drops)
+        public NovaBlockData(int relX, int relY, int relZ, String blockId) {
+            this(relX, relY, relZ, blockId, null);
         }
     }
 }
