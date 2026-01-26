@@ -257,15 +257,16 @@ public class NovaIntegration {
      *
      * @param novaBlocks List of Nova block data to restore
      * @param center Center location to paste at
+     * @return RestoreResult with machine restoration counts
      */
-    public void restoreNovaBlocks(List<NovaBlockData> novaBlocks, Location center) {
+    public RestoreResult restoreNovaBlocks(List<NovaBlockData> novaBlocks, Location center) {
         if (!available || novaBlocks == null || novaBlocks.isEmpty()) {
-            return;
+            return new RestoreResult(0, 0);
         }
 
         World world = center.getWorld();
         if (world == null) {
-            return;
+            return new RestoreResult(0, 0);
         }
 
         int centerX = center.getBlockX();
@@ -284,7 +285,7 @@ public class NovaIntegration {
 
             if (blockRegistry == null) {
                 addon.logWarning("Nova block registry is null - cannot restore blocks");
-                return;
+                return new RestoreResult(0, 0);
             }
 
             java.lang.reflect.Method getMethod = blockRegistry.getClass().getMethod("get",
@@ -309,12 +310,12 @@ public class NovaIntegration {
                 }
             } catch (ClassNotFoundException e) {
                 addon.logWarning("Nova Context class not found - cannot restore blocks");
-                return;
+                return new RestoreResult(0, 0);
             }
 
             if (novaContext == null) {
                 addon.logWarning("Cannot create Nova context - skipping block restoration");
-                return;
+                return new RestoreResult(0, 0);
             }
 
             final Object finalContext = novaContext;
@@ -352,29 +353,72 @@ public class NovaIntegration {
                 }
             }
 
+            // Count machine restorations (blocks with TileEntity data)
+            int machinesRestored = 0;
+            int machinesFailed = 0;
+
+            try {
+                // Get WorldDataManager to verify TileEntity restoration
+                Class<?> worldDataManagerClass = Class.forName("xyz.xenondevs.nova.world.format.WorldDataManager");
+                Object worldDataManager = worldDataManagerClass.getField("INSTANCE").get(null);
+                java.lang.reflect.Method getTileEntityMethod = worldDataManagerClass.getMethod("getTileEntity", Location.class);
+
+                // Check each block that had TileEntity data (drops captured)
+                for (NovaBlockData data : novaBlocks) {
+                    if (data.drops != null && !data.drops.isEmpty()) {
+                        try {
+                            int x = centerX + data.relX;
+                            int y = centerY + data.relY;
+                            int z = centerZ + data.relZ;
+                            Location loc = new Location(world, x, y, z);
+
+                            Object tileEntity = getTileEntityMethod.invoke(worldDataManager, loc);
+                            if (tileEntity != null) {
+                                machinesRestored++;
+                            } else {
+                                machinesFailed++;
+                            }
+                        } catch (Exception e) {
+                            // Failed to verify - count as failure
+                            machinesFailed++;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // Reflection setup failed - cannot count machines
+                addon.logWarning("Failed to verify machine restoration: " + e.getMessage());
+            }
+
             addon.log("Restored " + restored + "/" + novaBlocks.size() + " Nova blocks");
+            if (machinesRestored > 0 || machinesFailed > 0) {
+                addon.log("Nova machines: " + machinesRestored + " restored, " + machinesFailed + " failed");
+            }
+
+            return new RestoreResult(machinesRestored, machinesFailed);
 
         } catch (NoSuchFieldException e) {
             addon.logWarning("Nova API changed - field not found: " + e.getMessage());
+            return new RestoreResult(0, 0);
         } catch (Exception e) {
             addon.logWarning("Failed to restore Nova blocks: " + e.getMessage());
             e.printStackTrace();
+            return new RestoreResult(0, 0);
         }
     }
 
     /**
      * Restore Nova blocks asynchronously
      */
-    public void restoreNovaBlocksAsync(List<NovaBlockData> novaBlocks, Location center, Consumer<Boolean> callback) {
+    public void restoreNovaBlocksAsync(List<NovaBlockData> novaBlocks, Location center, Consumer<RestoreResult> callback) {
         if (!available || novaBlocks == null || novaBlocks.isEmpty()) {
-            callback.accept(true);
+            callback.accept(new RestoreResult(0, 0));
             return;
         }
 
         // Nova block placement must happen on main thread
         Bukkit.getScheduler().runTask(addon.getPlugin(), () -> {
-            restoreNovaBlocks(novaBlocks, center);
-            callback.accept(true);
+            RestoreResult result = restoreNovaBlocks(novaBlocks, center);
+            callback.accept(result);
         });
     }
 
