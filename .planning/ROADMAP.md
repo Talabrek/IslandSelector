@@ -5,7 +5,7 @@
 - ✅ **v1.0 Cleanup** - Phases 1-5 (shipped 2026-01-17)
 - ✅ **v1.1 Simplification** - Phases 6-8 (shipped 2026-01-19)
 - ✅ **v1.1.1 Bugfixes** - Phases 9-10 (shipped 2026-01-21)
-- 🚧 **v1.2 Nova Integration** - Phases 11-15 (in progress)
+- ✅ **v1.2 Nova Integration** - Phases 11-15 (shipped 2026-01-27)
 
 ## Phases
 
@@ -175,7 +175,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 15-01-PLAN.md — Cache reflection lookups and add performance timing
+- [x] 15-01-PLAN.md — Cache reflection lookups and add performance timing
 
 ## Progress
 
@@ -198,4 +198,4 @@ Phases execute in numeric order: 1 → 2 → 3 → ... → 15
 | 12. Core Capture and Restore | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 13. State Preservation | v1.2 | 1/1 | Complete | 2026-01-27 |
 | 14. Operation Integration | v1.2 | 3/3 | Complete | 2026-01-27 |
-| 15. Performance and Polish | v1.2 | 0/1 | Not started | - |
+| 15. Performance and Polish | v1.2 | 1/1 | Complete | 2026-01-27 |
