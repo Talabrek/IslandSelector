@@ -63,26 +63,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NOVA-01 | TBD | Pending |
-| NOVA-02 | TBD | Pending |
-| NOVA-03 | TBD | Pending |
-| NOVA-04 | TBD | Pending |
-| NOVA-05 | TBD | Pending |
-| NOVA-06 | TBD | Pending |
-| NOVA-07 | TBD | Pending |
-| NOVA-08 | TBD | Pending |
-| NOVA-09 | TBD | Pending |
-| NOVA-10 | TBD | Pending |
-| NOVA-11 | TBD | Pending |
-| NOVA-12 | TBD | Pending |
-| NOVA-13 | TBD | Pending |
-| NOVA-14 | TBD | Pending |
+| NOVA-01 | Phase 11 | Pending |
+| NOVA-02 | Phase 12 | Pending |
+| NOVA-03 | Phase 12 | Pending |
+| NOVA-04 | Phase 12 | Pending |
+| NOVA-05 | Phase 13 | Pending |
+| NOVA-06 | Phase 13 | Pending |
+| NOVA-07 | Phase 13 | Pending |
+| NOVA-08 | Phase 13 | Pending |
+| NOVA-09 | Phase 14 | Pending |
+| NOVA-10 | Phase 14 | Pending |
+| NOVA-11 | Phase 14 | Pending |
+| NOVA-12 | Phase 14 | Pending |
+| NOVA-13 | Phase 15 | Pending |
+| NOVA-14 | Phase 11 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14/14 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-26*
-*Last updated: 2026-01-26 after initial definition*
+*Last updated: 2026-01-27 after roadmap creation*
